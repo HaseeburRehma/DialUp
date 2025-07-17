@@ -1,0 +1,1 @@
+{"text": "Thank you for watching!", "segments": [{"id": 0, "seek": 3000, "start": 30.0, "end": 32.0, "text": " Thank you for watching!", "tokens": [50364, 1044, 291, 337, 1976, 0, 50464], "temperature": 0.0, "avg_logprob": -0.9367980360984802, "compression_ratio": 0.7419354838709677, "no_speech_prob": 0.9473188519477844}], "language": "nn"}

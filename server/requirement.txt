@@ -1,0 +1,11 @@
+git+https://github.com/openai/whisper.git@v20231117
+openai==1.9.0
+numpy
+scipy
+deepl
+pydub
+cohere
+ffmpeg-python
+torch==2.7.1
+tensorflow-probability==0.23.0
+typing-extensions>=4.10.0,<5
