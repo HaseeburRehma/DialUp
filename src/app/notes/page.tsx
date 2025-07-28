@@ -9,7 +9,7 @@ import { NoteEditorModal } from '@/components/notes/note-editor-modal'
 import { NoteDeleteModal } from '@/components/notes/note-delete-modal'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
-import { NoteRecorderHandle } from '@/components/notes/NoteRecorder'
+import { NoteRecorderHandle } from '@/components/notes/note-recorder'
 
 interface Note {
   id: string

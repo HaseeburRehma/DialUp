@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
+import type { Segment } from '@/types/transcription';
 
 
 export interface Recording { id: string; url: string; blob?: Blob }
@@ -26,6 +27,7 @@ interface WhisperLiveState {
     isTranscribing: boolean
     transcript: string
     error: string | null
+    segments: Segment[];
 }
 function encodeWAV(samples: Float32Array, sampleRate: number): DataView {
     const bitsPerSample = 16
@@ -77,14 +79,15 @@ function writeString(view: DataView, offset: number, s: string) {
         view.setUint8(offset + i, s.charCodeAt(i))
     }
 }
-export function useWhisperLive(config: WhisperLiveConfig) {
-    const [recordings, setRecordings] = useState<Recording[]>([])
+export function useWhisperLive(config: WhisperLiveConfig, initialRecordings: Recording[] = []) {
+    const [recordings, setRecordings] = useState<Recording[]>(initialRecordings)
 
     const [state, setState] = useState<WhisperLiveState>({
         isConnected: false,
         isTranscribing: false,
         transcript: '',
         error: null,
+        segments: [],
     })
     const [audioData, setAudioData] = useState<Uint8Array | null>(null)
     const [dataUpdateTrigger, setDataUpdateTrigger] = useState(0)
@@ -92,8 +95,11 @@ export function useWhisperLive(config: WhisperLiveConfig) {
     const recordingBuffers = useRef<Float32Array[]>([])
     const sampleRateRef = useRef<number>(0)
     const lastSegmentIndexRef = useRef(0)
+    const audioDataRef = useRef<Uint8Array | null>(null);
 
-
+    const resetSegments = useCallback(() => {
+        setState(s => ({ ...s, segments: [], transcript: '' }));
+    }, []);
     const resetRecordings = useCallback(() => {
         setRecordings([]);
     }, []);
@@ -104,7 +110,9 @@ export function useWhisperLive(config: WhisperLiveConfig) {
     )
     const { toast } = useToast()
 
-    const connect = useCallback(() => {
+    const connect = useCallback(async () => {
+        await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 } });
+        console.log('[useWhisperLive] got mic permission');
         console.log('[useWhisperLive]  connect()', config);
         if (wsRef.current) {
             wsRef.current.close()
@@ -124,15 +132,22 @@ export function useWhisperLive(config: WhisperLiveConfig) {
         setState(s => ({ ...s, error: null }))
 
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const ws = new WebSocket(`${protocol}://${config.serverUrl}:${config.port}`);
-        ws.binaryType = 'arraybuffer'
-        wsRef.current = ws
-        lastSegmentIndexRef.current = 0
+
+        // if the user typed “localhost”, swap to 127.0.0.1
+        const host =
+            config.serverUrl === 'localhost' || config.serverUrl === '::1'
+                ? '127.0.0.1'
+                : config.serverUrl;
+
+        const ws = new WebSocket(`${protocol}://${host}:${config.port}`);
+        ws.binaryType = 'arraybuffer';
+        wsRef.current = ws;
+        lastSegmentIndexRef.current = 0;
 
 
-        ws.onopen = () => {
+        ws.onopen = async () => {
             console.log('[useWhisperLive] 🟢 WebSocket OPEN');
-            const taskName = config.translate ? 'translate' : 'transcribe'
+            const taskName = 'transcribe'
             ws.send(
                 JSON.stringify({
                     task: taskName,
@@ -146,16 +161,22 @@ export function useWhisperLive(config: WhisperLiveConfig) {
                     save_recording: config.saveRecording,
                     output_filename: config.outputFilename,
                     max_clients: config.maxClients,
-                    max_connection_time: config.maxConnectionTime,
+                    max_connection_time: config.maxConnectionTime > 0
+                        ? config.maxConnectionTime
+                        : 1200,
                     // **important**: must match your AudioContext & ScriptProcessor
                     sample_rate: sampleRateRef.current,
                     chunk_size: 4096,
                 }),
             )
-            startTranscription();
+            
+           await startTranscription();
             setState(s => ({ ...s, isConnected: true }))
         }
-
+        const clearAll = () => {
+            recordingBuffers.current = []
+            setState(s => ({ ...s, transcript: '', segments: [] }))
+        }
         // inside your connect()
         ws.onmessage = e => {
             console.log('Raw WS Message:', e.data)
@@ -191,21 +212,31 @@ export function useWhisperLive(config: WhisperLiveConfig) {
 
             // ← NEW: handle the `segments` array
             if (Array.isArray(msg.segments)) {
-                // only take the ones we haven’t seen yet
-                const all = msg.segments
-                const start = lastSegmentIndexRef.current
-                if (all.length > start) {
-                    // join just the new bits
-                    const batch = all.slice(start).map(seg => seg.text).join('')
-                    setState(s => ({
-                        ...s,
-                        isTranscribing: true,
-                        transcript: s.transcript + (s.transcript ? " " : "") + batch
-                    }))
-                    lastSegmentIndexRef.current = all.length
+                // compute RMS over your latest audioData as before
+                let rms = 0;
+                if (audioDataRef.current) {
+                    const data = audioDataRef.current;
+                    let sum = 0;
+                    for (const x of data) sum += (x - 128) ** 2;
+                    rms = Math.sqrt(sum / data.length) / 128;
                 }
-                return
+
+                // *Always* map *all* segments the server just sent:
+                const segments: Segment[] = msg.segments.map(wsSeg => ({
+                    speaker: wsSeg.speaker === 0 ? 'mic' : 'speaker',
+                    content: wsSeg.text,
+                    volume: rms,
+                }));
+
+                setState(s => ({
+                    ...s,
+                    segments,
+                    isTranscribing: true,
+                }));
+                return;
             }
+
+
 
 
 
@@ -249,11 +280,15 @@ export function useWhisperLive(config: WhisperLiveConfig) {
             // 1) Screen + system audio (if enabled)
             let systemStream: MediaStream | null = null;
             if (config.audioSources?.systemAudio) {
-                systemStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: true,
-                    audio: true,
-                });
-                systemRef.current = systemStream;
+                try {
+                    systemStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                        audio: true,
+                    });
+                    systemRef.current = systemStream;
+                } catch {
+                    console.warn('System audio share denied or not requested; falling back to mic only');
+                }
             }
 
             // 2) Microphone
@@ -396,7 +431,14 @@ export function useWhisperLive(config: WhisperLiveConfig) {
             wsRef.current = null
         }
         stopTranscription()
-        setState({ isConnected: false, isTranscribing: false, transcript: '', error: null })
+        setState(s => ({
+            ...s,
+            isConnected: false,
+            isTranscribing: false,
+            transcript: '',
+            error: null,
+            segments: [],    // clear out any old diarized segments too
+        }))
     }, [stopTranscription])
 
     const clearTranscript = useCallback(() => {
@@ -414,6 +456,7 @@ export function useWhisperLive(config: WhisperLiveConfig) {
         audioData,
         dataUpdateTrigger,
         recordings,
+        resetSegments,
         deleteRecording: (r: Recording) => setRecordings(rs => rs.filter(x => x.id !== r.id)),
         resetRecordings,
     }

@@ -46,7 +46,7 @@ export function Header() {
             <DropdownMenu>
               {/* native button trigger, no asChild */}
               <DropdownMenuTrigger>
-                <button
+                <div
                   className="relative h-8 w-8 rounded-full bg-transparent p-0 focus:outline-none"
                   aria-label="User menu"
                 >
@@ -55,7 +55,7 @@ export function Header() {
                       {session.user?.name?.charAt(0) ?? 'U'}
                     </AvatarFallback>
                   </Avatar>
-                </button>
+                </div>
               </DropdownMenuTrigger>
 
               <DropdownMenuContent className="w-56" align="end" forceMount>

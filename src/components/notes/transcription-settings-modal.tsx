@@ -23,6 +23,9 @@ import {
 } from '@/components/ui/card'
 import { useSettings } from '@/hooks/SettingsContext'
 import { Loader2 } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
+import settings from '@/app/api/settings'
+import type { TranscriptionSettings } from '@/hooks/use-user-settings'
 
 export interface TranscriptionSettings {
     transcriptionMode: 'live' | 'batch';
@@ -47,24 +50,24 @@ export interface TranscriptionSettings {
 type Props = {
     open: boolean
     onOpenChange: (open: boolean) => void
-    settings: TranscriptionSettings            // initial settings from parent
+    initialSettings: TranscriptionSettings          // initial settings from parent
     onSave: (newSettings: TranscriptionSettings) => void
 }
 
 export function TranscriptionSettingsModal({
     open,
     onOpenChange,
-    settings: initial,
+    initialSettings,
     onSave
 }: Props) {
     const { settings: full, setSettings } = useSettings()
-    const [local, setLocal] = useState<TranscriptionSettings>(initial)
+    const [local, setLocal] = useState<TranscriptionSettings>(initialSettings)
     const [isSaving, setIsSaving] = useState(false)
 
     // Whenever the parent-provided settings change (e.g. "Reset"), overwrite our draft
     useEffect(() => {
-        setLocal(initial)
-    }, [initial])
+        setLocal(initialSettings)
+    }, [initialSettings])
 
     // Helper to update a top-level key in the draft
     const update = <K extends keyof TranscriptionSettings>(
@@ -74,24 +77,15 @@ export function TranscriptionSettingsModal({
         setLocal(prev => ({ ...prev, [key]: value }))
     }
 
-    // When you hit Save:
-    //  1) write into your global SettingsContext
-    //  2) also inform the parent via onSave(...)
-    //  3) close the dialog
-    const handleSave = () => {
+    const handleSave = async () => {
         setIsSaving(true)
-        const next = { ...local }
 
-        // 1) Update Context
-        setSettings({
-            ...full,
-            transcription: next
-        })
+        // 1) update context (which also PATCHes to the DB via your wrapped setSettings)
+        setSettings({ ...full, transcription: local })
 
-        // 2) Bubble up
-        onSave(next)
+        // 2) bubble up to parent UI
+        onSave(local)
 
-        // 3) Close / done
         setIsSaving(false)
         onOpenChange(false)
     }
@@ -329,7 +323,9 @@ export function TranscriptionSettingsModal({
                                         id="maxTime"
                                         type="number"
                                         min={10}
-                                        value={local.whisperlive.maxConnectionTime}
+                                        value={local.whisperlive.maxConnectionTime > 0
+                                            ? local.whisperlive.maxConnectionTime
+                                            : 30}
                                         onChange={e =>
                                             setLocal(p => ({
                                                 ...p,
@@ -404,7 +400,7 @@ export function TranscriptionSettingsModal({
                                         }
                                     />
                                 </div>
-                            </CardContent> 
+                            </CardContent>
                         </Card>
                     </TabsContent>
                 </Tabs>

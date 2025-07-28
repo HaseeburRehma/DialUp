@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,11 +9,15 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { NoteRecorder, NoteRecorderHandle } from './note-recorder'
 import { TranscriptDisplay } from './transcript-display'
+import { TranscriptSegmentsDisplay } from './transcript-segments-display'
+
 import { WhisperLiveHandle, WhisperLiveRecorder } from './whisper-live-recorder'
 import { Save, RotateCcw } from 'lucide-react'
 import { useUserSettings } from '@/hooks/use-user-settings'
 import { useSettings } from '@/hooks/SettingsContext'
 import { useWhisperLive } from '@/hooks/use-whisper-live'
+import type { Segment } from '@/types/transcription';
+import { RecordingsList, Recording } from './recordings-list';
 
 interface Note {
   id: string
@@ -42,7 +46,11 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
   const liveRef = useRef<WhisperLiveHandle>(null);
 
   const { transcriptionMode, whisperlive } = transcription
-
+  const savedRecs: Recording[] =
+    note?.audioUrls?.map((url: string, i: number) => ({
+      id: `saved-${i}`,
+      url
+    })) ?? [];
   /**useEffect(() => {
     let timeout: NodeJS.Timeout | null = null;
     if (transcriptionMode === 'live' && whisperlive.enabled) {
@@ -97,10 +105,24 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
     }
   }
 
+  const [liveSegments, setLiveSegments] = useState<Segment[]>([])
+
+  // batch (string) handler
   const handleTranscription = (text: string) => {
     setNoteText(text)
     extractFields(text)
   }
+
+
+  // live (Segment[]) handler
+  const handleLiveTranscription = useCallback((segments: Segment[]) => {
+    const text = segments.map(s => s.content).join('\n')
+    setNoteText(text)
+    setLiveSegments(segments)
+    extractFields(text)
+  }, [extractFields])
+
+
   const resetNote = () => {
     setNoteText(note?.text || '')
     setFormData({
@@ -114,42 +136,61 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
   }
 
   const handleSave = async () => {
+    const isLive = transcription.transcriptionMode === 'live' && whisperlive.enabled;
+    // grab recordings from the correct source
+    const recs = isLive
+      ? await liveRef.current!.uploadRecordings()
+      : await recorderRef.current!.uploadRecordings();
 
-     const isLive = transcription.transcriptionMode === 'live' && whisperlive.enabled;
-  const recordings = isLive
-    ? await liveRef.current!.uploadRecordings()
-    : await recorderRef.current!.uploadRecordings();
+    if (!noteText.trim()) return;
+    setIsSaving(true);
 
-    if (!noteText.trim()) return
-    setIsSaving(true)
     try {
-      const recs = await recorderRef.current?.uploadRecordings() || []
+      // upload all blobs (live or batch) and collect URLs
       const audioUrls = await Promise.all(
-        recs.map(async rec => {
+        recs.map(async (rec) => {
           if (rec.blob) {
-            const fd = new FormData(); fd.append('file', rec.blob)
-            const resp = await fetch('/api/upload', { method: 'POST', body: fd })
-            if (!resp.ok) throw new Error('Upload failed')
-            const { url } = await resp.json(); return url
+            const fd = new FormData();
+            fd.append('file', rec.blob);
+            const resp = await fetch('/api/upload', { method: 'POST', body: fd });
+            if (!resp.ok) throw new Error('Upload failed');
+            const { url } = await resp.json();
+            return url;
           }
-          return rec.url
+          return rec.url;
         })
-      )
-      const payload = { text: noteText, audioUrls, ...formData }
-      const url = note ? `/api/notes/${note.id}` : '/api/notes'
-      const method = note ? 'PATCH' : 'POST'
+      );
+
+      // send note to your API
+      const payload = { text: noteText, audioUrls, ...formData };
+      const url = note ? `/api/notes/${note.id}` : '/api/notes';
+      const method = note ? 'PATCH' : 'POST';
       const response = await fetch(url, {
-        method, headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload), credentials: 'include'
-      })
-      if (!response.ok) throw new Error('Failed to save')
-      toast({ title: note ? 'Note Updated' : 'Note Saved', description: 'Saved successfully.' })
-      recorderRef.current?.resetRecordings()
-      onSave(); onClose()
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to save');
+
+      toast({
+        title: note ? 'Note Updated' : 'Note Saved',
+        description: 'Saved successfully.',
+      });
+
+      recorderRef.current?.resetRecordings();
+      onSave();
+      onClose();
     } catch {
-      toast({ title: 'Save Failed', description: 'Failed to save note.', variant: 'destructive' })
-    } finally { setIsSaving(false) }
-  }
+      toast({
+        title: 'Save Failed',
+        description: 'Failed to save note.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }; 
 
   return (
     <Dialog open={open}
@@ -164,11 +205,34 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
 
         <div className="flex gap-6 flex-1 overflow-auto">
           <div className="flex-1 space-y-4">
-            <TranscriptDisplay transcript={noteText} />
-            {(transcription.transcriptionMode === 'live' && transcription.whisperlive.enabled) ? (
-              <WhisperLiveRecorder key={`${transcriptionMode}-${whisperlive.enabled}`} ref={liveRef} onTranscription={handleTranscription} />
+            {transcriptionMode === 'live' && whisperlive.enabled ? (
+              <>
+                <TranscriptSegmentsDisplay segments={liveSegments} />
+
+                {/* show the old URLs */}
+                {savedRecs.length > 0 && (
+                  <RecordingsList
+                    recordings={savedRecs}
+                    onDelete={() => {
+                      /* you could disable deletion of saved URLs if you like */
+                    }}
+                  />
+                )}
+
+                <WhisperLiveRecorder
+                  ref={liveRef}
+                  onSegments={handleLiveTranscription}
+                />
+              </>
             ) : (
-              <NoteRecorder ref={recorderRef} audioUrls={note?.audioUrls} onTranscription={handleTranscription} />
+              <>
+                <TranscriptDisplay transcript={noteText} />
+                <NoteRecorder
+                  ref={recorderRef}
+                  audioUrls={note?.audioUrls}
+                  onTranscription={handleTranscription}
+                />
+              </>
             )}
 
           </div>
@@ -242,3 +306,4 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
     </Dialog >
   )
 }
+

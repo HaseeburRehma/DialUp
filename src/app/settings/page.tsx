@@ -87,8 +87,7 @@ export default function SettingsPage() {
         <TranscriptionSettingsModal
           open={modalOpen}
           onOpenChange={setModalOpen}
-          settings={settings.transcription}
-          userId={session?.user?.id ?? ''}
+          initialSettings={settings.transcription} // ← pass it under the name the modal expects
           onSave={handleTranscriptionSave}
         />
 

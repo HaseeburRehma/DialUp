@@ -11,6 +11,9 @@ import { useSettings } from '@/hooks/SettingsContext';
 import { useToast } from '@/hooks/use-toast';
 import { AudioVisualizer } from './audio-visualizer';
 import { RecordingsList } from './recordings-list';
+import type { Segment } from '@/types/transcription';
+import { TranscriptDisplay } from './transcript-display'
+import { TranscriptSegmentsDisplay } from './transcript-segments-display'
 
 import type { Recording } from '@/hooks/use-whisper-live';
 import type { WhisperLiveConfig } from './whisper-live-settings';
@@ -25,12 +28,13 @@ export interface WhisperLiveHandle {
   isBusy: boolean;
 }
 
+
 interface Props {
-  onTranscription: (text: string) => void;
+  onSegments: (segments: Segment[]) => void;
 }
 
 export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
-  function WhisperLiveRecorder({ onTranscription }, ref) {
+  function WhisperLiveRecorder({ onSegments }, ref) {
     const { settings, setSettings } = useSettings();
     const { transcription } = settings;
     const whisperliveSettings = transcription.whisperlive;
@@ -93,10 +97,10 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
     const { toast } = useToast();
 
     useEffect(() => {
-      if (whisperState.transcript) {
-        onTranscription(whisperState.transcript);
+      if (whisperState.segments.length) {
+        onSegments(whisperState.segments)
       }
-    }, [whisperState.transcript, onTranscription]);
+    }, [whisperState.segments, onSegments])
 
     useImperativeHandle(ref, () => ({
       connect,
@@ -116,6 +120,10 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
       whisperState.isConnected,
       resetRecordings,
     ]);
+
+    function resetSegments() {
+      throw new Error('Function not implemented.');
+    }
 
     return (
       <div className="space-y-4">
@@ -149,7 +157,16 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
                 disabled={whisperState.isTranscribing && !whisperState.isConnected}>
                 {whisperState.isTranscribing ? 'Stop' : 'Start'}
               </Button>
-              <Button onClick={clearTranscript} variant="outline" disabled={!whisperState.transcript}>
+              <Button
+                onClick={() => {
+                  clearTranscript();
+                  resetRecordings();
+                  // also clear segments in hook
+                  resetSegments(); // you’ll need to expose this from your hook, alias to `resetSegments`
+                }}
+                variant="outline"
+                disabled={whisperState.segments.length === 0}
+              >
                 Clear
               </Button>
             </div>
@@ -162,9 +179,9 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
                 </p>
               </div>
             )}
-            {whisperState.transcript && (
+            {whisperState.segments.length > 0  && (
               <div className="p-4 bg-muted rounded-lg min-h-[200px] max-h-[400px] overflow-auto">
-                <p className="whitespace-pre-wrap text-sm">{whisperState.transcript}</p>
+                <TranscriptSegmentsDisplay segments={whisperState.segments} />
               </div>
             )}
           </CardContent>

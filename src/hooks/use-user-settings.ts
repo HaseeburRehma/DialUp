@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 
 export interface WhisperLiveConfig {
+    vad: boolean
     enabled: boolean
     serverUrl: string
     port: number
@@ -39,6 +40,7 @@ export const DEFAULT_SETTINGS: Settings = {
     transcription: {
         transcriptionMode: 'batch',
         audioSources: { microphone: true, systemAudio: true },
+
         transcriptionModel: 'base',
         language: 'en',
         autoPunctuation: true,
@@ -52,10 +54,10 @@ export const DEFAULT_SETTINGS: Settings = {
             saveRecording: false,
             outputFilename: './out.wav',
             maxClients: 4,
-            maxConnectionTime: 0,
+            maxConnectionTime: 1200,  
             model: 'small',
             lang: 'en',
-
+            vad: false
         },
     },
 }

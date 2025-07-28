@@ -35,6 +35,7 @@ export function NoteCard({ note, onEdit, onDelete }: NoteCardProps) {
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardContent className="p-6">
+        <h3 className="text-xl font-semibold mb-4">{note.callReason}</h3>
         <div className="flex justify-between items-start gap-4">
           <div className="flex-1 space-y-2">
             <p className={`whitespace-pre-wrap ${!showFullText && shouldShowExpandBtn ? 'line-clamp-3' : ''}`}>
