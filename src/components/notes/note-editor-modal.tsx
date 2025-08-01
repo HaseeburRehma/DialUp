@@ -68,6 +68,9 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
   }, [transcriptionMode, whisperlive.enabled]);
 **/
 
+
+
+
   const [formData, setFormData] = useState({
     callerName: note?.callerName || '',
     callerEmail: note?.callerEmail || '',
@@ -79,6 +82,37 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
   const [isSaving, setIsSaving] = useState(false)
   const recorderRef = useRef<NoteRecorderHandle>(null)
   const { toast } = useToast()
+
+  interface Segment {
+    id: string;
+    content: string;
+    speaker?: string;
+    volume?: number;
+  }
+  useEffect(() => {
+    if (open && note) {
+      setNoteText(note.text)
+      setFormData({
+        callerName: note.callerName || '',
+        callerEmail: note.callerEmail || '',
+        callerLocation: note.callerLocation || '',
+        callerAddress: note.callerAddress || '',
+        callReason: note.callReason || '',
+      })
+      setLiveSegments(
+        note.text
+          ? note.text.split('\n').map((line, i) => ({
+            id: `${i}`,
+            content: line,
+            speaker: 'User',
+            volume: 1, // or 0 if needed
+          }))
+          : []
+      )
+
+      recorderRef.current?.setAudioUrls(note.audioUrls || [])
+    }
+  }, [open, note])
 
   // if for any reason transcription isn't loaded yet, avoid rendering recorder
   if (!transcription) {
@@ -108,19 +142,18 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
   const [liveSegments, setLiveSegments] = useState<Segment[]>([])
 
   // batch (string) handler
-  const handleTranscription = (text: string) => {
-    setNoteText(text)
-    extractFields(text)
-  }
-
+  const handleTranscription = useCallback((text: string) => {
+    setNoteText(text);
+    extractFields(text);
+  }, [extractFields]);
 
   // live (Segment[]) handler
   const handleLiveTranscription = useCallback((segments: Segment[]) => {
-    const text = segments.map(s => s.content).join('\n')
-    setNoteText(text)
-    setLiveSegments(segments)
-    extractFields(text)
-  }, [extractFields])
+    const full = segments.map(s => s.content).join('\n');
+    setNoteText(full);
+    setLiveSegments(segments);
+    extractFields(full);
+  }, [extractFields]);
 
 
   const resetNote = () => {
@@ -190,7 +223,7 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
     } finally {
       setIsSaving(false);
     }
-  }; 
+  };
 
   return (
     <Dialog open={open}
@@ -229,6 +262,7 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
                 <TranscriptDisplay transcript={noteText} />
                 <NoteRecorder
                   ref={recorderRef}
+
                   audioUrls={note?.audioUrls}
                   onTranscription={handleTranscription}
                 />

@@ -179,11 +179,7 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
                 </p>
               </div>
             )}
-            {whisperState.segments.length > 0  && (
-              <div className="p-4 bg-muted rounded-lg min-h-[200px] max-h-[400px] overflow-auto">
-                <TranscriptSegmentsDisplay segments={whisperState.segments} />
-              </div>
-            )}
+           
           </CardContent>
         </Card>
       </div>

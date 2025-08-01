@@ -1,4 +1,3 @@
-// server/models/User.js
 const mongoose = require("mongoose")
 const bcrypt   = require("bcrypt")
 
@@ -7,6 +6,13 @@ const userSchema = new mongoose.Schema({
   username: String,
   email:    String,
   password: String,  // hashed
+  role:     { type: String, enum: ['user', 'admin'], default: 'user' },
+  plan:     { type: String, enum: ['free', 'pro', 'team', 'enterprise'], default: 'free' },
+  planExpiry: Date,
+  isActive: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now },
+  lastLogin: Date,
+  loginCount: { type: Number, default: 0 }
 })
 
 // instance method

@@ -13,7 +13,15 @@ export async function POST(request: Request) {
 
         const user = await User.create({ name, username, email, password: hashed })
 
-        return NextResponse.json({ message: 'Signup successful' }, { status: 201 })
+        return NextResponse.json({
+            message: 'Signup successful' user: {
+                id: user._id.toString(),
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                plan: user.plan,
+            }
+        }, { status: 201 })
     } catch (err: any) {
         // handle duplicate key
         if (err.code === 11000) {

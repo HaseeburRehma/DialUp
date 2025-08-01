@@ -156,7 +156,6 @@ export function useWhisperLive(config: WhisperLiveConfig, initialRecordings: Rec
                     model: config.model,
                     use_vad: false,
                     stream: true,
-                    // only send us the newest segment each time:
 
                     save_recording: config.saveRecording,
                     output_filename: config.outputFilename,
@@ -164,13 +163,12 @@ export function useWhisperLive(config: WhisperLiveConfig, initialRecordings: Rec
                     max_connection_time: config.maxConnectionTime > 0
                         ? config.maxConnectionTime
                         : 1200,
-                    // **important**: must match your AudioContext & ScriptProcessor
                     sample_rate: sampleRateRef.current,
                     chunk_size: 4096,
                 }),
             )
-            
-           await startTranscription();
+
+            await startTranscription();
             setState(s => ({ ...s, isConnected: true }))
         }
         const clearAll = () => {
@@ -183,16 +181,13 @@ export function useWhisperLive(config: WhisperLiveConfig, initialRecordings: Rec
             if (typeof e.data !== 'string') return;
             const msg = JSON.parse(e.data);
 
-            // ignore handshake
             if (msg.message === 'SERVER_READY') return;
 
-            // errors
             if (msg.type === 'error') {
                 setState(s => ({ ...s, error: msg.message }));
                 return;
             }
 
-            // old‐style partial/final (if you ever toggle that back on)
             if (msg.type === 'partial' || msg.type === 'transcript') {
                 setState(s => ({
                     ...s,
@@ -212,7 +207,6 @@ export function useWhisperLive(config: WhisperLiveConfig, initialRecordings: Rec
 
             // ← NEW: handle the `segments` array
             if (Array.isArray(msg.segments)) {
-                // compute RMS over your latest audioData as before
                 let rms = 0;
                 if (audioDataRef.current) {
                     const data = audioDataRef.current;
@@ -221,8 +215,7 @@ export function useWhisperLive(config: WhisperLiveConfig, initialRecordings: Rec
                     rms = Math.sqrt(sum / data.length) / 128;
                 }
 
-                // *Always* map *all* segments the server just sent:
-                const segments: Segment[] = msg.segments.map(wsSeg => ({
+                const newSegments: Segment[] = msg.segments.map((wsSeg: { speaker: number; text: any; }) => ({
                     speaker: wsSeg.speaker === 0 ? 'mic' : 'speaker',
                     content: wsSeg.text,
                     volume: rms,
@@ -230,10 +223,18 @@ export function useWhisperLive(config: WhisperLiveConfig, initialRecordings: Rec
 
                 setState(s => ({
                     ...s,
-                    segments,
+                    segments: [...s.segments, ...newSegments].filter((seg, idx, arr) =>
+                        idx === arr.findIndex(s2 => s2.content === seg.content && s2.speaker === seg.speaker)
+                    ),
+
                     isTranscribing: true,
+
                 }));
+
+
                 return;
+
+
             }
 
 

@@ -38,7 +38,6 @@ export function useSpeechRecognition(
     }
 
     recog.onend = () => {
-      // auto-restart if still in continuous mode
       if (options.continuous) {
         recog.start()
       }

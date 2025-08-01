@@ -20,7 +20,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, _setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [loaded, setLoaded] = useState(false)
 
-  // fetch on mount (once we know who the user is)
   useEffect(() => {
     if (status !== 'authenticated') return
     fetch('/api/settings', { credentials: 'include' })
@@ -47,7 +46,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const setSettings = (next: Settings) => {
     _setSettings(next)
-    // persist
     fetch('/api/settings', {
       method: 'PATCH',
       credentials: 'include',
@@ -68,7 +66,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  // don't render your app until we've checked the DB
   if (status === 'authenticated' && !loaded) {
     return null
   }

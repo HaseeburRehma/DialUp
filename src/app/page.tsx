@@ -44,11 +44,12 @@ export default function HomePage() {
               Record, transcribe, and enhance your notes with AI assistance
             </p>
 
-            <Link href={session ? '/notes' : '/auth/signup'}>
-              <Button size="lg">
+            <Button size="lg" asChild>
+              <Link href={session ? '/notes' : '/auth/signup'}>
                 {session ? 'View Your Notes' : 'Create Your First Note'}
-              </Button>
-            </Link>
+              </Link>
+            </Button>
+
           </div>
         </div>
 
