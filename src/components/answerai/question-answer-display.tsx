@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,8 @@ import type { Question, Answer } from '@/types/answerai'
 interface QuestionAnswerDisplayProps {
   questions: Question[]
   answers: Answer[]
-  onGenerateAnswer: (question: Question) => void
+    onGenerateAnswer: (question: Question) => void
+
   isGenerating: boolean
 }
 
@@ -22,19 +23,6 @@ export function QuestionAnswerDisplay({
   isGenerating
 }: QuestionAnswerDisplayProps) {
   const { toast } = useToast()
-
-  // Deduplicate questions based on content and speaker
-  const uniqueQuestions = useMemo(() => {
-    const seen = new Set<string>()
-    return questions.filter(question => {
-      const key = `${question.content.trim()}-${question.speaker}`
-      if (seen.has(key)) {
-        return false
-      }
-      seen.add(key)
-      return true
-    })
-  }, [questions])
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -49,7 +37,7 @@ export function QuestionAnswerDisplay({
     return date.toLocaleTimeString()
   }
 
-  if (!uniqueQuestions.length) {
+  if (!questions.length) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
@@ -65,18 +53,18 @@ export function QuestionAnswerDisplay({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Questions & Answers ({uniqueQuestions.length})</CardTitle>
+          <CardTitle>Questions & Answers</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
-            {uniqueQuestions.map((question, idx) => {
+            {questions.map((question, idx) => {
+              console.log('Rendering question:', question)
+
               const answer = answers.find(a => a.questionId === question.id)
 
               return (
-                <div 
-                  key={question.id || `question-${idx}-${question.content.slice(0, 20)}`} 
-                  className="border-l-4 border-l-blue-200 pl-4"
-                >
+                <div key={question.id ?? question.content.slice(0, 20) + idx} className="border-l-4 border-l-blue-200 pl-4">
+
                   {/* Question */}
                   <div className="mb-3">
                     <div className="flex items-center gap-2 mb-2">
@@ -114,7 +102,6 @@ export function QuestionAnswerDisplay({
                               size="sm"
                               variant="ghost"
                               onClick={() => copyToClipboard(answer.content)}
-                              title="Copy answer"
                             >
                               <Copy className="w-3 h-3" />
                             </Button>
@@ -123,7 +110,6 @@ export function QuestionAnswerDisplay({
                               variant="ghost"
                               onClick={() => onGenerateAnswer(question)}
                               disabled={isGenerating}
-                              title="Regenerate answer"
                             >
                               <RefreshCw className={`w-3 h-3 ${isGenerating ? 'animate-spin' : ''}`} />
                             </Button>
