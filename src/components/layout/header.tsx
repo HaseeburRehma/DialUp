@@ -49,7 +49,7 @@ export function Header() {
     { name: 'Pricing', href: '/pricing' },
     { name: 'About', href: '/about' },
   ]
-  const dashboardPrefixes = ["/admin", "/notes", "/dialer", "/settings"]; const isDashboardRoute = dashboardPrefixes.some((p) =>
+  const dashboardPrefixes = ["/admin", "/notes", "/dialer", "/settings" , "/answerai"]; const isDashboardRoute = dashboardPrefixes.some((p) =>
     pathname.startsWith(p)
   );
   const isAdmin = session?.user?.role === 'admin'

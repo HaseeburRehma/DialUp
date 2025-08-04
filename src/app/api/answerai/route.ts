@@ -81,6 +81,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
+  // Process answers to ensure generatedAt is a timestamp
+  const processedAnswers = answers.map((answer: any) => ({
+    ...answer,
+    generatedAt: typeof answer.generatedAt === 'string' 
+      ? new Date(answer.generatedAt).getTime()
+      : answer.generatedAt || Date.now()
+  }))
+
   const answerAISession = await AnswerAI.create({
     userId: session.user.id,
     sessionName,
@@ -90,7 +98,7 @@ export async function POST(req: NextRequest) {
     position,
     company,
     questions,
-    answers,
+    answers: processedAnswers,
     audioUrls,
     status,
     totalDuration,
@@ -111,6 +119,8 @@ export async function POST(req: NextRequest) {
       <li><strong>Company:</strong> ${company}</li>
       <li><strong>Interviewer:</strong> ${interviewerName || 'N/A'}</li>
       <li><strong>Created At:</strong> ${now.toLocaleString()}</li>
+      <li><strong>Questions:</strong> ${questions.length}</li>
+      <li><strong>Answers:</strong> ${processedAnswers.length}</li>
     </ul>
     <p>You can now start recording and getting AI-powered answers for interview questions.</p>
     <p>Best regards,</p>
@@ -133,5 +143,68 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  return NextResponse.json(answerAISession, { status: 201 })
+  return NextResponse.json({
+    ...answerAISession.toObject(),
+    id: answerAISession._id.toString()
+  }, { status: 201 })
+}
+
+/**
+ * PUT /api/answerai
+ * Updates an existing AnswerAI session with new questions and answers.
+ */
+export async function PUT(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
+
+  const data = await req.json()
+  const { 
+    sessionId,
+    questions = [],
+    answers = [],
+    status,
+    totalDuration
+  } = data
+
+  if (!sessionId) {
+    return NextResponse.json({ 
+      error: 'Session ID is required' 
+    }, { status: 400 })
+  }
+
+  await connect()
+
+  // Process answers to ensure generatedAt is a timestamp
+  const processedAnswers = answers.map((answer: any) => ({
+    ...answer,
+    generatedAt: typeof answer.generatedAt === 'string' 
+      ? new Date(answer.generatedAt).getTime()
+      : answer.generatedAt || Date.now()
+  }))
+
+  const updateData: any = {
+    updatedAt: new Date()
+  }
+
+  if (questions.length > 0) updateData.questions = questions
+  if (processedAnswers.length > 0) updateData.answers = processedAnswers
+  if (status) updateData.status = status
+  if (totalDuration !== undefined) updateData.totalDuration = totalDuration
+
+  const updatedSession = await AnswerAI.findOneAndUpdate(
+    { _id: sessionId, userId: session.user.id },
+    updateData,
+    { new: true }
+  )
+
+  if (!updatedSession) {
+    return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+  }
+
+  return NextResponse.json({
+    ...updatedSession.toObject(),
+    id: updatedSession._id.toString()
+  })
 }

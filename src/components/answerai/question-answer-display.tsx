@@ -11,7 +11,7 @@ import type { Question, Answer } from '@/types/answerai'
 interface QuestionAnswerDisplayProps {
   questions: Question[]
   answers: Answer[]
-    onGenerateAnswer: (question: Question) => void
+    onGenerateAnswer: (questionId: string) => void
 
   isGenerating: boolean
 }
@@ -108,7 +108,7 @@ export function QuestionAnswerDisplay({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => onGenerateAnswer(question)}
+                              onClick={() => onGenerateAnswer(question.id)}
                               disabled={isGenerating}
                             >
                               <RefreshCw className={`w-3 h-3 ${isGenerating ? 'animate-spin' : ''}`} />
@@ -123,7 +123,7 @@ export function QuestionAnswerDisplay({
                       <div className="flex items-center gap-2">
                         <Button
                           size="sm"
-                          onClick={() => onGenerateAnswer(question)}
+                          onClick={() => onGenerateAnswer(question.id)}
                           disabled={isGenerating}
                           className="bg-green-600 hover:bg-green-700"
                         >

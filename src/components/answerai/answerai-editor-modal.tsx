@@ -18,6 +18,8 @@ interface AnswerAIEditorModalProps {
   session?: AnswerAISession | null
   onClose: () => void
   onSave: () => void
+    note?: Note | null
+
 }
 
 export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAIEditorModalProps) {

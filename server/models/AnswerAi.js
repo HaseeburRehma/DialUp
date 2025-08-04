@@ -5,7 +5,13 @@ const questionSchema = new mongoose.Schema({
   content: { type: String, required: true },
   speaker: { type: String, enum: ['interviewer', 'candidate'], required: true },
   timestamp: { type: Number, required: true },
-  audioSegment: { type: String }
+  confidence: { type: Number, min: 0, max: 1, default: 0.8 },
+  audioSegment: { type: String },
+  metadata: {
+    detectionMethod: { type: String, enum: ['pattern', 'nlp', 'context', 'manual'], default: 'pattern' },
+    processingTime: { type: Number, default: 0 },
+    context: { type: String }
+  }
 });
 
 const answerSchema = new mongoose.Schema({
@@ -13,8 +19,14 @@ const answerSchema = new mongoose.Schema({
   questionId: { type: String, required: true },
   content: { type: String, required: true },
   confidence: { type: Number, min: 0, max: 1, default: 0.8 },
-  generatedAt: { type: Number, required: true },
-  isAiGenerated: { type: Boolean, default: true }
+  generatedAt: { type: Number, required: true }, // Changed from Date to Number (timestamp)
+  isAiGenerated: { type: Boolean, default: true },
+  metadata: {
+    model: { type: String, default: 'mistral-7b' },
+    processingTime: { type: Number, default: 0 },
+    tokens: { type: Number },
+    method: { type: String, default: 'ai-generation' }
+  }
 });
 
 const answerAISchema = new mongoose.Schema({
@@ -44,3 +56,4 @@ answerAISchema.pre('save', function(next) {
 });
 
 module.exports = mongoose.models.AnswerAI || mongoose.model('AnswerAI', answerAISchema);
+

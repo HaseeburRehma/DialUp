@@ -39,38 +39,40 @@ interface PromptInput {
 }
 
 async function generateAnswer({ question, context, position, company }: PromptInput): Promise<string> {
-    const cleanedContext = context?.trim() && context.trim().length > 10 ? context.trim() : ''
-    const prompt = [
-        `You're an expert career assistant helping someone prepare for a job interview.`,
-        position && `Role: ${position}`,
-        company && `Company: ${company}`,
-        cleanedContext && `Context: ${cleanedContext}`,
-        '',
-        `Question: ${question}`,
-        `Give a relevant, structured, concise response.`
-    ]
-        .filter(Boolean)
-        .join('\n')
+  const cleanedContext = context?.trim() && context.trim().length > 10 ? context.trim() : ''
+  const prompt = [
+    `You're an expert career assistant helping someone prepare for a job interview.`,
+    position && `Role: ${position}`,
+    company && `Company: ${company}`,
+    cleanedContext && `Context: ${cleanedContext}`,
+    '',
+    `Question: ${question}`,
+    `Give a relevant, structured, concise response.`
+  ].filter(Boolean).join('\n')
 
-    const res = await fetch('http://localhost:11434/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            model: 'mistral',
-            prompt,
-            temperature: 0.6,
-            max_tokens: 300,
-            stream: false
-        })
+  const res = await fetch('https://api.together.xyz/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer e675664e8f52125c7bf37ee2985a4343233b42459b84399400aeb9c3448ac3e4`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'mistralai/Mistral-7B-Instruct-v0.1',
+      messages: [
+        { role: 'system', content: 'You are a helpful and concise AI assistant.' },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: 300,
+      temperature: 0.7
     })
+  })
 
+  if (!res.ok) {
+    const errorText = await res.text()
+    console.error('Together.ai API error:', res.status, errorText)
+    throw new Error(`Together.ai API returned ${res.status}`)
+  }
 
-    if (!res.ok) {
-        const errorText = await res.text()
-        console.error('Ollama API error:', res.status, errorText)
-        throw new Error(`Ollama API returned ${res.status}`)
-    }
-
-    const data = await res.json()
-    return data.response?.trim() || 'Could not generate answer.'
+  const data = await res.json()
+  return data.choices?.[0]?.message?.content?.trim() || 'Could not generate answer.'
 }

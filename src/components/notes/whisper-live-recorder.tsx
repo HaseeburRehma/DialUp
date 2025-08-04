@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Mic, Square, Wifi, WifiOff } from 'lucide-react';
-import { useWhisperLive } from '@/hooks/use-whisper-live';
+import { useOptimizedWhisperLive } from '@/hooks/use-optimized-whisper-live';
 import { WhisperLiveSettings } from './whisper-live-settings';
 import { useSettings } from '@/hooks/SettingsContext';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +15,7 @@ import type { Segment } from '@/types/transcription';
 import { TranscriptDisplay } from './transcript-display'
 import { TranscriptSegmentsDisplay } from './transcript-segments-display'
 
-import type { Recording } from '@/hooks/use-whisper-live';
+import type { Recording } from '@/hooks/use-optimized-whisper-live';
 import type { WhisperLiveConfig } from './whisper-live-settings';
 
 export interface WhisperLiveHandle {
@@ -92,7 +92,7 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
       recordings,
       deleteRecording,
       resetRecordings,
-    } = useWhisperLive(config);
+    } = useOptimizedWhisperLive(config);
 
     const { toast } = useToast();
 

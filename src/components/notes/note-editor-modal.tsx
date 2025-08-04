@@ -15,7 +15,7 @@ import { WhisperLiveHandle, WhisperLiveRecorder } from './whisper-live-recorder'
 import { Save, RotateCcw } from 'lucide-react'
 import { useUserSettings } from '@/hooks/use-user-settings'
 import { useSettings } from '@/hooks/SettingsContext'
-import { useWhisperLive } from '@/hooks/use-whisper-live'
+import { useOptimizedWhisperLive } from '@/hooks/use-optimized-whisper-live'
 import type { Segment } from '@/types/transcription';
 import { RecordingsList, Recording } from './recordings-list';
 
