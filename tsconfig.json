@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "es6"],
-    "types": ["web-speech-api"],
+    "types": ["next-auth", "web-speech-api"],
+
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
