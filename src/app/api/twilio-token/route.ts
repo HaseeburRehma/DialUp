@@ -1,18 +1,16 @@
 // src/app/api/twilio-token/route.ts
-import { NextApiRequest, NextApiResponse } from "next"
-import { getServerSession } from "next-auth/next"
-import { authOptions } from '../auth/[...nextauth]/route'
-
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from '../auth/[...nextauth]/authOptions'
 import { jwt as TwilioJwt } from "twilio"
 
 const { AccessToken } = TwilioJwt
 const VoiceGrant = AccessToken.VoiceGrant
 
-export async function GET(req: NextApiRequest, res: NextApiResponse) {
-  // check session
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.id) {
-    return res.status(401).json({ error: "Not authenticated" })
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
   }
 
   const identity = session.user.id
@@ -30,5 +28,5 @@ export async function GET(req: NextApiRequest, res: NextApiResponse) {
     })
   )
 
-  return res.status(200).json({ token: token.toJwt() })
+  return NextResponse.json({ token: token.toJwt() })
 }
