@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { deletePlan, updatePlan } from '@/lib/db/admin'; // Fix this import too
+import { deletePlan, updatePlan } from '@/lib/db/admin';
+import type { NextRequestHandlerContext } from 'next/server';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { planId: string } }
+  context: { params: { planId: string } }
 ) {
   try {
-    await deletePlan(params.planId);
+    const { planId } = context.params;
+
+    if (!planId) {
+      return NextResponse.json({ message: 'Missing plan ID' }, { status: 400 });
+    }
+
+    await deletePlan(planId);
     return NextResponse.json({ message: 'Plan deleted' }, { status: 200 });
   } catch (error) {
     console.error('Plan delete error:', error);
@@ -16,11 +23,17 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { planId: string } }
+  context: { params: { planId: string } }
 ) {
   try {
+    const { planId } = context.params;
+
+    if (!planId) {
+      return NextResponse.json({ message: 'Missing plan ID' }, { status: 400 });
+    }
+
     const updates = await request.json();
-    const updated = await updatePlan(params.planId, updates);
+    const updated = await updatePlan(planId, updates);
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error('Plan update error:', error);
