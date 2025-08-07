@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deletePlan, updatePlan } from '@/lib/db/admin';
 
-// ✅ Use destructuring + explicit `planId` typing
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { planId: string } }
+  { params }: any
 ) {
-  const { planId } = params;
+  const planId = params?.planId;
 
-  if (!planId) {
-    return NextResponse.json({ message: 'Missing plan ID' }, { status: 400 });
+  if (typeof planId !== 'string') {
+    return NextResponse.json({ message: 'Invalid plan ID' }, { status: 400 });
   }
 
   try {
@@ -23,9 +22,9 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { planId: string } }
+  { params }: any
 ) {
-  const { planId } = params;
+  const planId = params?.planId;
 
   if (!planId) {
     return NextResponse.json({ message: 'Missing plan ID' }, { status: 400 });
