@@ -28,6 +28,7 @@
     "next-auth.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "types/**/*.d.ts",
     ".next/types/**/*.ts",
     "server/routes/twilio.js",
     "server/routes/transcribe.js",
