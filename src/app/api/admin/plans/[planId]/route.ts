@@ -3,7 +3,7 @@ import { deletePlan, updatePlan } from '@/lib/db/admin';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { planId: string } }
+  { params }: { params: { [key: string]: string } }
 ) {
   const { planId } = params;
 
@@ -22,7 +22,7 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { planId: string } }
+  { params }: { params: { [key: string]: string } }
 ) {
   const { planId } = params;
 
