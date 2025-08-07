@@ -39,7 +39,6 @@ interface AnswerAIRecorderProps {
   onAnswerGenerated: (answer: Answer) => void
   position?: string
   company?: string
-  note: string
 }
 
 // Memoized connection status indicator
@@ -89,13 +88,12 @@ const ConnectionStatus = React.memo(({
 
 export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecorderProps>(
   function AnswerAIRecorder(
-    { sessionId, onSegments, note, onQuestionDetected, onAnswerGenerated, position, company },
+    { sessionId, onSegments, onQuestionDetected, onAnswerGenerated, position, company },
     ref
   ) {
     const { toast } = useToast()
     const { settings } = useSettings()
     const { transcription } = settings
-    const [noteText, setNoteText] = useState(note?.text || '')
 
     const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false)
     const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null)
@@ -104,6 +102,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
     const [manualQuestion, setManualQuestion] = useState('')
     const [allQuestions, setAllQuestions] = useState<Question[]>([])
     const [showTranscript, setShowTranscript] = useState(true)
+    const [transcriptText, setTranscriptText] = useState('')
     const [stats, setStats] = useState({
       questionsDetected: 0,
       answersGenerated: 0,
@@ -182,7 +181,8 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       return segments.map((seg, index) => ({
         id: `segment-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
         content: seg.content?.trim() || '',
-        speaker: seg.speaker === 'mic' ? 'candidate' : 'interviewer',
+        speaker: seg.speaker === 'mic' ? 'candidate' : (seg.speaker === 'speaker' ? 'interviewer' : 'candidate'),
+
         volume: seg.volume || 0,
         timestamp: Date.now() + index * 50, // Closer timestamps for better sequencing
         confidence: seg.confidence || 0.85,
@@ -260,7 +260,9 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
         )
 
         for (const detectedQuestion of detectedQuestions) {
-          const questionKey = detectedQuestion.content.toLowerCase().substring(0, 50)
+          const questionKey = detectedQuestion.content.toLowerCase().trim().replace(/\s+/g, ' ')
+
+
 
           // Advanced duplicate checking
           if (questionCacheRef.current.has(questionKey)) continue
@@ -281,7 +283,13 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
 
           // Cache and update
           questionCacheRef.current.set(questionKey, question)
-          setAllQuestions(prev => [...prev, question])
+          const alreadyInList = allQuestions.some(q =>
+            q.id === question.id || q.content.trim().toLowerCase() === question.content.trim().toLowerCase()
+          )
+
+          if (!alreadyInList) {
+            setAllQuestions(prev => [...prev, question])
+          }
           setCurrentQuestion(question)
           setConfidenceScore(detectedQuestion.confidence)
           setStats(prev => ({ ...prev, questionsDetected: prev.questionsDetected + 1 }))
@@ -316,12 +324,26 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       }
     }, [onQuestionDetected, toast])
 
+
+    const [convertedSegments, setConvertedSegments] = useState<AnswerAISegment[]>([])
+
+    useEffect(() => {
+      const segments = convertToAnswerAISegments(whisperState.segments)
+      setConvertedSegments(segments)
+      onSegments(segments)
+    }, [whisperState.segments])
     // Optimized segment handling with intelligent debouncing
     useEffect(() => {
       if (whisperState.segments.length === 0) return
 
       const answerAISegments = convertToAnswerAISegments(whisperState.segments)
       onSegments(answerAISegments)
+
+      // Update transcript text for display
+      const fullTranscript = answerAISegments
+        .map(seg => `[${seg.speaker.toUpperCase()}]: ${seg.content}`)
+        .join('\n')
+      setTranscriptText(fullTranscript)
 
       // Intelligent debouncing based on segment content
       if (processingTimeoutRef.current) {
@@ -347,17 +369,21 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       if (!question) {
         question = Array.from(questionCacheRef.current.values()).find(q => q.id === questionId)
       }
-      console.warn('Trying to generate answer for ID:', questionId)
-      console.log('All questions:', allQuestions.map(q => q.id))
-      console.log('Question cache:', Array.from(questionCacheRef.current.keys()))
       if (!question) {
+        question = currentQuestion
+      }
+
+      if (!question) {
+        console.warn('Could not find question for ID:', questionId)
+        console.log('Available questions:', allQuestions.map(q => ({ id: q.id, content: q.content.substring(0, 50) })))
         toast({
           title: 'Error',
-          description: `Could not find question with ID: ${questionId}`,
+          description: 'Question not found. Please try selecting a question from the list.',
           variant: 'destructive',
         })
         return
       }
+
       if (!question?.content?.trim()) {
         toast({
           title: 'Error',
@@ -411,7 +437,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
           questionId: question.id,
           content: result.answer || result.content || 'Answer generated successfully',
           confidence: result.confidence || 0.85,
-          generatedAt: new Date().toISOString(),
+          generatedAt: Date.now(),
           isAiGenerated: true,
           metadata: {
             model: result.model || 'gpt-4',
@@ -601,6 +627,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
               setAllQuestions([])
               setManualQuestion('')
               setConfidenceScore(0)
+              setTranscriptText('')
               setStats({ questionsDetected: 0, answersGenerated: 0, processingTime: 0 })
             }}
             variant="outline"
@@ -766,7 +793,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <TranscriptDisplay transcript={noteText} />
+                  <TranscriptDisplay segments={convertedSegments} />
                 </CardContent>
               </Card>
             )}
@@ -782,7 +809,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {allQuestions.slice(-5).map((question, index) => (
+                    {allQuestions.map((question, index) => (
                       <div key={question.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-sm">
                         <Badge variant="outline" className="text-xs">
                           {question.metadata?.detectionMethod || 'auto'}
@@ -791,20 +818,18 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => {
-                            setCurrentQuestion(question)
-                            generateAnswer(question.id)
-                          }}
+                          onClick={() => generateAnswer(question.id)}
                           disabled={isGeneratingAnswer}
                           className="h-6 px-2"
+                          title={`Generate answer for: ${question.content.substring(0, 50)}...`}
                         >
                           <Zap className="w-3 h-3" />
                         </Button>
                       </div>
                     ))}
-                    {allQuestions.length > 5 && (
+                    {allQuestions.length > 10 && (
                       <p className="text-xs text-muted-foreground text-center">
-                        Showing last 5 questions
+                        Showing last 10 questions
                       </p>
                     )}
                   </div>

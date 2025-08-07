@@ -27,7 +27,7 @@ export class TranscriptionBuffer {
 
     // Try to merge with recent segments from the same speaker
     const merged = this.tryMergeWithRecent(bufferedSegment)
-    
+
     if (!merged) {
       this.segments.push(bufferedSegment)
     }
@@ -42,7 +42,7 @@ export class TranscriptionBuffer {
     // Look for recent segment from same speaker
     for (let i = this.segments.length - 1; i >= 0; i--) {
       const existingSegment = this.segments[i]
-      
+
       // Stop looking if segment is too old
       if (newSegment.processedAt - existingSegment.processedAt > this.config.mergeThreshold) {
         break
@@ -58,7 +58,7 @@ export class TranscriptionBuffer {
         existingSegment.timestamp = Math.max(existingSegment.timestamp, newSegment.timestamp)
         existingSegment.processedAt = newSegment.processedAt
         existingSegment.merged = true
-        
+
         return true
       }
     }
@@ -69,13 +69,13 @@ export class TranscriptionBuffer {
   private shouldMergeContent(existing: string, newContent: string): boolean {
     // Don't merge if either is too long
     if (existing.length > 200 || newContent.length > 200) return false
-    
+
     // Don't merge if new content seems like a complete thought
     if (newContent.includes('?') && existing.includes('?')) return false
-    
+
     // Don't merge if there's a significant pause (detected by structure)
     if (existing.endsWith('.') || existing.endsWith('!')) return false
-    
+
     // Merge if it seems like continuation
     const combinedLength = existing.length + newContent.length
     return combinedLength <= 500
@@ -84,7 +84,7 @@ export class TranscriptionBuffer {
   private mergeContent(existing: string, newContent: string): string {
     const existingTrimmed = existing.trim()
     const newTrimmed = newContent.trim()
-    
+
     // Simple concatenation with smart spacing
     if (existingTrimmed.endsWith(' ') || newTrimmed.startsWith(' ')) {
       return existingTrimmed + newTrimmed
@@ -121,11 +121,12 @@ export class TranscriptionBuffer {
   }
 
   private performMaintenance(): void {
+
     const now = Date.now()
-    
+
     // Only cleanup every 10 seconds
     if (now - this.lastCleanup < 10000) return
-    
+
     // Remove segments beyond max size
     if (this.segments.length > this.config.maxSize) {
       this.segments = this.segments.slice(-this.config.maxSize)
@@ -134,6 +135,8 @@ export class TranscriptionBuffer {
     // Remove very old segments (older than 5 minutes)
     const oldCutoff = now - 300000
     this.segments = this.segments.filter(s => s.processedAt >= oldCutoff)
+    const softCutoff = Date.now() - 120000; // 2 min cutoff
+    this.segments = this.segments.filter(s => s.processedAt > softCutoff);
 
     this.lastCleanup = now
   }

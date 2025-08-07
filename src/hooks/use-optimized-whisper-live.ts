@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import type { Segment } from '@/types/transcription'
 
-export interface Recording { 
+export interface Recording {
   id: string
   url: string
   blob?: Blob
@@ -19,16 +19,19 @@ export interface OptimizedWhisperLiveConfig {
   outputFilename: string
   maxClients: number
   maxConnectionTime: number
-  audioSources?: { 
+  audioSources?: {
     microphone: boolean
-    systemAudio: boolean 
+    systemAudio: boolean
   }
   optimization?: {
     chunkSize?: number
     bufferSize?: number
     enableSmartBuffering?: boolean
     enableNoiseReduction?: boolean
+    same_output_threshold?: number
+    no_speech_thresh?: number
   }
+
 }
 
 interface OptimizedWhisperLiveState {
@@ -79,13 +82,13 @@ function encodeWAVOptimized(samples: Float32Array, sampleRate: number): DataView
     const s = Math.max(-1, Math.min(1, samples[i]))
     samples16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
   }
-  
+
   new Uint8Array(buffer, offset).set(new Uint8Array(samples16.buffer))
   return view
 }
 
 export function useOptimizedWhisperLive(
-  config: OptimizedWhisperLiveConfig, 
+  config: OptimizedWhisperLiveConfig,
   initialRecordings: Recording[] = []
 ) {
   const [recordings, setRecordings] = useState<Recording[]>(initialRecordings)
@@ -98,10 +101,10 @@ export function useOptimizedWhisperLive(
     connectionQuality: 'excellent',
     latency: 0,
   })
-  
+
   const [audioData, setAudioData] = useState<Uint8Array | null>(null)
   const [dataUpdateTrigger, setDataUpdateTrigger] = useState(0)
-  
+
   // Enhanced refs for performance tracking
   const wsRef = useRef<WebSocket | null>(null)
   const recordingBuffers = useRef<Float32Array[]>([])
@@ -113,7 +116,7 @@ export function useOptimizedWhisperLive(
     messageCount: 0,
     averageLatency: 0,
   })
-  
+
   // Audio processing refs
   const micRef = useRef<MediaStream | null>(null)
   const systemRef = useRef<MediaStream | null>(null)
@@ -121,29 +124,29 @@ export function useOptimizedWhisperLive(
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
   const connectionAttempts = useRef(0)
-  
+
   const uidRef = useRef(
     typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2)
   )
-  
+
   const { toast } = useToast()
 
   // Enhanced connection with retry logic
   const connect = useCallback(async () => {
     console.log('[OptimizedWhisperLive] Connecting with enhanced performance...')
-    
+
     // Request permissions first
     try {
-      await navigator.mediaDevices.getUserMedia({ 
-        audio: { 
-          sampleRate: 16000, 
+      await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 16000,
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: config.optimization?.enableNoiseReduction ?? true,
           autoGainControl: true,
-        } 
+        }
       })
     } catch (err: any) {
       setState(s => ({ ...s, error: `Microphone permission denied: ${err.message}` }))
@@ -157,7 +160,7 @@ export function useOptimizedWhisperLive(
     }
 
     // Create optimized AudioContext
-    const ctx = new AudioContext({ 
+    const ctx = new AudioContext({
       sampleRate: 16000,
       latencyHint: 'interactive'
     })
@@ -169,8 +172,8 @@ export function useOptimizedWhisperLive(
 
     // Enhanced WebSocket connection
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const host = config.serverUrl === 'localhost' || config.serverUrl === '::1' 
-      ? '127.0.0.1' 
+    const host = config.serverUrl === 'localhost' || config.serverUrl === '::1'
+      ? '127.0.0.1'
       : config.serverUrl
 
     const ws = new WebSocket(`${protocol}://${host}:${config.port}`)
@@ -186,7 +189,7 @@ export function useOptimizedWhisperLive(
     ws.onopen = async () => {
       console.log('[OptimizedWhisperLive] 🟢 WebSocket connected with optimization')
       connectionAttempts.current = 0
-      
+
       // Send optimized configuration
       ws.send(JSON.stringify({
         task: 'transcribe',
@@ -203,6 +206,9 @@ export function useOptimizedWhisperLive(
         chunk_size: config.optimization?.chunkSize || 2048, // Smaller chunks for faster processing
         buffer_size: config.optimization?.bufferSize || 4096,
         enable_smart_buffering: config.optimization?.enableSmartBuffering ?? true,
+        same_output_threshold: 10,
+        no_speech_thresh: 0.45
+
       }))
 
       setState(s => ({ ...s, isConnected: true, connectionQuality: 'excellent' }))
@@ -213,7 +219,7 @@ export function useOptimizedWhisperLive(
     ws.onmessage = (e) => {
       const now = Date.now()
       const perf = performanceRef.current
-      
+
       // Update performance metrics
       perf.messageCount++
       const latency = now - perf.lastMessageTime
@@ -225,10 +231,10 @@ export function useOptimizedWhisperLive(
       if (perf.averageLatency > 500) quality = 'poor'
       else if (perf.averageLatency > 200) quality = 'good'
 
-      setState(s => ({ 
-        ...s, 
+      setState(s => ({
+        ...s,
         latency: Math.round(perf.averageLatency),
-        connectionQuality: quality 
+        connectionQuality: quality
       }))
 
       if (typeof e.data !== 'string') return
@@ -287,7 +293,7 @@ export function useOptimizedWhisperLive(
             setState(s => {
               // Smart deduplication
               const existingContent = new Set(s.segments.map(seg => seg.content.toLowerCase().trim()))
-              const uniqueSegments = newSegments.filter(seg => 
+              const uniqueSegments = newSegments.filter(seg =>
                 !existingContent.has(seg.content.toLowerCase().trim())
               )
 
@@ -317,12 +323,12 @@ export function useOptimizedWhisperLive(
     ws.onclose = (event) => {
       console.log('[OptimizedWhisperLive] 🔴 WebSocket closed:', event.code, event.reason)
       setState(s => ({ ...s, isConnected: false, isTranscribing: false }))
-      
+
       // Auto-reconnect logic
       if (event.code !== 1000 && connectionAttempts.current < 3) {
         connectionAttempts.current++
         console.log(`[OptimizedWhisperLive] Attempting reconnection ${connectionAttempts.current}/3`)
-        
+
         reconnectTimeoutRef.current = setTimeout(() => {
           connect()
         }, Math.min(1000 * Math.pow(2, connectionAttempts.current), 10000))
@@ -383,7 +389,7 @@ export function useOptimizedWhisperLive(
       micSrc.connect(micGain).connect(dest)
 
       if (systemStream) {
-        const sysSrc = ctx.createMediaStreamSource(systemStream)  
+        const sysSrc = ctx.createMediaStreamSource(systemStream)
         const sysGain = ctx.createGain()
         sysGain.gain.value = 1.2 // Boost system audio slightly
         sysSrc.connect(sysGain).connect(dest)
@@ -400,7 +406,7 @@ export function useOptimizedWhisperLive(
       processor.onaudioprocess = (e) => {
         const float32 = e.inputBuffer.getChannelData(0)
         const float32Buffer = new Float32Array(float32)
-        
+
         // Save for recording if enabled
         if (config.saveRecording) {
           recordingBuffers.current.push(float32Buffer)
@@ -465,12 +471,12 @@ export function useOptimizedWhisperLive(
     // Handle recording upload
     if (config.saveRecording && recordingBuffers.current.length > 0) {
       console.log('[OptimizedWhisperLive] Processing recording...', recordingBuffers.current.length, 'buffers')
-      
+
       try {
         const sampleRate = sampleRateRef.current
         const totalLength = recordingBuffers.current.reduce((sum, buf) => sum + buf.length, 0)
         const interleaved = new Float32Array(totalLength)
-        
+
         let offset = 0
         for (const buf of recordingBuffers.current) {
           interleaved.set(buf, offset)
@@ -482,20 +488,20 @@ export function useOptimizedWhisperLive(
         const formData = new FormData()
         formData.append('file', blob, config.outputFilename || `recording-${Date.now()}.wav`)
 
-        const response = await fetch('/api/upload', { 
-          method: 'POST', 
-          body: formData 
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
         })
-        
+
         if (!response.ok) throw new Error('Upload failed')
-        
+
         const { url } = await response.json()
-        const recording: Recording = { 
-          id: Date.now().toString(), 
-          url, 
-          blob 
+        const recording: Recording = {
+          id: Date.now().toString(),
+          url,
+          blob
         }
-        
+
         setRecordings(rs => [...rs, recording])
       } catch (err: any) {
         console.error('[OptimizedWhisperLive] Upload error:', err)
@@ -505,7 +511,7 @@ export function useOptimizedWhisperLive(
           variant: 'destructive',
         })
       }
-      
+
       recordingBuffers.current = []
     }
 
@@ -521,7 +527,7 @@ export function useOptimizedWhisperLive(
   // Enhanced disconnect with cleanup
   const disconnect = useCallback(() => {
     console.log('[OptimizedWhisperLive] Disconnecting...')
-    
+
     // Clear reconnection timeout
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)

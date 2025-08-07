@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
     company,
     questions = [],
     answers = [],
+    transcript = '',
     audioUrls = [],
     status = 'active',
     totalDuration = 0
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
     questions,
     answers: processedAnswers,
     audioUrls,
+    transcript,
     status,
     totalDuration,
     createdAt: now,

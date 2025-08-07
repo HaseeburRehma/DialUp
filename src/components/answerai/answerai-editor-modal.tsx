@@ -18,7 +18,7 @@ interface AnswerAIEditorModalProps {
   session?: AnswerAISession | null
   onClose: () => void
   onSave: () => void
-    note?: Note | null
+  note?: Note | null
 
 }
 
@@ -78,19 +78,19 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
   const extractFieldsFromConversation = useCallback((newQuestions: Question[]) => {
     for (const question of newQuestions) {
       const content = question.content.toLowerCase()
-      
+
       // Extract candidate name
       const nameMatch = content.match(/(?:my name is|i'm|i am)\s+([a-zA-Z\s]+)/i)
       if (nameMatch?.[1] && !formData.candidateName) {
         setFormData(prev => ({ ...prev, candidateName: nameMatch[1].trim() }))
       }
-      
+
       // Extract position
       const positionMatch = content.match(/(?:applying for|position|role).*?(?:as|for)\s+([^.]+)/i)
       if (positionMatch?.[1] && !formData.position) {
         setFormData(prev => ({ ...prev, position: positionMatch[1].trim() }))
       }
-      
+
       // Extract company
       const companyMatch = content.match(/(?:at|with|for)\s+([A-Z][a-zA-Z\s]+)(?:\s|$|\.)/i)
       if (companyMatch?.[1] && !formData.company && companyMatch[1].length < 30) {
@@ -114,7 +114,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
       extractFieldsFromConversation(updated)
       return updated
     })
-    
+
     toast({
       title: 'Question Detected',
       description: `"${question.content.substring(0, 50)}..."`,
@@ -133,10 +133,10 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
   const handleGenerateAnswer = useCallback(async (question: Question) => {
 
     if (!recorderRef.current) return
-    
+
     setIsGeneratingAnswer(true)
     try {
-        await recorderRef.current?.generateAnswer(question)
+      await recorderRef.current?.generateAnswer(question)
 
     } finally {
       setIsGeneratingAnswer(false)
@@ -161,8 +161,8 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
   }
 
   const handleSave = async () => {
-    if (!formData.sessionName.trim() || !formData.candidateName.trim() || 
-        !formData.position.trim() || !formData.company.trim()) {
+    if (!formData.sessionName.trim() || !formData.candidateName.trim() ||
+      !formData.position.trim() || !formData.company.trim()) {
       toast({
         title: 'Missing Information',
         description: 'Please fill in session name, candidate name, position, and company.',
@@ -188,6 +188,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
           return rec.url
         })
       )
+      const transcript = segments.map(seg => `[${seg.speaker.toUpperCase()}]: ${seg.content}`).join('\n')
 
       // Prepare payload
       const payload = {
@@ -195,6 +196,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
         questions,
         answers,
         audioUrls,
+        transcript,
         totalDuration,
       }
 
@@ -255,7 +257,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
             {savedRecs.length > 0 && (
               <RecordingsList
                 recordings={savedRecs}
-                onDelete={() => {/* Disable deletion of saved URLs */}}
+                onDelete={() => {/* Disable deletion of saved URLs */ }}
               />
             )}
 

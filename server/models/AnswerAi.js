@@ -40,17 +40,19 @@ const answerAISchema = new mongoose.Schema({
   questions: [questionSchema],
   answers: [answerSchema],
   audioUrls: [{ type: String }],
-  status: { 
-    type: String, 
-    enum: ['active', 'paused', 'completed'], 
-    default: 'active' 
+  status: {
+    type: String,
+    enum: ['active', 'paused', 'completed'],
+    default: 'active'
   },
   totalDuration: { type: Number, default: 0 }, // in seconds
+  transcript: { type: String, default: '' }, // 
+
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
 
-answerAISchema.pre('save', function(next) {
+answerAISchema.pre('save', function (next) {
   this.updatedAt = new Date();
   next();
 });

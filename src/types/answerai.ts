@@ -1,4 +1,5 @@
 export interface Question {
+  confidence: number
   id: string
   content: string
   speaker: 'interviewer' | 'candidate'
