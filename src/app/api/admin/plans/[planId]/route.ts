@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deletePlan, updatePlan } from '@/lib/db/admin';
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { planId: string } }
-) {
-  const { planId } = params;
+export async function DELETE(request: NextRequest, context: any) {
+  const planId = context.params?.planId;
 
   if (typeof planId !== 'string') {
     return NextResponse.json({ message: 'Invalid plan ID' }, { status: 400 });
@@ -20,11 +17,8 @@ export async function DELETE(
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { planId: string } }
-) {
-  const { planId } = params;
+export async function PATCH(request: NextRequest, context: any) {
+  const planId = context.params?.planId;
 
   if (!planId) {
     return NextResponse.json({ message: 'Missing plan ID' }, { status: 400 });
