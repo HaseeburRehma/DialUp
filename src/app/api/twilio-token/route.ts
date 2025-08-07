@@ -1,7 +1,7 @@
 // src/app/api/twilio-token/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { authOptions } from '../auth/[...nextauth]/authOptions'
+import { authOptions } from '../auth/[...nextauth]/route'
 import { jwt as TwilioJwt } from "twilio"
 
 const { AccessToken } = TwilioJwt

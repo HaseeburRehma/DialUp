@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import Settings from '../../../../server/models/Settings'
 import { connect } from '../../../../server/utils/db'
-import { authOptions } from '../auth/[...nextauth]/authOptions'
+import { authOptions } from '../auth/[...nextauth]/route'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
