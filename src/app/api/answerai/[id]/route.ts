@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
+import { authOptions } from '../../auth/authOptions'
 import { connect } from '../../../../../server/utils/db'
 import AnswerAI from '../../../../../server/models/AnswerAi'
 import { sendNoteNotification } from '../../../../../server/utils/mailer'
