@@ -20,5 +20,6 @@ async function connect() {
   cached.conn = await cached.promise
   return cached.conn
 }
+const db = mongoose.connection;
 
-module.exports = { connect }
+module.exports = { connect, db };
