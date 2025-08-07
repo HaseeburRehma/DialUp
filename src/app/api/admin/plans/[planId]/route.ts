@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { deletePlan, updatePlan } from '@/lib/db/admin';
 
+// ✅ Use destructuring + explicit `planId` typing
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { [key: string]: string } }
+  { params }: { params: { planId: string } }
 ) {
   const { planId } = params;
 
@@ -22,7 +23,7 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { [key: string]: string } }
+  { params }: { params: { planId: string } }
 ) {
   const { planId } = params;
 
