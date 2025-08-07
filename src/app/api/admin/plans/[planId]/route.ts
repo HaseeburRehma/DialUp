@@ -3,7 +3,7 @@ import { deletePlan, updatePlan } from '@/lib/db/admin';
 
 export async function DELETE(
   request: NextRequest,
-  { params }: any
+  { params }: { params: { planId: string } }
 ) {
   const planId = params?.planId;
 
