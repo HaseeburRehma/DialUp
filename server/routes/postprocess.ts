@@ -1,33 +1,31 @@
-import { defineEventHandler, readBody, createError } from 'h3'
+// server/routes/postprocess.ts (or move to /app/api/postprocess/route.ts for proper routing)
+
+import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
 
-export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
-  const { text, prompt } = body as { text: string; prompt: string }
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { text, prompt } = body as { text: string; prompt: string }
 
-  // 1) call the LLM
-  const res = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [
-      { role: 'system', content: prompt },
-      { role: 'user',   content: text },
-    ],
-  })
+    const res = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: prompt },
+        { role: 'user', content: text },
+      ],
+    })
 
-  // 2) guard against missing choices
-  if (!res.choices || res.choices.length === 0) {
-    throw createError({ statusCode: 502, message: 'No completion returned from OpenAI' })
+    const content = res.choices?.[0]?.message?.content
+    if (!content) {
+      return NextResponse.json({ error: 'OpenAI response missing message content' }, { status: 502 })
+    }
+
+    return NextResponse.json({ result: content.trim() })
+  } catch (err) {
+    console.error('Postprocess Error:', err)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
-
-  // 3) guard against missing message or content
-  const choice = res.choices[0]
-  const content = choice.message?.content
-  if (!content) {
-    throw createError({ statusCode: 502, message: 'OpenAI response missing message content' })
-  }
-
-  // 4) return trimmed text
-  return content.trim()
-})
+}
