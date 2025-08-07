@@ -1,12 +1,10 @@
-import { NextResponse } from 'next/server';
-import { deletePlan, updatePlan } from '@/lib/db/admin'; // Replace with your data layer
+import { NextRequest, NextResponse } from 'next/server';
+import { deletePlan, updatePlan } from '@/lib/db/admin'; // Fix this import too
 
-export async function DELETE(
-  request: Request,
-  { params }: { params: { planId: string } }
-) {
+export async function DELETE(request: NextRequest, context: { params: { planId: string } }) {
   try {
-    await deletePlan(params.planId);
+    const planId = context.params.planId;
+    await deletePlan(planId);
     return NextResponse.json({ message: 'Plan deleted' }, { status: 200 });
   } catch (error) {
     console.error('Plan delete error:', error);
@@ -14,13 +12,11 @@ export async function DELETE(
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: { planId: string } }
-) {
+export async function PATCH(request: NextRequest, context: { params: { planId: string } }) {
   try {
+    const planId = context.params.planId;
     const updates = await request.json();
-    const updated = await updatePlan(params.planId, updates);
+    const updated = await updatePlan(planId, updates);
     return NextResponse.json(updated, { status: 200 });
   } catch (error) {
     console.error('Plan update error:', error);

@@ -1,5 +1,29 @@
 import { db, connectDb } from './client';
-import { AnalyticsStats } from './admin';
+import { ObjectId } from 'mongodb';
+import { AnalyticsStats } from '@/lib/types';
+
+
+export async function deletePlan(planId: string) {
+  await connectDb();
+  return db.collection('plans').deleteOne({ _id: new ObjectId(planId) });
+}
+
+export async function updatePlan(planId: string, updates: any) {
+  await connectDb();
+  await db.collection('plans').updateOne({ _id: new ObjectId(planId) }, { $set: updates });
+  return db.collection('plans').findOne({ _id: new ObjectId(planId) });
+}
+
+export async function getAllPlans() {
+  await connectDb();
+  return db.collection('plans').find().toArray();
+}
+
+export async function createPlan(data: any) {
+  await connectDb();
+  const result = await db.collection('plans').insertOne(data);
+  return result.ops?.[0] ?? result;
+}
 
 export async function getAnalyticsStats(): Promise<AnalyticsStats> {
   await connectDb();
