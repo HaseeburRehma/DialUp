@@ -4,19 +4,16 @@ import User from '../../../../../../server/models/User'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '../../../auth/[...nextauth]/route'
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, context: any) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
     const { action } = await request.json()
-    const userId = params.id
+    const userId = context.params?.id
 
     await connect()
 
@@ -47,9 +44,6 @@ export async function PATCH(
     return NextResponse.json({ message: 'User updated successfully' })
   } catch (error) {
     console.error('Update user error:', error)
-    return NextResponse.json(
-      { error: 'Failed to update user' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
   }
 }
