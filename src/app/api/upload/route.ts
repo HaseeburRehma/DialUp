@@ -19,6 +19,25 @@ export async function POST(req: NextRequest) {
   const filepath = join(uploadsDir, filename)
   await writeFile(filepath, buffer)
 
-  // Next.js will serve from /public automatically
+  return NextResponse.json({ url: `/uploads/${filename}` })
+}
+
+export async function PUT(req: NextRequest) {
+  // Optional: user session validation
+  // const user = await requireUserSession(req)
+
+  const form = await req.formData()
+  const file = form.get("file") as File
+  if (!file) return NextResponse.json({ error: "Missing file" }, { status: 400 })
+
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const uploadsDir = join(process.cwd(), "public", "uploads")
+  await mkdir(uploadsDir, { recursive: true })
+
+  const ext = file.type.split("/")[1] || "webm"
+  const filename = `recording-${Date.now()}.${ext}`
+  const filepath = join(uploadsDir, filename)
+  await writeFile(filepath, buffer)
+
   return NextResponse.json({ url: `/uploads/${filename}` })
 }
