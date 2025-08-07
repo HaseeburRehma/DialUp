@@ -14,7 +14,8 @@ export async function POST(request: Request) {
         const user = await User.create({ name, username, email, password: hashed })
 
         return NextResponse.json({
-            message: 'Signup successful' user: {
+            message: 'Signup successful',
+            user: {
                 id: user._id.toString(),
                 name: user.name,
                 email: user.email,
