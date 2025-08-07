@@ -77,7 +77,7 @@ const [planFilter, setPlanFilter] = useState<string>('all')
   useEffect(() => {
     if (status === 'loading') return
     if (!session) return router.push('/auth/signin')
-    if (session.user?.role !== 'admin') return router.push('/')
+      if ((session.user as any)?.role !== 'admin') return router.push('/');
     fetchUsers()
   }, [session, status, router])
 
@@ -117,7 +117,7 @@ const [planFilter, setPlanFilter] = useState<string>('all')
       </div>
     )
   }
-  if (!session || session.user?.role !== 'admin') return null
+  if ((!session || session.user as any)?.role !== 'admin') return null
 
   const planColors: Record<string, string> = {
     free: 'bg-gray-100 text-gray-800',

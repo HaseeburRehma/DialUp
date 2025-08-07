@@ -54,7 +54,7 @@ export default function AdminDashboard() {
       return
     }
 
-    if (session.user?.role !== 'admin') {
+    if ((session.user as any )?.role !== 'admin') {
       router.push('/')
       return
     }
@@ -87,7 +87,7 @@ export default function AdminDashboard() {
     )
   }
 
-  if (!session || session.user?.role !== 'admin') {
+  if ((!session || session.user as any )?.role !== 'admin') {
     return null
   }
 

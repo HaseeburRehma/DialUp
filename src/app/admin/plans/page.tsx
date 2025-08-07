@@ -45,7 +45,7 @@ export default function ManagePlansPage() {
     useEffect(() => {
         if (status === 'loading') return;
         if (!session) return router.push('/auth/signin');
-        if (session.user?.role !== 'admin') return router.push('/');
+        if ((session.user as any)?.role !== 'admin') return router.push('/');
         fetchPlans();
     }, [session, status, router]);
 

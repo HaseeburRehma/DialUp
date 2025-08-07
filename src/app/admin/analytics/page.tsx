@@ -42,7 +42,7 @@ export default function AdminAnalyticsPage() {
   useEffect(() => {
     if (status === 'loading') return;
     if (!session) return router.push('/auth/signin');
-    if (session.user?.role !== 'admin') return router.push('/');
+    if ((session.user as any)?.role !== 'admin') return router.push('/');
     fetchAnalytics();
   }, [session, status, router]);
 
@@ -67,8 +67,7 @@ export default function AdminAnalyticsPage() {
     );
   }
 
-  if (!session || session.user?.role !== 'admin') return null;
-
+  if ((!session || session.user as any)?.role !== 'admin') return null;
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 pt-16">
