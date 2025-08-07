@@ -1,13 +1,7 @@
 {
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "es6"
-    ],
-    "types": [
-      "web-speech-api"
-    ],
+    "lib": ["dom", "dom.iterable", "es6"],
+    "types": ["web-speech-api"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -26,23 +20,21 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ]
+      "@/*": ["./src/*"]
     },
     "target": "ES2017"
   },
   "include": [
-    "next-env.d.ts",
+    "next-auth.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
     "server/routes/twilio.js",
     "server/routes/transcribe.js",
-    "server/routes/postprocess.js",
-    "src/globals.d.ts" 
+    "server/routes/postprocess.ts",
+    "src/globals.d.ts",
+    "server/models/AnswerAi.js",
+    "src/components/notes/whisper-live-recorder.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

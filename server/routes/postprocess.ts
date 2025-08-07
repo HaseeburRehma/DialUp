@@ -1,11 +1,11 @@
-// server/api/postprocess.post.ts
 import { defineEventHandler, readBody, createError } from 'h3'
 import OpenAI from 'openai'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 export default defineEventHandler(async (event) => {
-  const { text, prompt } = await readBody<{ text: string; prompt: string }>(event)
+  const body = await readBody(event)
+  const { text, prompt } = body as { text: string; prompt: string }
 
   // 1) call the LLM
   const res = await openai.chat.completions.create({
