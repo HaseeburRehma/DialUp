@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connect } from '../../../../../server/utils/db'
 import User from '../../../../../server/models/User'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from '../../auth/[...nextauth]/route'
+import { authOptions } from "@/app/api/auth/authOptions" // adjust path if needed
 
 export async function GET(request: NextRequest) {
   try {

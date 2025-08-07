@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]/route'
+import { authOptions } from "@/app/api/auth/authOptions" // adjust path if needed
+
 import { connect } from '../../../../../server/utils/db'
 import Note from '../../../../../server/models/Note'
 import { sendNoteNotification } from '../../../../../server/utils/mailer'
