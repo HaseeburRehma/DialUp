@@ -5,7 +5,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { planId: string } }
 ) {
-  const planId = params?.planId;
+  const { planId } = params;
 
   if (typeof planId !== 'string') {
     return NextResponse.json({ message: 'Invalid plan ID' }, { status: 400 });
@@ -22,9 +22,9 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: any
+  { params }: { params: { planId: string } }
 ) {
-  const planId = params?.planId;
+  const { planId } = params;
 
   if (!planId) {
     return NextResponse.json({ message: 'Missing plan ID' }, { status: 400 });
