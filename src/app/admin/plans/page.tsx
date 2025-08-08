@@ -32,7 +32,7 @@ interface Plan {
     features: string[];
     createdAt: string;
 }
-
+export const dynamic = 'force-dynamic';
 export default function ManagePlansPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
