@@ -2,6 +2,21 @@ import { connectDb } from './client';
 import { ObjectId } from 'mongodb';
 import { AnalyticsStats } from '@/lib/types';
 
+interface UserCountByMonth {
+  _id: string;
+  count: number;
+}
+
+interface RevenueByMonth {
+  _id: string;
+  revenue: number;
+}
+
+interface RevenueAggregate {
+  _id: null;
+  total: number;
+}
+
 export async function deletePlan(planId: string) {
   const db = await connectDb();
   return db.collection('plans').deleteOne({ _id: new ObjectId(planId) });
@@ -46,7 +61,7 @@ export async function getAnalyticsStats(): Promise<AnalyticsStats> {
     subsCol.aggregate([
       { $match: { createdAt: { $gte: startOfMonth } } },
       { $group: { _id: null, total: { $sum: "$amount" } } }
-    ]).toArray() as { _id: null; total: number }[],
+    ]).toArray() as Promise<RevenueAggregate[]>,
     usersCol.countDocuments({ status: 'churned' }),
     usersCol.aggregate([
       {
@@ -56,7 +71,7 @@ export async function getAnalyticsStats(): Promise<AnalyticsStats> {
         }
       },
       { $sort: { "_id": 1 } }
-    ]).toArray() as { _id: string; count: number }[],
+    ]).toArray() as Promise<UserCountByMonth[]>,
     subsCol.aggregate([
       {
         $group: {
@@ -65,7 +80,7 @@ export async function getAnalyticsStats(): Promise<AnalyticsStats> {
         }
       },
       { $sort: { "_id": 1 } }
-    ]).toArray() as { _id: string; revenue: number }[]
+    ]).toArray() as Promise<RevenueByMonth[]>
   ]);
 
   const monthlyRevenue = revenueDocs?.[0]?.total ?? 0;
