@@ -20,14 +20,20 @@ const nextConfig: NextConfig = {
     SMTP_USER: process.env.SMTP_USER,
     SMTP_PASSWORD: process.env.SMTP_PASSWORD,
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+    MONGODB_URI: process.env.MONGODB_URI,
   },
+
   async rewrites() {
-    return [
-      {
-        source: '/api/server/:path*',
-        destination: 'http://localhost:8000/api/:path*'
-      }
-    ]
+    if (process.env.NODE_ENV === 'development') {
+      return Promise.resolve([
+        {
+          source: '/api/server/:path*',
+          destination: 'http://localhost:8000/api/:path*'
+        }
+      ])
+    }
+
+    return Promise.resolve([])
   }
 }
 
