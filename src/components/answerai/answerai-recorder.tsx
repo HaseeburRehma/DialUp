@@ -35,7 +35,7 @@ export interface AnswerAIRecorderHandle {
 interface AnswerAIRecorderProps {
   sessionId?: string
   onSegments: (segments: AnswerAISegment[]) => void
-  onQuestionDetected: (question: Question) => void
+  onQuestionDetected: (question: Question | null) => void
   onAnswerGenerated: (answer: Answer) => void
   position?: string
   company?: string
@@ -96,7 +96,9 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
     const { transcription } = settings
 
     const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false)
-    const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null)
+    const [currentQuestion, setCurrentQuestion] = useState<Question | null | undefined>(undefined)
+
+
     const [processingState, setProcessingState] = useState<'idle' | 'detecting' | 'processing'>('idle')
     const [confidenceScore, setConfidenceScore] = useState(0)
     const [manualQuestion, setManualQuestion] = useState('')
@@ -178,15 +180,21 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
 
     // Optimized segment conversion with caching
     const convertToAnswerAISegments = useCallback((segments: any[]): AnswerAISegment[] => {
-      return segments.map((seg, index) => ({
-        id: `segment-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
-        content: seg.content?.trim() || '',
-        speaker: seg.speaker === 'mic' ? 'candidate' : (seg.speaker === 'speaker' ? 'interviewer' : 'candidate'),
+      return segments.map((seg, index): AnswerAISegment => {
+        let speaker: 'interviewer' | 'candidate' = 'candidate' // default
 
-        volume: seg.volume || 0,
-        timestamp: Date.now() + index * 50, // Closer timestamps for better sequencing
-        confidence: seg.confidence || 0.85,
-      })).filter(seg => seg.content.length > 0)
+        if (seg.speaker === 'speaker') speaker = 'interviewer'
+        else if (seg.speaker === 'mic') speaker = 'candidate'
+
+        return {
+          id: `segment-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`,
+          content: seg.content?.trim() || '',
+          speaker,
+          volume: seg.volume || 0,
+          timestamp: Date.now() + index * 50,
+          confidence: seg.confidence || 0.85,
+        }
+      }).filter(seg => seg.content.length > 0)
     }, [])
 
     // Add manual question function
@@ -220,7 +228,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       toast({
         title: '✅ Manual Question Added!',
         description: 'Question ready for AI answer generation',
-        duration: 3000,
+
       })
     }, [onQuestionDetected, toast])
 
@@ -300,7 +308,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
           toast({
             title: '🎯 Question Detected!',
             description: `${Math.round(detectedQuestion.confidence * 100)}% confidence • Press Enter for instant AI response`,
-            duration: 4000,
+
           })
 
           break // Process one question at a time for optimal performance
@@ -317,7 +325,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
           title: 'Detection Error',
           description: 'Question detection failed. Manual detection available.',
           variant: 'destructive',
-          duration: 3000,
+
         })
       } finally {
         setProcessingState('idle')
@@ -332,6 +340,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       setConvertedSegments(segments)
       onSegments(segments)
     }, [whisperState.segments])
+    
     // Optimized segment handling with intelligent debouncing
     useEffect(() => {
       if (whisperState.segments.length === 0) return
@@ -370,7 +379,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
         question = Array.from(questionCacheRef.current.values()).find(q => q.id === questionId)
       }
       if (!question) {
-        question = currentQuestion
+        question = currentQuestion ?? undefined
       }
 
       if (!question) {
@@ -457,7 +466,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
         toast({
           title: '✨ Answer Generated!',
           description: `High-quality response ready in ${processingTime}ms • Confidence: ${Math.round(answer.confidence * 100)}%`,
-          duration: 3000,
+
         })
 
       } catch (error: any) {
@@ -476,7 +485,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
           title: 'Answer Generation Failed',
           description: errorMessage,
           variant: 'destructive',
-          duration: 5000,
+
         })
       } finally {
         setIsGeneratingAnswer(false)

@@ -280,7 +280,7 @@ const [planFilter, setPlanFilter] = useState<string>('all')
                                     <Crown className="mr-2 h-4 w-4" />Make Admin
                                   </DropdownMenuItem>
                                 )}
-                                {role === 'admin' && user._id !== session.user?.id && (
+                                {role === 'admin' && user._id !== session?.user?.id && (
                                   <DropdownMenuItem onClick={() => handleUserAction(user._id, 'remove-admin')}>
                                     <Shield className="mr-2 h-4 w-4" />Remove Admin
                                   </DropdownMenuItem>

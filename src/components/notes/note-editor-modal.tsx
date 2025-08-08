@@ -83,12 +83,7 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
   const recorderRef = useRef<NoteRecorderHandle>(null)
   const { toast } = useToast()
 
-  interface Segment {
-    id: string;
-    content: string;
-    speaker?: string;
-    volume?: number;
-  }
+
   useEffect(() => {
     if (open && note) {
       setNoteText(note.text)
@@ -104,11 +99,13 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
           ? note.text.split('\n').map((line, i) => ({
             id: `${i}`,
             content: line,
-            speaker: 'User',
-            volume: 1, // or 0 if needed
+            speaker: 'mic', // or 'speaker' if applicable
+            volume: 1,
+            timestamp: i * 2 // ⬅️ dummy value in seconds, adjust as needed
           }))
           : []
       )
+
 
       recorderRef.current?.setAudioUrls(note.audioUrls || [])
     }

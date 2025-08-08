@@ -51,6 +51,12 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
       maxClients: whisperliveSettings.maxClients,
       maxConnectionTime: whisperliveSettings.maxConnectionTime,
       audioSources: transcription.audioSources,
+
+      // ✅ Add these missing fields:
+      enabled: whisperliveSettings.enabled ?? false,
+      backend: whisperliveSettings.backend ?? 'faster_whisper',
+      useVAD: whisperliveSettings.useVAD ?? false,
+      lang: whisperliveSettings.lang ?? transcription.language ?? 'en',
     }), [
       transcription.language,
       transcription.audioSources,
@@ -62,18 +68,23 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
         ...settings,
         transcription: {
           ...transcription,
+          audioSources: cfg.audioSources ?? { microphone: true, systemAudio: false },
+
           whisperlive: {
             serverUrl: cfg.serverUrl,
             port: cfg.port,
             language: cfg.language,
-            model: cfg.model,
+            model: cfg.model as 'tiny' | 'small' | 'base' | 'medium' | 'large',
             vad: cfg.vad,
             translate: cfg.translate,
             saveRecording: cfg.saveRecording,
             outputFilename: cfg.outputFilename,
             maxClients: cfg.maxClients,
             maxConnectionTime: cfg.maxConnectionTime,
-            audioSources: cfg.audioSources,
+            enabled: false,
+            backend: 'faster_whisper',
+            useVAD: false,
+            lang: 'en'
           }
         }
       });
@@ -86,7 +97,6 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
       startTranscription,
       stopTranscription,
       clearTranscript,
-      wsRef,
       audioData,
       dataUpdateTrigger,
       recordings,
@@ -179,7 +189,7 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
                 </p>
               </div>
             )}
-           
+
           </CardContent>
         </Card>
       </div>

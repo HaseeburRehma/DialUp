@@ -22,10 +22,9 @@ export interface QuestionDetectorConfig {
 
 export class QuestionDetector {
   private config: QuestionDetectorConfig
-  private questionPatterns: RegExp[]
-  private contextPatterns: RegExp[]
-  private stopWords: Set<string>
-
+  private questionPatterns!: RegExp[]
+  private contextPatterns!: RegExp[]
+  private stopWords!: Set<string>
   constructor(config: QuestionDetectorConfig) {
     this.config = config
     this.initializePatterns()
@@ -68,7 +67,7 @@ export class QuestionDetector {
   }
 
   async detectQuestions(
-    text: string, 
+    text: string,
     options: QuestionDetectionOptions = {}
   ): Promise<DetectedQuestion[]> {
     const {
@@ -102,7 +101,7 @@ export class QuestionDetector {
 
     // Filter and rank questions
     let filteredQuestions = questions
-      .filter(q => 
+      .filter(q =>
         q.content.length >= this.config.minLength &&
         q.content.length <= this.config.maxLength &&
         q.confidence >= this.config.minConfidence
@@ -137,12 +136,12 @@ export class QuestionDetector {
 
     for (const pattern of this.questionPatterns) {
       const matches = Array.from(text.matchAll(pattern))
-      
+
       for (const match of matches) {
         if (match[0] && match.index !== undefined) {
           const content = this.cleanQuestionContent(match[0])
           const confidence = this.calculatePatternConfidence(content, pattern)
-          
+
           if (confidence >= this.config.minConfidence) {
             questions.push({
               content,
@@ -165,7 +164,7 @@ export class QuestionDetector {
 
     for (const sentence of sentences) {
       const confidence = this.calculateStructuralConfidence(sentence)
-      
+
       if (confidence >= this.config.minConfidence) {
         questions.push({
           content: sentence.trim(),
@@ -181,14 +180,14 @@ export class QuestionDetector {
   private detectByContext(text: string): DetectedQuestion[] {
     const questions: DetectedQuestion[] = []
     const contextScore = this.calculateContextScore(text)
-    
+
     if (contextScore > 0.5) {
       const sentences = this.splitIntoSentences(text)
-      
+
       for (const sentence of sentences) {
         if (this.couldBeQuestion(sentence)) {
           const confidence = Math.min(0.9, contextScore * this.calculateStructuralConfidence(sentence))
-          
+
           if (confidence >= this.config.minConfidence) {
             questions.push({
               content: sentence.trim(),
@@ -234,7 +233,7 @@ export class QuestionDetector {
     if (sentence.includes('?')) confidence += 0.4
     if (/^(what|how|why|when|where|who|which)/i.test(sentence)) confidence += 0.3
     if (/^(can|could|would|will|should|do|does|did|have|has|had|is|are|was|were)/i.test(sentence)) confidence += 0.25
-    
+
     // Check for imperative patterns (tell me, explain, describe)
     if (/^(tell me|explain|describe|walk me through|give me)/i.test(sentence)) confidence += 0.3
 
@@ -273,7 +272,7 @@ export class QuestionDetector {
     const questionWords = /\b(what|how|why|when|where|who|which|can|could|would|will|should|do|does|did|tell|explain|describe)\b/i
     const hasQuestionStructure = questionWords.test(sentence)
     const isReasonableLength = sentence.length >= 10 && sentence.length <= 300
-    
+
     return hasQuestionStructure && isReasonableLength
   }
 

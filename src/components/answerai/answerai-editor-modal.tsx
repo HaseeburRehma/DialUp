@@ -13,6 +13,19 @@ import { RecordingsList, Recording } from '@/components/notes/recordings-list'
 import { Save, RotateCcw, Bot } from 'lucide-react'
 import type { AnswerAISession, AnswerAISegment, Question, Answer } from '@/types/answerai'
 
+interface Note {
+  id: string
+  text: string
+  audioUrls?: string[]
+  callerName: string
+  callerEmail: string
+  callerLocation: string
+  callerAddress: string
+  callReason: string
+  createdAt: string
+  updatedAt: string
+}
+
 interface AnswerAIEditorModalProps {
   open: boolean
   session?: AnswerAISession | null
@@ -74,6 +87,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
     }
   }, [open, session])
 
+  
   // Auto-extract fields from questions/answers
   const extractFieldsFromConversation = useCallback((newQuestions: Question[]) => {
     for (const question of newQuestions) {
@@ -108,7 +122,9 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
     }
   }, [])
 
-  const handleQuestionDetected = useCallback((question: Question) => {
+  const handleQuestionDetected = useCallback((question: Question | null) => {
+    if (!question) return; // early return if null
+
     setQuestions(prev => {
       const updated = [...prev, question]
       extractFieldsFromConversation(updated)
@@ -118,9 +134,9 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
     toast({
       title: 'Question Detected',
       description: `"${question.content.substring(0, 50)}..."`,
-      duration: 2000,
     })
   }, [extractFieldsFromConversation, toast])
+
 
   const handleAnswerGenerated = useCallback((answer: Answer) => {
     setAnswers(prev => [...prev, answer])
@@ -131,17 +147,16 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
   }, [toast])
 
   const handleGenerateAnswer = useCallback(async (question: Question) => {
+    if (!question || !recorderRef.current) return;
 
-    if (!recorderRef.current) return
-
-    setIsGeneratingAnswer(true)
+    setIsGeneratingAnswer(true);
     try {
-      await recorderRef.current?.generateAnswer(question)
-
+      await recorderRef.current.generateAnswer(question.content);
     } finally {
-      setIsGeneratingAnswer(false)
+      setIsGeneratingAnswer(false);
     }
-  }, [])
+  }, []);
+
 
   const resetSession = () => {
     setFormData({

@@ -8,6 +8,7 @@ export interface Segment {
   timestamp: number;
   confidence?: number;
   audioSource?: 'microphone' | 'system' | 'mixed'; // Track audio source
+  
 }
 
 export interface ProcessedSegment extends Segment {

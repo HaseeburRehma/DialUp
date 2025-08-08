@@ -1,10 +1,15 @@
 export interface Question {
-  confidence: number
   id: string
   content: string
   speaker: 'interviewer' | 'candidate'
   timestamp: number
-  audioSegment?: string
+  confidence?: number
+  metadata?: {
+    detectionMethod?: string
+    context?: string
+    processingTime?: number
+    [key: string]: any
+  }
 }
 
 export interface Answer {
@@ -14,6 +19,12 @@ export interface Answer {
   confidence: number
   generatedAt: number
   isAiGenerated: boolean
+   metadata?: {
+    detectionMethod?: string
+    context?: string
+    processingTime?: number
+    [key: string]: any
+  }
 }
 
 export interface AnswerAISession {

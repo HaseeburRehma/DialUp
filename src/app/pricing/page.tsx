@@ -211,11 +211,11 @@ export default function PricingPage() {
                 <Sparkles className="w-3 h-3 mr-1" />
                 Choose Your Plan
               </Badge>
-              
+
               <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Simple, Transparent Pricing
               </h1>
-              
+
               <p className="text-xl text-muted-foreground mb-8">
                 Start free, upgrade when you need more. All plans include our core features with no hidden fees.
               </p>
@@ -255,8 +255,8 @@ export default function PricingPage() {
                   key={plan.name}
                   className={cn(
                     'relative overflow-hidden transition-all duration-300 hover:scale-105',
-                    plan.popular 
-                      ? 'ring-2 ring-blue-500 shadow-2xl scale-105' 
+                    plan.popular
+                      ? 'ring-2 ring-blue-500 shadow-2xl scale-105'
                       : 'hover:shadow-xl'
                   )}
                 >
@@ -277,10 +277,10 @@ export default function PricingPage() {
                     )}>
                       <plan.icon className="w-8 h-8 text-white" />
                     </div>
-                    
+
                     <CardTitle className="text-2xl font-bold">{plan.displayName}</CardTitle>
                     <CardDescription className="text-sm">{plan.description}</CardDescription>
-                    
+
                     <div className="pt-4">
                       {typeof plan.price[billingCycle] === 'number' ? (
                         <div>
@@ -290,11 +290,12 @@ export default function PricingPage() {
                           <span className="text-muted-foreground">
                             /{billingCycle === 'monthly' ? 'month' : 'year'}
                           </span>
-                          {billingCycle === 'yearly' && plan.price.monthly > 0 && (
+                          {billingCycle === 'yearly' && Number(plan.price.monthly) > 0 && (
                             <div className="text-sm text-green-600 mt-1">
-                              Save ${(plan.price.monthly * 12) - plan.price.yearly} per year
+                              Save ${Number(plan.price.monthly) * 12 - Number(plan.price.yearly)} per year
                             </div>
                           )}
+
                         </div>
                       ) : (
                         <div className="text-2xl font-bold text-muted-foreground">
@@ -305,11 +306,11 @@ export default function PricingPage() {
                   </CardHeader>
 
                   <CardContent className="space-y-4">
-                    <Button 
+                    <Button
                       className={cn(
                         'w-full transition-all duration-200',
-                        plan.popular 
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700' 
+                        plan.popular
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
                           : 'border border-input hover:bg-accent'
                       )}
                       variant={plan.popular ? 'default' : 'outline'}

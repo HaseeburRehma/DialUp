@@ -1,3 +1,4 @@
+import type { AuthOptions, SessionStrategy } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import GoogleProvider from "next-auth/providers/google"
 import { connect } from "../../../../server/utils/db"
@@ -5,8 +6,9 @@ import User from "../../../../server/models/User"
 import { verifyPassword } from "../../../../server/utils/auth"
 import { JWT } from "next-auth/jwt"
 import { Session } from "next-auth"
+import { AdapterUser } from "next-auth/adapters"
 
-export const authOptions = {
+export const authOptions: AuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_ID!,
@@ -35,22 +37,24 @@ export const authOptions = {
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }: { token: JWT; user?: { id: string; role: string; plan: string } }) {
-      if (user?.id) {
-        token.id = user.id
-        token.role = user.role
-        token.plan = user.plan
+   callbacks: {
+    async jwt({ token, user }) {
+      const typedUser = user as AdapterUser & { role?: string; plan?: string }
+
+      if (typedUser?.id) {
+        token.id = typedUser.id
+        token.role = typedUser.role
+        token.plan = typedUser.plan
       }
       return token
     },
-    async session({ session, token }: { session: Session; token: JWT }) {
+    async session({ session, token }) {
       session.user.id = token.id as string
       session.user.role = token.role as string
       session.user.plan = token.plan as string
       return session
     },
   },
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt" as const },
   secret: process.env.NEXTAUTH_SECRET,
 }

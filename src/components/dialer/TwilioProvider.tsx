@@ -38,6 +38,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     const { token } = await res.json()
     return token
   }
+type Codec = 'opus' | 'pcmu'
 
   useEffect(() => {
     let mounted = true
@@ -45,7 +46,8 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       try {
         const token = await fetchToken()
         const dev = new Device(token, {
-          codecPreferences: [Device.Codec.OPUS, Device.Codec.PCMU]
+          codecPreferences: ['opus', 'pcmu'] as any
+
         })
 
         dev.on('ready', () => log('Device ready'))

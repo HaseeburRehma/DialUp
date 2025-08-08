@@ -4,7 +4,10 @@
 import * as React from 'react'
 import * as RadixTabs from '@radix-ui/react-tabs'
 
-export const Tabs = ({ children, ...props }) => (
+export const Tabs = ({
+  children,
+  ...props
+}: React.PropsWithChildren<RadixTabs.TabsProps>) => (
   <RadixTabs.Root {...props}>{children}</RadixTabs.Root>
 )
 

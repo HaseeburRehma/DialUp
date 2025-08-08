@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       users: users.map(user => ({
         ...user,
-        _id: user._id.toString()
+        id: (user._id as string).toString(),
+
       }))
     })
   } catch (error) {

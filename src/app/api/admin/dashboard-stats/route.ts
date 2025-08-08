@@ -7,7 +7,7 @@ import { authOptions } from "@/app/api/auth/authOptions" // adjust path if neede
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
     // Get total and active users
     const totalUsers = await User.countDocuments()
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    const activeUsers = await User.countDocuments({ 
-      lastLogin: { $gte: thirtyDaysAgo } 
+    const activeUsers = await User.countDocuments({
+      lastLogin: { $gte: thirtyDaysAgo }
     })
 
     // Get plan distribution
@@ -50,7 +50,8 @@ export async function GET(request: NextRequest) {
       totalRevenue,
       planDistribution: planDist,
       recentSignups: recentSignups.map(user => ({
-        id: user._id.toString(),
+        id: (user._id as string).toString(),
+
         name: user.name,
         email: user.email,
         plan: user.plan,

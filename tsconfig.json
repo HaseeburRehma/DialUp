@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "es6"],
-    "types": ["next-auth", "web-speech-api"],
+    "types": ["next-auth"],
 
     "allowJs": true,
     "skipLibCheck": true,
@@ -26,10 +26,10 @@
     "target": "ES2017"
   },
   "include": [
-    "next-auth.d.ts",
+   
     "**/*.ts",
     "**/*.tsx",
-    "types/**/*.d.ts",
+    ".next/types/**/*.ts",
     ".next/types/**/*.ts",
     "server/routes/twilio.js",
     "server/routes/transcribe.js",

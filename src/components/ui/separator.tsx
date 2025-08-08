@@ -1,17 +1,19 @@
-'use client'
+// src/components/ui/separator.tsx
+import * as React from 'react'
+import { cn } from '@/lib/utils' // assuming you have a utility to merge classnames
 
-import React from 'react'
+export interface SeparatorProps extends React.HTMLAttributes<HTMLDivElement> {}
 
-interface SeparatorProps {
-  vertical?: boolean
-}
-
-export function Separator({ vertical = false }: SeparatorProps) {
-  return (
+const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
+  ({ className, ...props }, ref) => (
     <div
-      className={vertical
-        ? 'border-l mx-2 h-full border-gray-200'
-        : 'border-t my-2 w-full border-gray-200'}
+      ref={ref}
+      className={cn('shrink-0 bg-border h-[1px] w-full', className)}
+      {...props}
     />
   )
-}
+)
+
+Separator.displayName = 'Separator'
+
+export { Separator }

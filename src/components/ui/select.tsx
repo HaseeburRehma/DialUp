@@ -7,39 +7,38 @@ import { cn } from '@/lib/utils'
 export const Select = SelectPrimitive.Root
 export const SelectValue = SelectPrimitive.Value
 
+interface SelectTriggerProps extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger> {
+  placeholder?: string;
+}
+
 export const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, ...props }, ref) => (
+  SelectTriggerProps
+>(({ className, placeholder, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
       // layout
       'group relative flex items-center justify-between w-full h-10 px-3',
-
       // fonts
       'text-sm leading-tight',
-
       // light & dark theme inputs
       'bg-input text-input-foreground border border-input',
       'dark:bg-popover dark:text-popover-foreground dark:border-popover',
-
       // shape & shadow
       'rounded-md shadow-sm',
-
       // interactions
       'cursor-pointer hover:bg-input/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background',
-
       className
     )}
     {...props}
   >
-    <SelectPrimitive.Value placeholder={props.placeholder} className="flex-1 truncate" />
+    <SelectPrimitive.Value placeholder={placeholder} className="flex-1 truncate" />
     <SelectPrimitive.Icon asChild>
       <ChevronDown className="w-4 h-4 opacity-50 transition group-hover:opacity-80" />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
-))
+));
 SelectTrigger.displayName = 'SelectTrigger'
 
 export const SelectContent = React.forwardRef<

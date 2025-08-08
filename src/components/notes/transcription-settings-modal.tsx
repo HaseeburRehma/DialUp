@@ -27,25 +27,7 @@ import { toast } from '@/hooks/use-toast'
 import settings from '@/app/api/settings'
 import type { TranscriptionSettings } from '@/hooks/use-user-settings'
 
-export interface TranscriptionSettings {
-    transcriptionMode: 'live' | 'batch';
-    audioSources: { microphone: boolean; systemAudio: boolean };
-    transcriptionModel: string;
-    language: string;
-    autoPunctuation: boolean;
-    whisperlive: {
-        enabled: boolean;
-        serverUrl: string;
-        port: number;
-        backend: 'faster_whisper' | 'tensorrt' | 'openvino';
-        vad: boolean; // Changed from useVAD
-        translate: boolean;
-        saveRecording: boolean;
-        outputFilename: string;
-        maxClients: number;
-        maxConnectionTime: number;
-    };
-}
+
 
 type Props = {
     open: boolean

@@ -24,6 +24,7 @@ import { useUserSettings } from '@/hooks/use-user-settings'
 export interface NoteRecorderHandle {
   uploadRecordings: () => Promise<Recording[]>
   resetRecordings: () => void
+  setAudioUrls: (urls: string[]) => void
   isBusy: boolean
 }
 
@@ -46,7 +47,7 @@ export const NoteRecorder = forwardRef<NoteRecorderHandle, NoteRecorderProps>(fu
   const { recordings, addRecording, removeRecording, resetRecordings } =
     useRecordings(audioUrls)
 
-  
+
 
   // Speech-to-text fallback
   const [liveTranscript, setLiveTranscript] = useState('')
@@ -140,13 +141,14 @@ export const NoteRecorder = forwardRef<NoteRecorderHandle, NoteRecorderProps>(fu
       if (!r.ok) throw new Error('Whisper failed')
       const { text } = await r.json()
 
-      const segments = text.split(/\r?\n/).map(line => {
+      const segments = text.split(/\r?\n/).map((line: string) => {
         const m = line.match(/^Speaker (\d+):\s*(.*)$/)
         return m
           ? { speaker: m[1] === '0' ? 'user' : 'system', content: m[2] }
           : { speaker: 'system', content: line }
       })
-      const combined = segments.map(s => s.content).join('\n')
+
+      const combined = segments.map((s: { content: any }) => s.content).join('\n')
       onTranscription(combined)
     } catch (e) {
       console.error(e)
@@ -173,9 +175,20 @@ export const NoteRecorder = forwardRef<NoteRecorderHandle, NoteRecorderProps>(fu
   // expose API
   useImperativeHandle(
     ref,
-    () => ({ uploadRecordings: async () => recordings, resetRecordings, isBusy: isRecording || isTranscribing }),
-    [recordings, isRecording, isTranscribing, resetRecordings]
+    () => ({
+      uploadRecordings: async () => recordings,
+      resetRecordings,
+      isBusy: isRecording || isTranscribing,
+      setAudioUrls: (urls: string[]) => {
+        resetRecordings() // Clear old
+        urls.forEach((url, i) => {
+          addRecording({ id: `seed-${i}`, url }) // Or however you're initializing them
+        })
+      }
+    }),
+    [recordings, isRecording, isTranscribing, resetRecordings, addRecording]
   )
+
 
   const formatDuration = (sec: number) => {
     const m = Math.floor(sec / 60)

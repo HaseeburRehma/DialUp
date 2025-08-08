@@ -43,7 +43,7 @@ export function useSpeechRecognition(
       }
     }
 
-    recog.onerror = e => console.error('Speech recognition error', e)
+    recog.onerror = (e: Event) => console.error('Speech recognition error', e)
     recognitionRef.current = recog
 
     return () => {

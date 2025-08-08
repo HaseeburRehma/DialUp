@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 
 export interface WhisperLiveConfig {
+    language: string
+   
     vad: boolean
     enabled: boolean
     serverUrl: string
@@ -46,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
         autoPunctuation: true,
         whisperlive: {
             enabled: false,
+            language:'en',
             serverUrl: 'localhost',
             port: 9090,
             backend: 'faster_whisper',

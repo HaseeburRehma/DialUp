@@ -22,7 +22,7 @@ export async function getAllPlans() {
 export async function createPlan(data: any) {
   await connectDb();
   const result = await db.collection('plans').insertOne(data);
-  return result.ops?.[0] ?? result;
+  return db.collection('plans').findOne({ _id: result.insertedId });
 }
 
 export async function getAnalyticsStats(): Promise<AnalyticsStats> {
