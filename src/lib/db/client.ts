@@ -1,6 +1,8 @@
 import { MongoClient } from 'mongodb'
 
 const uri = process.env.MONGODB_URI!
+if (!uri) throw new Error('Missing MongoDB connection string.')
+
 const options = {}
 
 let client: MongoClient
