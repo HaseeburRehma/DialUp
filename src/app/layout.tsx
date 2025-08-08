@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={inter.className}
       suppressHydrationWarning
     >
-      <head /> 
+      
       <body suppressHydrationWarning>
         <Providers>
           <SettingsProvider>
