@@ -45,6 +45,7 @@
     "http-errors": "^2.0.0",
     "libphonenumber-js": "^1.12.10",
     "lucide-react": "^0.468.0",
+    "mongodb": "^6.18.0",
     "mongoose": "^8.16.2",
     "multer": "^2.0.1",
     "next": "^15.3.5",
