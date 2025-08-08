@@ -1,32 +1,31 @@
-import { db, connectDb } from './client';
+import { connectDb } from './client';
 import { ObjectId } from 'mongodb';
 import { AnalyticsStats } from '@/lib/types';
 
-
 export async function deletePlan(planId: string) {
-  await connectDb();
+  const db = await connectDb();
   return db.collection('plans').deleteOne({ _id: new ObjectId(planId) });
 }
 
+export async function getAllPlans() {
+  const db = await connectDb();
+  return db.collection('plans').find().toArray();
+}
+
 export async function updatePlan(planId: string, updates: any) {
-  await connectDb();
+  const db = await connectDb();
   await db.collection('plans').updateOne({ _id: new ObjectId(planId) }, { $set: updates });
   return db.collection('plans').findOne({ _id: new ObjectId(planId) });
 }
 
-export async function getAllPlans() {
-  await connectDb();
-  return db.collection('plans').find().toArray();
-}
-
 export async function createPlan(data: any) {
-  await connectDb();
+  const db = await connectDb();
   const result = await db.collection('plans').insertOne(data);
   return db.collection('plans').findOne({ _id: result.insertedId });
 }
 
 export async function getAnalyticsStats(): Promise<AnalyticsStats> {
-  await connectDb();
+  const db = await connectDb();
 
   const usersCol = db.collection('users');
   const subsCol = db.collection('subscriptions');
@@ -34,17 +33,20 @@ export async function getAnalyticsStats(): Promise<AnalyticsStats> {
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [totalUsers, activeUsers, revenueDocs, churnUsers, monthlyNewUsers, monthlyRevenueDocs] = await Promise.all([
+  const [
+    totalUsers,
+    activeUsers,
+    revenueDocs,
+    churnUsers,
+    monthlyNewUsers,
+    monthlyRevenueDocs
+  ] = await Promise.all([
     usersCol.countDocuments(),
     usersCol.countDocuments({ isActive: true }),
     subsCol.aggregate([
-      {
-        $match: { createdAt: { $gte: startOfMonth } }
-      },
-      {
-        $group: { _id: null, total: { $sum: "$amount" } }
-      }
-    ]).toArray(),
+      { $match: { createdAt: { $gte: startOfMonth } } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]).toArray() as { _id: null; total: number }[],
     usersCol.countDocuments({ status: 'churned' }),
     usersCol.aggregate([
       {
@@ -54,7 +56,7 @@ export async function getAnalyticsStats(): Promise<AnalyticsStats> {
         }
       },
       { $sort: { "_id": 1 } }
-    ]).toArray(),
+    ]).toArray() as { _id: string; count: number }[],
     subsCol.aggregate([
       {
         $group: {
@@ -63,7 +65,7 @@ export async function getAnalyticsStats(): Promise<AnalyticsStats> {
         }
       },
       { $sort: { "_id": 1 } }
-    ]).toArray()
+    ]).toArray() as { _id: string; revenue: number }[]
   ]);
 
   const monthlyRevenue = revenueDocs?.[0]?.total ?? 0;
