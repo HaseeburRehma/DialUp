@@ -1,25 +1,4 @@
 {
   "root": true,
-  "extends": ["next/core-web-vitals"],
-  "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint"],
-  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module", "ecmaFeatures": { "jsx": true } },
-  "overrides": [
-    {
-      "files": ["**/*.{ts,tsx}"],
-      "rules": {
-        "no-restricted-imports": [
-          "error",
-          {
-            "name": "next/document",
-            "message": "Import from next/document only in src/pages/_document.tsx"
-          }
-        ]
-      }
-    },
-    {
-      "files": ["src/pages/_document.tsx"],   // <-- match your actual file
-      "rules": { "no-restricted-imports": "off" }
-    }
-  ]
+  "extends": ["next/core-web-vitals"]
 }
