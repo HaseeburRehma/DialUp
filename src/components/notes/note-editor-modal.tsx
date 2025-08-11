@@ -1,75 +1,55 @@
 'use client'
-
-import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { useToast } from '@/hooks/use-toast'
-import { NoteRecorder, NoteRecorderHandle } from './note-recorder'
-import { TranscriptDisplay } from './transcript-display'
-import { TranscriptSegmentsDisplay } from './transcript-segments-display'
-
-import { WhisperLiveHandle, WhisperLiveRecorder } from './whisper-live-recorder'
-import { Save, RotateCcw } from 'lucide-react'
-import { useUserSettings } from '@/hooks/use-user-settings'
-import { useSettings } from '@/hooks/SettingsContext'
-import { useOptimizedWhisperLive } from '@/hooks/use-optimized-whisper-live'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { NoteRecorder, NoteRecorderHandle } from './note-recorder';
+import { TranscriptDisplay } from './transcript-display';
+import { TranscriptSegmentsDisplay } from './transcript-segments-display';
+import { WhisperLiveHandle, WhisperLiveRecorder } from './whisper-live-recorder';
+import { Save, RotateCcw } from 'lucide-react';
+import { useSettings } from '@/hooks/SettingsContext';
 import type { Segment } from '@/types/transcription';
 import { RecordingsList, Recording } from './recordings-list';
 
+// types (add near top of file)
 interface Note {
-  id: string
-  text: string
-  audioUrls?: string[]
-  callerName: string
-  callerEmail: string
-  callerLocation: string
-  callerAddress: string
-  callReason: string
-  createdAt: string
-  updatedAt: string
+  id: string;
+  text: string;
+  audioUrls?: string[];
+  callerName: string;
+  callerEmail: string;
+  callerLocation: string;
+  callerAddress: string;
+  callReason: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface NoteEditorModalProps {
-  open: boolean
-  note?: Note | null
-  onClose: () => void
-  onSave: () => void
+  open: boolean;
+  note?: Note | null;
+  onClose: () => void;
+  onSave: () => void;
 }
 
 export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModalProps) {
-  // always call hooks at the top
-  const { settings } = useSettings()
-  const transcription = settings.transcription
+  const { settings } = useSettings();
+  const transcription = settings?.transcription;
+  const transcriptionMode = transcription?.transcriptionMode;
+  const whisperlive = transcription?.whisperlive;
+
   const liveRef = useRef<WhisperLiveHandle>(null);
+  const recorderRef = useRef<NoteRecorderHandle>(null);
+  const { toast } = useToast();
 
-  const { transcriptionMode, whisperlive } = transcription
-  const savedRecs: Recording[] =
-    note?.audioUrls?.map((url: string, i: number) => ({
-      id: `saved-${i}`,
-      url
-    })) ?? [];
-  /**useEffect(() => {
-    let timeout: NodeJS.Timeout | null = null;
-    if (transcriptionMode === 'live' && whisperlive.enabled) {
-      timeout = setTimeout(() => {
-        liveRef.current?.connect();
-        liveRef.current?.startTranscription();
-      }, 1000);
-    } else {
-      liveRef.current?.stopTranscription();
-      liveRef.current?.disconnect();
-    }
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [transcriptionMode, whisperlive.enabled]);
-**/
-
-
-
+  const savedRecs: Recording[] = useMemo(
+    () => note?.audioUrls?.map((url: string, i: number) => ({ id: `saved-${i}`, url })) ?? [],
+    [note?.audioUrls]
+  );
 
   const [formData, setFormData] = useState({
     callerName: note?.callerName || '',
@@ -77,74 +57,61 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
     callerLocation: note?.callerLocation || '',
     callerAddress: note?.callerAddress || '',
     callReason: note?.callReason || '',
-  })
-  const [noteText, setNoteText] = useState(note?.text || '')
-  const [isSaving, setIsSaving] = useState(false)
-  const recorderRef = useRef<NoteRecorderHandle>(null)
-  const { toast } = useToast()
-
+  });
+  const [noteText, setNoteText] = useState(note?.text || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [liveSegments, setLiveSegments] = useState<Segment[]>([]);
 
   useEffect(() => {
     if (open && note) {
-      setNoteText(note.text)
+      setNoteText(note.text || '');
       setFormData({
         callerName: note.callerName || '',
         callerEmail: note.callerEmail || '',
         callerLocation: note.callerLocation || '',
         callerAddress: note.callerAddress || '',
         callReason: note.callReason || '',
-      })
+      });
       setLiveSegments(
         note.text
-          ? note.text.split('\n').map((line, i) => ({
+          ? note.text.split('\n').map((line: any, i: number) => ({
             id: `${i}`,
             content: line,
-            speaker: 'mic', // or 'speaker' if applicable
+            speaker: 'mic',
             volume: 1,
-            timestamp: i * 2 // ⬅️ dummy value in seconds, adjust as needed
+            timestamp: i * 2,
           }))
           : []
-      )
-
-
-      recorderRef.current?.setAudioUrls(note.audioUrls || [])
+      );
+      recorderRef.current?.setAudioUrls(note.audioUrls || []);
     }
-  }, [open, note])
+  }, [open, note]);
 
-  // if for any reason transcription isn't loaded yet, avoid rendering recorder
-  if (!transcription) {
-    return null
-  }
-
-  const extractFields = (text: string) => {
-    const lines = text.split(/\r?\n/)
+  const extractFields = useCallback((text: string) => {
+    const lines = text.split(/\r?\n/);
     for (const line of lines) {
-      const nameMatch = line.match(/(?:Hi|Hello|Good (?:Morning|Afternoon|Evening))\s+([A-Za-z]+)/i)
-      if (nameMatch?.[1]) setFormData(prev => ({ ...prev, callerName: nameMatch[1].trim() }))
+      const nameMatch = line.match(/(?:Hi|Hello|Good (?:Morning|Afternoon|Evening))\s+([A-Za-z]+)/i);
+      if (nameMatch?.[1]) setFormData(prev => ({ ...prev, callerName: nameMatch[1].trim() }));
 
-      const emailMatch = line.match(/(?:my email is|confirm (?:my )?email(?: address)?|email)[:\s]*([^\s]+)/i)
-      if (emailMatch?.[1]) setFormData(prev => ({ ...prev, callerEmail: emailMatch[1].trim() }))
+      const emailMatch = line.match(/(?:my email is|confirm (?:my )?email(?: address)?|email)[:\s]*([^\s]+)/i);
+      if (emailMatch?.[1]) setFormData(prev => ({ ...prev, callerEmail: emailMatch[1].trim() }));
 
-      const locMatch = line.match(/(?:my location is|I'm in|I am in|I live in)\s+(.+)/i)
-      if (locMatch?.[1]) setFormData(prev => ({ ...prev, callerLocation: locMatch[1].trim() }))
+      const locMatch = line.match(/(?:my location is|I'm in|I am in|I live in)\s+(.+)/i);
+      if (locMatch?.[1]) setFormData(prev => ({ ...prev, callerLocation: locMatch[1].trim() }));
 
-      const addrMatch = line.match(/my address is\s+(.+)/i)
-      if (addrMatch?.[1]) setFormData(prev => ({ ...prev, callerAddress: addrMatch[1].trim() }))
+      const addrMatch = line.match(/my address is\s+(.+)/i);
+      if (addrMatch?.[1]) setFormData(prev => ({ ...prev, callerAddress: addrMatch[1].trim() }));
 
-      const reasonMatch = line.match(/(?:reason for call(?: is)?|I need help with)[:\s]*([\s\S]+)/i)
-      if (reasonMatch?.[1]) setFormData(prev => ({ ...prev, callReason: reasonMatch[1].trim() }))
+      const reasonMatch = line.match(/(?:reason for call(?: is)?|I need help with)[:\s]*([\s\S]+)/i);
+      if (reasonMatch?.[1]) setFormData(prev => ({ ...prev, callReason: reasonMatch[1].trim() }));
     }
-  }
+  }, []);
 
-  const [liveSegments, setLiveSegments] = useState<Segment[]>([])
-
-  // batch (string) handler
   const handleTranscription = useCallback((text: string) => {
     setNoteText(text);
     extractFields(text);
   }, [extractFields]);
 
-  // live (Segment[]) handler
   const handleLiveTranscription = useCallback((segments: Segment[]) => {
     const full = segments.map(s => s.content).join('\n');
     setNoteText(full);
@@ -152,49 +119,47 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
     extractFields(full);
   }, [extractFields]);
 
-
-  const resetNote = () => {
-    setNoteText(note?.text || '')
+  const resetNote = useCallback(() => {
+    setNoteText(note?.text || '');
     setFormData({
       callerName: note?.callerName || '',
       callerEmail: note?.callerEmail || '',
       callerLocation: note?.callerLocation || '',
       callerAddress: note?.callerAddress || '',
       callReason: note?.callReason || '',
-    })
-    recorderRef.current?.resetRecordings()
-  }
+    });
+    recorderRef.current?.resetRecordings();
+  }, [note]);
 
-  const handleSave = async () => {
-    const isLive = transcription.transcriptionMode === 'live' && whisperlive.enabled;
-    // grab recordings from the correct source
-    const recs = isLive
-      ? await liveRef.current!.uploadRecordings()
-      : await recorderRef.current!.uploadRecordings();
-
+  const handleSave = useCallback(async () => {
     if (!noteText.trim()) return;
     setIsSaving(true);
-
     try {
-      // upload all blobs (live or batch) and collect URLs
+      const isLive = transcriptionMode === 'live' && whisperlive?.enabled;
+      const recs = isLive
+        ? await liveRef.current!.uploadRecordings()
+        : await recorderRef.current!.uploadRecordings();
+
       const audioUrls = await Promise.all(
-        recs.map(async (rec) => {
+        (recs as Array<{ blob?: Blob; url?: string }>).map(async (rec) => {
           if (rec.blob) {
             const fd = new FormData();
             fd.append('file', rec.blob);
             const resp = await fetch('/api/upload', { method: 'POST', body: fd });
             if (!resp.ok) throw new Error('Upload failed');
             const { url } = await resp.json();
-            return url;
+            return url as string;
           }
-          return rec.url;
+          return rec.url as string;
         })
       );
 
-      // send note to your API
+
       const payload = { text: noteText, audioUrls, ...formData };
       const url = note ? `/api/notes/${note.id}` : '/api/notes';
+
       const method = note ? 'PATCH' : 'POST';
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -203,24 +168,16 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
       });
       if (!response.ok) throw new Error('Failed to save');
 
-      toast({
-        title: note ? 'Note Updated' : 'Note Saved',
-        description: 'Saved successfully.',
-      });
-
+      toast({ title: note ? 'Note Updated' : 'Note Saved', description: 'Saved successfully.' });
       recorderRef.current?.resetRecordings();
       onSave();
       onClose();
     } catch {
-      toast({
-        title: 'Save Failed',
-        description: 'Failed to save note.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Save Failed', description: 'Failed to save note.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [noteText, transcriptionMode, whisperlive?.enabled, formData, note, onSave, onClose, toast]);
 
   return (
     <Dialog open={open}

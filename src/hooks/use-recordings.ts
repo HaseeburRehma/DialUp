@@ -1,36 +1,40 @@
-// src/hooks/use-recordings.ts
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react';
 
-interface Recording { id: string; url: string; blob?: Blob }
+interface Recording {
+  id: string;
+  url: string;
+  blob?: Blob;
+}
 
 export function useRecordings(audioUrls?: string[]) {
-  const urls = audioUrls ?? []
+  // ✅ Memoize so the array reference is stable unless contents change
+  const urls = useMemo(() => audioUrls ?? [], [audioUrls]);
 
-  // Seed once from the actual contents
+  // Seed state from URLs
   const [recordings, setRecordings] = useState<Recording[]>(() =>
-    urls.map(u => ({ id: u, url: u }))
-  )
+    urls.map((u) => ({ id: u, url: u }))
+  );
 
-  // Re‐seed only when the contents of the array change
+  // ✅ Now dependency array can just be [urls]
   useEffect(() => {
-    setRecordings(urls.map(u => ({ id: u, url: u })))
-  }, [JSON.stringify(urls)])
+    setRecordings(urls.map((u) => ({ id: u, url: u })));
+  }, [urls]);
 
   const cleanupResource = (r: Recording) => {
-    if (r.blob) URL.revokeObjectURL(r.url)
-  }
+    if (r.blob) URL.revokeObjectURL(r.url);
+  };
 
-  const addRecording = (r: Recording) => setRecordings(prev => [r, ...prev])
+  const addRecording = (r: Recording) => setRecordings((prev) => [r, ...prev]);
 
   const removeRecording = (r: Recording) => {
-    setRecordings(prev => prev.filter(x => x.id !== r.id))
-    cleanupResource(r)
-  }
+    setRecordings((prev) => prev.filter((x) => x.id !== r.id));
+    cleanupResource(r);
+  };
 
   const resetRecordings = () => {
-    recordings.forEach(cleanupResource)
-    setRecordings(urls.map(u => ({ id: u, url: u })))
-  }
+    recordings.forEach(cleanupResource);
+    setRecordings(urls.map((u) => ({ id: u, url: u })));
+  };
 
-  return { recordings, addRecording, removeRecording, resetRecordings }
+  return { recordings, addRecording, removeRecording, resetRecordings };
 }
