@@ -3,11 +3,7 @@
   "extends": ["next/core-web-vitals"],
   "parser": "@typescript-eslint/parser",
   "plugins": ["@typescript-eslint"],
-  "parserOptions": {
-    "ecmaVersion": 2022,
-    "sourceType": "module",
-    "ecmaFeatures": { "jsx": true }
-  },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module", "ecmaFeatures": { "jsx": true } },
   "overrides": [
     {
       "files": ["**/*.{ts,tsx}"],
@@ -22,10 +18,8 @@
       }
     },
     {
-      "files": ["pages/_document.tsx"],
-      "rules": {
-        "no-restricted-imports": "off"
-      }
+      "files": ["src/pages/_document.tsx"],   // <-- match your actual file
+      "rules": { "no-restricted-imports": "off" }
     }
   ]
 }
