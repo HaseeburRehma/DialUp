@@ -22,7 +22,7 @@
       }
     },
     {
-      "files": ["src/pages/_document.tsx"],
+      "files": ["pages/_document.tsx"],
       "rules": {
         "no-restricted-imports": "off"
       }
