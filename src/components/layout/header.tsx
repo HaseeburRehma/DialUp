@@ -50,10 +50,11 @@ export function Header() {
     { name: 'Pricing', href: '/pricing' },
     { name: 'About', href: '/about' },
   ]
-  const dashboardPrefixes = ["/admin", "/notes", "/dialer", "/settings" , "/answerai"]; const isDashboardRoute = (_pathname ? dashboardPrefixes.some((p) => _pathname.startsWith(p)) : false)
-
-  
+ 
+  const dashboardPrefixes = ['/admin', '/notes', '/dialer', '/settings', '/answerai']
+  const isDashboardRoute = dashboardPrefixes.some((p) => pathname.startsWith(p)) // ✅ safe
   const isAdmin = session?.user?.role === 'admin'
+
 
   return (
     <header className={cn(
