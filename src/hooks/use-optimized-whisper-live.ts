@@ -484,7 +484,8 @@ export function useOptimizedWhisperLive(
         }
 
         const wavView = encodeWAVOptimized(interleaved, sampleRate)
-        const blob = new Blob([wavView.buffer], { type: 'audio/wav' })
+        const wavBytes = new Uint8Array(wavView.buffer, 0, wavView.byteLength)
+        const blob = new Blob([wavBytes], { type: 'audio/wav' })
         const formData = new FormData()
         formData.append('file', blob, config.outputFilename || `recording-${Date.now()}.wav`)
 
