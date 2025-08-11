@@ -32,10 +32,11 @@ import { cn } from '@/lib/utils'
 
 export function Header() {
   const { data: session } = useSession()
-  const pathname = usePathname()
+  const _pathname = usePathname()
+  const pathname = _pathname ?? '' // ✅ never null after this line
+
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10)
@@ -49,9 +50,9 @@ export function Header() {
     { name: 'Pricing', href: '/pricing' },
     { name: 'About', href: '/about' },
   ]
-  const dashboardPrefixes = ["/admin", "/notes", "/dialer", "/settings" , "/answerai"]; const isDashboardRoute = dashboardPrefixes.some((p) =>
-    pathname.startsWith(p)
-  );
+  const dashboardPrefixes = ["/admin", "/notes", "/dialer", "/settings" , "/answerai"]; const isDashboardRoute = (_pathname ? dashboardPrefixes.some((p) => _pathname.startsWith(p)) : false)
+
+  
   const isAdmin = session?.user?.role === 'admin'
 
   return (
