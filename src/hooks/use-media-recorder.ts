@@ -5,7 +5,8 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 export interface MediaRecorderState {
   isRecording: boolean;
   recordingDuration: number;
-  audioData: Uint8Array | null;
+  audioData: Uint8Array<ArrayBuffer> | null;
+
   updateTrigger: number;
 }
 
@@ -35,14 +36,17 @@ export function useMediaRecorder() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const rafRef = useRef<number | null>(null);
-  const audioBufferRef = useRef<Uint8Array | null>(null);
+  const audioBufferRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
 
   const drawLoop = useCallback(() => {
     const analyser = analyserRef.current;
-    const buffer = audioBufferRef.current;
+    const buffer = audioBufferRef.current
+
     if (!analyser || !buffer) return;
 
-    analyser.getByteTimeDomainData(buffer);
+    analyser.getByteTimeDomainData(buffer as Uint8Array<ArrayBuffer>);
+
+
     setState(s => ({ ...s, updateTrigger: s.updateTrigger + 1 }));
     rafRef.current = requestAnimationFrame(drawLoop);
   }, []);
