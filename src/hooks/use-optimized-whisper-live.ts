@@ -45,29 +45,32 @@ interface OptimizedWhisperLiveState {
 }
 
 // Optimized WAV encoding with better performance
-function encodeWAVOptimized(samples: Float32Array, sampleRate: number): DataView {
+function encodeWAVOptimized(
+  samples: Float32Array,
+  sampleRate: number
+): Uint8Array<ArrayBuffer> {
   const bitsPerSample = 16
   const bytesPerSample = bitsPerSample / 8
   const blockAlign = bytesPerSample
   const byteRate = sampleRate * blockAlign
   const dataSize = samples.length * bytesPerSample
-  const buffer = new ArrayBuffer(44 + dataSize)
-  const view = new DataView(buffer)
 
-  // Write WAV header efficiently
+  // Allocate a REAL ArrayBuffer and a byte view over it
+  const bytes = new Uint8Array(new ArrayBuffer(44 + dataSize)) as Uint8Array<ArrayBuffer>
+  const view = new DataView(bytes.buffer)
+
+  // Header
   const writeString = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) {
-      view.setUint8(offset + i, str.charCodeAt(i))
-    }
+    for (let i = 0; i < str.length; i++) bytes[offset + i] = str.charCodeAt(i)
   }
 
   writeString(0, 'RIFF')
   view.setUint32(4, 36 + dataSize, true)
   writeString(8, 'WAVE')
   writeString(12, 'fmt ')
-  view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true)
-  view.setUint16(22, 1, true)
+  view.setUint32(16, 16, true)               // PCM header size
+  view.setUint16(20, 1, true)                // audio format = PCM
+  view.setUint16(22, 1, true)                // channels = 1
   view.setUint32(24, sampleRate, true)
   view.setUint32(28, byteRate, true)
   view.setUint16(32, blockAlign, true)
@@ -75,16 +78,16 @@ function encodeWAVOptimized(samples: Float32Array, sampleRate: number): DataView
   writeString(36, 'data')
   view.setUint32(40, dataSize, true)
 
-  // Optimized PCM writing
-  let offset = 44
+  // PCM data (convert float -> int16)
   const samples16 = new Int16Array(samples.length)
   for (let i = 0; i < samples.length; i++) {
     const s = Math.max(-1, Math.min(1, samples[i]))
-    samples16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF
+    samples16[i] = s < 0 ? s * 0x8000 : s * 0x7fff
   }
+  // Copy Int16 bytes into payload starting at offset 44
+  bytes.set(new Uint8Array(samples16.buffer), 44)
 
-  new Uint8Array(buffer, offset).set(new Uint8Array(samples16.buffer))
-  return view
+  return bytes
 }
 
 export function useOptimizedWhisperLive(
@@ -483,11 +486,11 @@ export function useOptimizedWhisperLive(
           offset += buf.length
         }
 
-        const wavView = encodeWAVOptimized(interleaved, sampleRate)
-        const wavBytes = new Uint8Array(wavView.buffer, 0, wavView.byteLength)
-        const blob = new Blob([wavBytes], { type: 'audio/wav' })
+        const wavBytes = encodeWAVOptimized(interleaved, sampleRate) 
+        const blob = new Blob([wavBytes], { type: 'audio/wav' })     // OK for BlobPart
         const formData = new FormData()
         formData.append('file', blob, config.outputFilename || `recording-${Date.now()}.wav`)
+
 
         const response = await fetch('/api/upload', {
           method: 'POST',
