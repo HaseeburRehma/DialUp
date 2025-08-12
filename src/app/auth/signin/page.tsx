@@ -42,10 +42,11 @@ export default function SignInPage() {
       setLoading(false)
       return
     }
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
     // 2) ALSO sign in to your Express server so req.session.user is set
     try {
-      const expressRes = await fetch('http://localhost:8000/api/auth/signin', {
+      const expressRes = await fetch(`${apiBase}/api/auth/signin`, {
         method: 'POST',
         credentials: 'include',               // <–– send+store the express-session cookie
         headers: { 'Content-Type': 'application/json' },
@@ -108,7 +109,7 @@ export default function SignInPage() {
               Sign in to continue your voice note journey
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -148,9 +149,9 @@ export default function SignInPage() {
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200" 
+              <Button
+                type="submit"
+                className="w-full h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                 disabled={loading}
               >
                 {loading ? (

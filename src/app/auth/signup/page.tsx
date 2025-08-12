@@ -28,8 +28,10 @@ export default function SignUpPage() {
     e.preventDefault()
     setLoading(true)
 
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
     try {
-      const response = await fetch('/api/server/auth/signup', {
+      const response = await fetch(`${apiBase}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
