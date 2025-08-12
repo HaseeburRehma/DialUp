@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "cross-env NODE_OPTIONS='--inspect' next dev",
     "build": "npm run server:build && next build",
-    "start": "npm run server:start",
+    "start": "next start -p $PORT -H 0.0.0.0",
     "lint": "next lint",
     "server:dev": "cross-env PORT=8000 node server/index.js",
     "server:build": "echo 'Server build complete'",

@@ -30,7 +30,11 @@ async function start() {
 
   // ─── 2) Create Express app ───────────────────────────────────────────────
   const app  = express()
- const PORT = Number(process.env.SERVER_PORT || 3001)
+ const port = Number(process.env.PORT || 3000);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`> Ready on http://0.0.0.0:${port}`);
+});
+
 
   // ─── 3) Global middleware ────────────────────────────────────────────────
   app.use(cors({
