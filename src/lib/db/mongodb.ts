@@ -1,4 +1,4 @@
-// lib/db/mongodb.ts or similar
+// lib/db/mongodb.ts
 import mongoose from 'mongoose';
 
 let isConnected = false;
@@ -7,13 +7,8 @@ export const connectToDatabase = async () => {
   if (isConnected) return;
 
   const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error('Missing MONGODB_URI in environment');
+  if (!uri) throw new Error('Missing MONGODB_URI');
 
-  try {
-    await mongoose.connect(uri);
-    isConnected = true;
-  } catch (err) {
-    console.error('MongoDB connection error:', err);
-    throw err;
-  }
+  await mongoose.connect(uri);
+  isConnected = true;
 };

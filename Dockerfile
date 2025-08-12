@@ -30,6 +30,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=deps-dev /app/node_modules ./node_modules
 COPY . .
+
+ARG MONGODB_URI
+ENV MONGODB_URI=$MONGODB_URI
 # Runs: "npm run server:build && next build"
 RUN npm run build
 
