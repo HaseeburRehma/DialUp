@@ -28,7 +28,11 @@ export default function SignUpPage() {
     e.preventDefault()
     setLoading(true)
 
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiBase =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://voiceai-production-01d6.up.railway.app'
+    : 'http://localhost:8000');
 
     try {
       const response = await fetch(`${apiBase}/api/auth/signup`, {

@@ -42,8 +42,11 @@ export default function SignInPage() {
       setLoading(false)
       return
     }
-    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL ||
+      (process.env.NODE_ENV === 'production'
+        ? 'https://voiceai-production-01d6.up.railway.app'
+        : 'http://localhost:8000');
     // 2) ALSO sign in to your Express server so req.session.user is set
     try {
       const expressRes = await fetch(`${apiBase}/api/auth/signin`, {
