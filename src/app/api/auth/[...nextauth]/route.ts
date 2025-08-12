@@ -1,9 +1,5 @@
 import NextAuth from "next-auth"
-import { authOptions } from "@/app/api/auth/authOptions" // adjust path if needed
-
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
+import { authOptions } from "@/app/api/auth/authOptions"
 
 const handler = NextAuth(authOptions)
-
-export { handler as GET, handler as POST } // ✅ ONLY export GET and POST
+export { handler as GET, handler as POST }

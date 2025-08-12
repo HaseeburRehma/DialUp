@@ -59,7 +59,7 @@ async function start() {
 
   // static + API routes
   app.use('/audio', express.static(path.join(__dirname, '../public/audio')));
-  app.use('/api/auth', require('./routes/auth'));
+//  app.use('/api/auth', require('./routes/auth'));
   app.use('/api/notes', require('./routes/note'));
   app.use('/api/transcribe', require('./routes/transcribe'));
   app.use('/api/upload', require('./routes/upload'));
