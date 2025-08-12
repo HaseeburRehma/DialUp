@@ -1,0 +1,30 @@
+# deps & caches
+node_modules
+npm-debug.log
+.yarn
+.pnpm-store
+
+# Next.js
+.next
+out
+.vercel
+.turbo
+.cache
+dist
+
+# env / vcs / editor
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea
+.fleet
+
+# python/ffmpeg extras you listed
+server/.venv
+server/venv
+server/utils/ffmpeg.exe
+server/utils/ffplay.exe
+server/utils/ffprobe.exe
