@@ -22,12 +22,18 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         try {
-          if (!credentials) return null
-          await connect()
-          const user = await User.findOne({ username: credentials.username })
-          if (!user) return null
-          const valid = await verifyPassword(credentials.password, user.password)
-          if (!valid) return null
+          if (!credentials) throw new Error('Missing credentials');
+
+          await connect();
+
+          const user = await User.findOne({ username: credentials.username });
+          if (!user || !user.password) {
+            throw new Error('Invalid username or password');
+          }
+
+          const valid = await verifyPassword(credentials.password, user.password);
+          if (!valid) throw new Error('Invalid username or password');
+
           return {
             id: user._id.toString(),
             name: user.name,
@@ -35,12 +41,12 @@ export const authOptions: AuthOptions = {
             role: user.role,
             plan: user.plan,
           };
-
         } catch (err) {
-          console.error('Authorize error:', err)
-          return null
+          console.error('Authorize error:', err);
+          throw new Error('Invalid username or password');
         }
       }
+
 
     }),
   ],
