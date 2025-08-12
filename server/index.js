@@ -30,11 +30,11 @@ async function start() {
 
   // ─── 2) Create Express app ───────────────────────────────────────────────
   const app  = express()
-  const PORT = process.env.PORT || 3001
+ const PORT = Number(process.env.SERVER_PORT || 3001)
 
   // ─── 3) Global middleware ────────────────────────────────────────────────
   app.use(cors({
-    origin:      ['http://localhost:3000'], // adjust to your client
+    origin: [process.env.FRONTEND_ORIGIN || 'http://localhost:3000'],
     credentials: true,
   }))
   app.use(express.json({  limit: '50mb' }))
