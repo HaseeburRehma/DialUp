@@ -49,19 +49,20 @@ async function start() {
       ttl: 7 * 24 * 60 * 60,
     }),
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === 'production', // needs https in prod
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // allow cross-site
       maxAge: 24 * 60 * 60 * 1000,
     },
+
   }));
 
   // static + API routes
   app.use('/audio', express.static(path.join(__dirname, '../public/audio')));
-  app.use('/api/auth',        require('./routes/auth'));
-  app.use('/api/notes',       require('./routes/note'));
-  app.use('/api/transcribe',  require('./routes/transcribe'));
-  app.use('/api/upload',      require('./routes/upload'));
+  app.use('/api/auth', require('./routes/auth'));
+  app.use('/api/notes', require('./routes/note'));
+  app.use('/api/transcribe', require('./routes/transcribe'));
+  app.use('/api/upload', require('./routes/upload'));
   app.use('/api/twilio-token', require('./routes/twilio'));
 
   app.get('/health', (_req, res) => res.json({ ok: true }));

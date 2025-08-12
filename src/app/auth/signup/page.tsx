@@ -28,19 +28,16 @@ export default function SignUpPage() {
     e.preventDefault()
     setLoading(true)
 
-    const apiBase =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (process.env.NODE_ENV === 'production'
-    ? 'https://voiceai-production-01d6.up.railway.app'
-    : 'http://localhost:8000');
+
+
 
     try {
-      const response = await fetch(`${apiBase}/api/auth/signup`, {
+      const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-        credentials: 'include'
+        body: JSON.stringify(formData)
       })
+
 
       const data = await response.json()
 
@@ -141,7 +138,7 @@ export default function SignUpPage() {
                 Start your voice note journey today
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent className="space-y-6">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -209,9 +206,9 @@ export default function SignUpPage() {
                   </div>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200" 
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                   disabled={loading}
                 >
                   {loading ? (

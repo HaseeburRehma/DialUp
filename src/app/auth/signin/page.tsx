@@ -26,7 +26,6 @@ export default function SignInPage() {
     e.preventDefault()
     setLoading(true)
 
-    // 1) Sign in with NextAuth (to get your NextAuth JWT cookie)
     const nextAuthResult = await signIn('credentials', {
       redirect: false,
       username: formData.username,
@@ -42,41 +41,12 @@ export default function SignInPage() {
       setLoading(false)
       return
     }
-    const apiBase =
-      process.env.NEXT_PUBLIC_API_URL ||
-      (process.env.NODE_ENV === 'production'
-        ? 'https://voiceai-production-01d6.up.railway.app'
-        : 'http://localhost:8000');
-    // 2) ALSO sign in to your Express server so req.session.user is set
-    try {
-      const expressRes = await fetch(`${apiBase}/api/auth/signin`, {
-        method: 'POST',
-        credentials: 'include',               // <–– send+store the express-session cookie
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
-        }),
-      })
-      if (!expressRes.ok) {
-        throw new Error('Express sign-in failed')
-      }
-    } catch (err) {
-      console.error('Express login error:', err)
-      toast({
-        title: 'Error',
-        description: 'Could not log in to notes API. Please try again.',
-        variant: 'destructive',
-      })
-      setLoading(false)
-      return
-    }
 
-    // 3) Success on both fronts!
     toast({ title: 'Success', description: 'Signed in successfully.' })
     router.push('/notes')
     setLoading(false)
   }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50 dark:from-gray-900 dark:via-green-900/20 dark:to-green-900/20">

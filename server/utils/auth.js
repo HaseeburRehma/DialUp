@@ -5,8 +5,8 @@ async function hashPassword(pw){
   return bcrypt.hash(pw, 10);
 }
 
-async function verifyPassword(hash,pw){
-  return bcrypt.compare(pw, hash);
+async function verifyPassword(plain, hash) {
+  return bcrypt.compare(plain, hash);
 }
 
 module.exports = { hashPassword, verifyPassword };
