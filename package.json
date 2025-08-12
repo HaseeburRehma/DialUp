@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS='--inspect' next dev",
-    "build": "npm run server:build && next build",
-    "start": "next start -p $PORT -H 0.0.0.0",
+     "dev": "cross-env NODE_ENV=development node server/index.js",
+    "build": "next build",
+    "start": "node server/index.js",
     "lint": "next lint",
     "server:dev": "cross-env PORT=8000 node server/index.js",
     "server:build": "echo 'Server build complete'",
