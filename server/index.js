@@ -1,4 +1,3 @@
-// server/index.js
 const path = require('path');
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
@@ -71,9 +70,9 @@ async function start() {
   app.all('*', (req, res) => handle(req, res));
 
   // 5) Listen ONCE on the platform port
-  const PORT = Number(process.env.PORT || 3000);
+  const PORT = process.env.PORT || 3000;
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`> Ready on http://0.0.0.0:${PORT}`);
+    console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
   });
 }
 
