@@ -9,6 +9,7 @@ export interface Recording {
 }
 
 export interface OptimizedWhisperLiveConfig {
+  wsPath: string
   serverUrl: string
   port: number
   language: string
@@ -185,18 +186,25 @@ export function useOptimizedWhisperLive(
     let wsUrl: string;
     if (isLocal) {
       // Local development
-      wsUrl = `${protocol}://127.0.0.1:${config.port || 8000}`;
+      wsUrl = `${protocol}://127.0.0.1:${config.port || 8000}${config.wsPath || ''}`;
     } else {
-      // Production: use the provided serverUrl directly
-      // Ensure no double protocol and always secure for production
-      const cleanHost = config.serverUrl.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '');
-      const path = cleanHost.includes('/') ? '' : '/ws'; // append /ws if not already there
-      wsUrl = `wss://${cleanHost}${path}`;
-    }
+      // Production on Railway → always use secure WebSockets
+      const cleanHost = config.serverUrl
+        .replace(/^https?:\/\//, '')
+        .replace(/^wss?:\/\//, '')
+        .replace(/\/$/, '');
 
+      const path = config.wsPath || '/ws'; // default to /ws if not provided
+      wsUrl = `wss://${cleanHost}${config.port ? `:${config.port}` : ''}${path}`;
+    }
     console.log("[OptimizedWhisperLive] Connecting to WebSocket:", wsUrl);
     const ws = new WebSocket(wsUrl);
-
+    ws.onerror = (err) => {
+      console.error("[OptimizedWhisperLive] WebSocket error:", err);
+    };
+    ws.onclose = () => {
+      console.warn("[OptimizedWhisperLive] WebSocket closed");
+    };
     // Log for debugging
     ws.binaryType = 'arraybuffer'
     wsRef.current = ws
