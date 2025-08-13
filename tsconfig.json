@@ -30,9 +30,11 @@
     "paths": {
       "@/*": ["./src/*"]
     },
+    
 
     "target": "ES2017"
   },
+  
   "include": [
     "**/*.ts",
     "**/*.tsx",
@@ -43,4 +45,5 @@
     "src/**/*.tsx"
   ],
   "exclude": ["node_modules", "dist"]
+  
 }
