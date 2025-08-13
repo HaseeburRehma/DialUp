@@ -5,7 +5,7 @@ const Note = require('../models/Note');
 
 const router = express.Router();
 const { getServerSession } = require("next-auth");
-const { authOptions } = require("../../src/app/api/auth/[...nextauth]/route"); // adjust path
+import { authOptions } from "@/app/api/auth/authOptions"
 
 async function requireLogin(req, res, next) {
   const session = await getServerSession(req, res, authOptions);
