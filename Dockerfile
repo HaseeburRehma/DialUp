@@ -9,15 +9,16 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1 \
     NPM_CONFIG_LEGACY_PEER_DEPS=true
 
-# Copy package manifests first for caching
-COPY package*.json ./
-
-# Install build tools for node-gyp dependencies (bcrypt, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ pkg-config \
+    python3 python3-pip python3-venv \
+    ffmpeg make g++ pkg-config \
  && rm -rf /var/lib/apt/lists/*
 
+COPY package*.json ./
 RUN npm ci
+
+COPY requirements.txt ./requirements.txt
+RUN if [ -f requirements.txt ]; then pip3 install --no-cache-dir -r requirements.txt; fi
 
 ############################
 # 2) Build Next.js + server
@@ -26,8 +27,14 @@ FROM node:20-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY --from=deps-dev /app/node_modules ./node_modules
 COPY . .
+
+RUN if [ -f requirements.txt ]; then pip3 install --no-cache-dir -r requirements.txt; fi
 
 ARG MONGODB_URI
 ENV MONGODB_URI=$MONGODB_URI
@@ -35,39 +42,48 @@ ENV MONGODB_URI=$MONGODB_URI
 RUN npm run build
 
 ############################
-# 3) Install production deps only
+# 3) Production dependencies
 ############################
 FROM node:20-bookworm-slim AS deps-prod
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip ffmpeg supervisor \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
+COPY requirements.txt ./requirements.txt
+RUN if [ -f requirements.txt ]; then pip3 install --no-cache-dir -r requirements.txt; fi
+
 ############################
-# 4) Runtime (non-root)
+# 4) Runtime
 ############################
-FROM gcr.io/distroless/nodejs20-debian12:nonroot AS runner
+FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=${PORT:-3000} \
+    WHISPER_PORT=${WHISPER_PORT:-9090}
 
-# Use Railway's PORT env or default to 3000
-ENV PORT=${PORT:-3000}
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip ffmpeg supervisor \
+ && rm -rf /var/lib/apt/lists/*
 
-# Copy built app + production deps
-COPY --chown=nonroot:nonroot --from=build     /app/.next        ./.next
-COPY --chown=nonroot:nonroot --from=build     /app/public       ./public
-COPY --chown=nonroot:nonroot --from=deps-prod /app/node_modules ./node_modules
-COPY --chown=nonroot:nonroot --from=build     /app/package*.json ./
-COPY --chown=nonroot:nonroot --from=build     /app/server       ./server
+COPY --from=build     /app/.next        ./.next
+COPY --from=build     /app/public       ./public
+COPY --from=deps-prod /app/node_modules ./node_modules
+COPY --from=build     /app/package*.json ./
+COPY --from=build     /app/server       ./server
+COPY --from=build     /app/WhisperLive  ./WhisperLive
+COPY --from=build     /app/requirements.txt ./requirements.txt
 
-# Healthcheck for Railway
-HEALTHCHECK --interval=30s --timeout=5s \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT}/health || exit 1
+# Supervisord config to run both Node.js and WhisperLive
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-EXPOSE ${PORT}
+EXPOSE ${PORT} ${WHISPER_PORT}
 
-# Distroless image has node as entrypoint
-CMD ["server/index.js"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
