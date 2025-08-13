@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connect } from '../../../../../server/utils/db.js'
 import User from '../../../../../server/models/User.js'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from "@/lib/shared/authOptions";
+import { getServerSession } from 'next-auth'
+import { authOptions } from 'server/config/authOptions.js'
 
 export async function GET(request: NextRequest) {
   try {

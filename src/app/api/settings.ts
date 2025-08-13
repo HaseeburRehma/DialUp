@@ -1,13 +1,18 @@
 // pages/api/settings.ts
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getSession } from 'next-auth/react'
+import { getServerSession } from "next-auth"
+
 import Settings from '../../../server/models/Settings.js'
 import { connect } from '../../../server/utils/db.js'
+import { NextResponse } from 'next/server.js'
+import { authOptions } from 'server/config/authOptions.js'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getSession({ req })
-  if (!session?.user?.email) return res.status(401).json({ error: 'Not authenticated' })
-
+  const session = await getServerSession(authOptions)
+   if (!session?.user?.email) {
+     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+   }
+ 
   await connect()
   const key = session.user.email
 

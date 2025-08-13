@@ -1,10 +1,10 @@
 // src/app/api/settings/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { getServerSession } from 'next-auth';
 import Settings from '../../../../server/models/Settings.js';
 import { connect } from '../../../../server/utils/db.js';
-import { authOptions } from '@/lib/shared/authOptions';
+import { authOptions } from 'server/config/authOptions.js'
 
 
 

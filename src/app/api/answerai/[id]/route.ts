@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from "@/lib/shared/authOptions";
+import { getServerSession } from "next-auth"
+import { authOptions } from 'server/config/authOptions.js'
 
 import { connect } from '../../../../../server/utils/db.js';
 import AnswerAI from '../../../../../server/models/AnswerAi.js';
