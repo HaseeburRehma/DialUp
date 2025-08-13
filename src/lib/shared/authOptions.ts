@@ -48,7 +48,7 @@ export const authOptions: AuthOptions = {
       (session.user as any).role = token.role as string;
       (session.user as any).plan = token.plan as string;
       return session;
-    },
+    }
   },
   session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,

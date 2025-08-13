@@ -2,7 +2,8 @@ const express = require('express');
 const createError = require('http-errors');
 const { connect } = require('../utils/db');
 const Note = require('../models/Note');
-const { authOptions } = require("../../app/api/auth/authOptions");
+const { authOptions } = require("../../src/lib/shared/authOptions");
+
 const router = express.Router();
 const { getServerSession } = require("next-auth");
 

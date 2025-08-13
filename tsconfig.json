@@ -4,39 +4,43 @@
     "types": ["next-auth"],
 
     "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
     "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "strict": true,
+    "skipLibCheck": true,
+
+    /* ✅ Allow output */
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+
+    /* ✅ Make Express happy */
+    "module": "commonjs",
+    "moduleResolution": "node",
+
     "jsx": "preserve",
     "incremental": true,
+
     "plugins": [
-      {
-        "name": "next"
-      }
+      { "name": "next" }
     ],
+
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
+
     "target": "ES2017"
   },
   "include": [
-   
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/types/**/*.ts",
-    "server/routes/twilio.js",
-    "server/routes/transcribe.js",
-    "server/routes/postprocess.ts",
-    "src/globals.d.ts",
-    "server/models/AnswerAi.js",
-    "src/components/notes/whisper-live-recorder.ts"
+    "server/**/*.ts",
+    "server/**/*.js",
+    "src/**/*.ts",
+    "src/**/*.tsx"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist"]
 }
