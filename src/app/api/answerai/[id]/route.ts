@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from "@/lib/shared/authOptions";
 
-import { connect } from '../../../../../server/utils/db'
-import AnswerAI from '../../../../../server/models/AnswerAi'
-import { sendNoteNotification } from '../../../../../server/utils/mailer'
+import { connect } from '../../../../../server/utils/db.js';
+import AnswerAI from '../../../../../server/models/AnswerAi.js';
+import { sendNoteNotification } from '../../../../../server/utils/mailer.js';
+import User from '../../../../../server/models/User.js';
+
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-import User from '../../../../../server/models/User'
 
 export async function PATCH(req: NextRequest, context: any) {
   const { id } = context.params

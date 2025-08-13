@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connect } from '../../../../../server/utils/db'
-import User from '../../../../../server/models/User'
+import { connect } from '../../../../../server/utils/db.js'
+import User from '../../../../../server/models/User.js'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from "@/lib/shared/authOptions";
 

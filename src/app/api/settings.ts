@@ -1,8 +1,8 @@
 // pages/api/settings.ts
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { getSession } from 'next-auth/react'
-import Settings from '../../../server/models/Settings'
-import { connect } from '../../../server/utils/db'
+import Settings from '../../../server/models/Settings.js'
+import { connect } from '../../../server/utils/db.js'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession({ req })

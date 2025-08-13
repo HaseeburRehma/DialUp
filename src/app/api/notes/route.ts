@@ -1,15 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from "@/lib/shared/authOptions";
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/shared/authOptions';
+import { connect } from '../../../../server/utils/db.js';
+import Note from '../../../../server/models/Note.js';
+import { sendNoteNotification } from '../../../../server/utils/mailer.js';
+import User from '../../../../server/models/User.js';
 
-import { connect } from '../../../../server/utils/db'
-import Note from '../../../../server/models/Note'
-import { sendNoteNotification } from '../../../../server/utils/mailer'
-import User from '../../../../server/models/User'    // ← your User model
-
-// Force this route to be dynamic and run in Node.js runtime
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * GET /api/notes

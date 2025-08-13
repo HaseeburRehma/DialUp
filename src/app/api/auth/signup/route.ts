@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { connect } from '../../../../../server/utils/db'
-import User from '../../../../../server/models/User'
-import { hashPassword } from '../../../../../server/utils/auth'
-import { signIn } from 'next-auth/react'
+import { NextRequest, NextResponse } from 'next/server';
+import { connect } from '../../../../../server/utils/db.js';
+import User from '../../../../../server/models/User.js';
+import { hashPassword } from '../../../../../server/utils/auth.js';
 
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 
 export async function POST(req: NextRequest) {
   try {
