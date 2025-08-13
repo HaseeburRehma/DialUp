@@ -1,5 +1,5 @@
-const CredentialsProvider = require("next-auth/providers/credentials");
-const GoogleProvider = require("next-auth/providers/google");
+const CredentialsProvider = require("next-auth/providers/credentials").default;
+const GoogleProvider = require("next-auth/providers/google").default;
 const { connect } = require("../utils/db");
 const User = require("../models/User");
 const { verifyPassword } = require("../utils/auth");
@@ -16,21 +16,21 @@ const authOptions = {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
-    async authorize(credentials) {
-      if (!credentials) return null;
-      await connect();
-      const user = await User.findOne({ username: credentials.username });
-      if (!user?.password) return null;
-      const valid = await verifyPassword(credentials.password, user.password);
-      if (!valid) return null;
-      return {
-        id: user._id.toString(),
-        name: user.name ?? user.username,
-        email: user.email ?? "",
-        role: user.role,
-        plan: user.plan,
-      };
-    },
+      async authorize(credentials) {
+        if (!credentials) return null;
+        await connect();
+        const user = await User.findOne({ username: credentials.username });
+        if (!user?.password) return null;
+        const valid = await verifyPassword(credentials.password, user.password);
+        if (!valid) return null;
+        return {
+          id: user._id.toString(),
+          name: user.name ?? user.username,
+          email: user.email ?? "",
+          role: user.role,
+          plan: user.plan,
+        };
+      },
     }),
   ],
   callbacks: {
@@ -51,5 +51,6 @@ const authOptions = {
   },
   session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,
-}
+};
 
+module.exports = { authOptions };
