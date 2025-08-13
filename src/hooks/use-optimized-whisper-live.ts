@@ -173,13 +173,28 @@ export function useOptimizedWhisperLive(
 
     setState(s => ({ ...s, error: null }))
 
-    // Enhanced WebSocket connection
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const host = config.serverUrl === 'localhost' || config.serverUrl === '::1'
-      ? '127.0.0.1'
-      : config.serverUrl
+    // Enhanced WebSocket connection with Railway auto-detection
+    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '::1';
 
-    const ws = new WebSocket(`${protocol}://${host}:${config.port}`)
+    // Use WSS if the page is loaded over HTTPS, otherwise WS
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+
+    // Determine host & port
+    let host, portPart;
+    if (isLocal) {
+      host = '127.0.0.1';
+      portPart = ':8000'; // default local dev port for WhisperLive (change if different)
+    } else {
+      // Automatically use current domain in production (Railway, Vercel, etc.)
+      host = window.location.hostname;
+      portPart = ''; // let browser default to 443/80 based on protocol
+    }
+
+    // Final WebSocket URL
+    const ws = new WebSocket(`${protocol}://${host}${portPart}`);
+
+    // Log for debugging
+    console.log("Connecting to WebSocket:", `${protocol}://${host}${portPart}`);
     ws.binaryType = 'arraybuffer'
     wsRef.current = ws
     lastSegmentIndexRef.current = 0
@@ -486,7 +501,7 @@ export function useOptimizedWhisperLive(
           offset += buf.length
         }
 
-        const wavBytes = encodeWAVOptimized(interleaved, sampleRate) 
+        const wavBytes = encodeWAVOptimized(interleaved, sampleRate)
         const blob = new Blob([wavBytes], { type: 'audio/wav' })     // OK for BlobPart
         const formData = new FormData()
         formData.append('file', blob, config.outputFilename || `recording-${Date.now()}.wav`)
