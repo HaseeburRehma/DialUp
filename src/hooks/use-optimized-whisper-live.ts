@@ -174,27 +174,30 @@ export function useOptimizedWhisperLive(
     setState(s => ({ ...s, error: null }))
 
     // Enhanced WebSocket connection with Railway auto-detection
-    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname === '::1';
+    const isLocal =
+      location.hostname === 'localhost' ||
+      location.hostname === '127.0.0.1' ||
+      location.hostname === '::1';
 
-    // Use WSS if the page is loaded over HTTPS, otherwise WS
+    // Pick protocol based on current page
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
-    // Determine host & port
-    let host, portPart;
+    let wsUrl: string;
     if (isLocal) {
-      host = '127.0.0.1';
-      portPart = ':8000'; // default local dev port for WhisperLive (change if different)
+      // Local development
+      wsUrl = `${protocol}://127.0.0.1:${config.port || 8000}`;
     } else {
-      // Automatically use current domain in production (Railway, Vercel, etc.)
-      host = window.location.hostname;
-      portPart = ''; // let browser default to 443/80 based on protocol
+      // Production: use the provided serverUrl directly
+      // Ensure no double protocol and always secure for production
+      const cleanHost = config.serverUrl.replace(/^https?:\/\//, '').replace(/^wss?:\/\//, '');
+      const path = cleanHost.includes('/') ? '' : '/ws'; // append /ws if not already there
+      wsUrl = `wss://${cleanHost}${path}`;
     }
 
-    // Final WebSocket URL
-    const ws = new WebSocket(`${protocol}://${host}${portPart}`);
+    console.log("[OptimizedWhisperLive] Connecting to WebSocket:", wsUrl);
+    const ws = new WebSocket(wsUrl);
 
     // Log for debugging
-    console.log("Connecting to WebSocket:", `${protocol}://${host}${portPart}`);
     ws.binaryType = 'arraybuffer'
     wsRef.current = ws
     lastSegmentIndexRef.current = 0
