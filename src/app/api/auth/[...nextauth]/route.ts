@@ -1,5 +1,5 @@
 import NextAuth from "next-auth"
-import { authOptions } from "@/app/api/auth/authOptions"
+import { authOptions } from "../../../../lib/authOptions"; // relative path, no @/
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
