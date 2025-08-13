@@ -1,41 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from "@/lib/shared/authOptions";
+import { authOptions } from '@/lib/shared/authOptions'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-    }
+  const session = await getServerSession({ req, ...authOptions })
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+  }
 
-    const { question, context, position, company } = await req.json()
+  const { question, context, position, company } = await req.json()
+  if (!question?.trim()) {
+    return NextResponse.json({ error: 'Question is required' }, { status: 400 })
+  }
 
-    if (!question?.trim()) {
-        return NextResponse.json({ error: 'Question is required' }, { status: 400 })
-    }
-
-    try {
-        const answer = await generateAnswer({ question, context, position, company })
-        return NextResponse.json({
-            answer,
-            confidence: 0.9,
-            generatedAt: Date.now(),
-            isAiGenerated: true
-        })
-    } catch (error) {
-        console.error('Answer generation error:', error)
-        return NextResponse.json({ error: 'Failed to generate answer' }, { status: 500 })
-    }
+  try {
+    const answer = await generateAnswer({ question, context, position, company })
+    return NextResponse.json({
+      answer,
+      confidence: 0.9,
+      generatedAt: Date.now(),
+      isAiGenerated: true
+    })
+  } catch (error) {
+    console.error('Answer generation error:', error)
+    return NextResponse.json({ error: 'Failed to generate answer' }, { status: 500 })
+  }
 }
 
 interface PromptInput {
-    question: string
-    context?: string
-    position?: string
-    company?: string
+  question: string
+  context?: string
+  position?: string
+  company?: string
 }
 
 async function generateAnswer({ question, context, position, company }: PromptInput): Promise<string> {
@@ -53,7 +52,7 @@ async function generateAnswer({ question, context, position, company }: PromptIn
   const res = await fetch('https://api.together.xyz/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer e675664e8f52125c7bf37ee2985a4343233b42459b84399400aeb9c3448ac3e4`,
+      'Authorization': `Bearer ${process.env.TOGETHER_API_KEY}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
