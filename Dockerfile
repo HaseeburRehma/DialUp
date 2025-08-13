@@ -17,8 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY package*.json ./
 RUN npm ci
 
-COPY requirements.txt ./requirements.txt
-RUN if [ -f requirements.txt ]; then pip3 install --no-cache-dir -r requirements.txt; fi
+# Install Python requirements for dev
+COPY server/requirements.txt ./server/requirements.txt
+COPY server/WhisperLive/requirements ./server/WhisperLive/requirements
+RUN pip3 install --no-cache-dir \
+    -r server/requirements.txt \
+    -r server/WhisperLive/requirements/client.txt \
+    -r server/WhisperLive/requirements/server.txt
 
 ############################
 # 2) Build Next.js + server
@@ -34,7 +39,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=deps-dev /app/node_modules ./node_modules
 COPY . .
 
-RUN if [ -f requirements.txt ]; then pip3 install --no-cache-dir -r requirements.txt; fi
+RUN pip3 install --no-cache-dir \
+    -r server/requirements.txt \
+    -r server/WhisperLive/requirements/client.txt \
+    -r server/WhisperLive/requirements/server.txt
 
 ARG MONGODB_URI
 ENV MONGODB_URI=$MONGODB_URI
@@ -55,8 +63,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-COPY requirements.txt ./requirements.txt
-RUN if [ -f requirements.txt ]; then pip3 install --no-cache-dir -r requirements.txt; fi
+# Install Python requirements for production
+COPY server/requirements.txt ./server/requirements.txt
+COPY server/WhisperLive/requirements ./server/WhisperLive/requirements
+RUN pip3 install --no-cache-dir \
+    -r server/requirements.txt \
+    -r server/WhisperLive/requirements/client.txt \
+    -r server/WhisperLive/requirements/server.txt
 
 ############################
 # 4) Runtime
@@ -76,10 +89,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=build     /app/.next        ./.next
 COPY --from=build     /app/public       ./public
 COPY --from=deps-prod /app/node_modules ./node_modules
-COPY --from=build     /app/package*.json ./
+COPY --from=build     /app/package*.json ./package*.json
 COPY --from=build     /app/server       ./server
 COPY --from=build     /app/WhisperLive  ./WhisperLive
-COPY --from=build     /app/requirements.txt ./requirements.txt
 
 # Supervisord config to run both Node.js and WhisperLive
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
