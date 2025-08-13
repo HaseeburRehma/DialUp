@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/shared/authOptions";
 import { connect } from '../../../../../server/utils/db'
 import Note from '../../../../../server/models/Note'
 import { sendNoteNotification } from '../../../../../server/utils/mailer'
-import User from 'server/models/User'
+import User from '../../../../../server/models/User'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'

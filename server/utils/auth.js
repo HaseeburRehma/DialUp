@@ -1,14 +1,21 @@
-const bcrypt = require("bcrypt");
+// server/utils/auth.js
+import bcrypt from 'bcrypt';
 
-async function hashPassword(pw) {
+/**
+ * Hash a password with bcrypt
+ * @param {string} pw - The plain text password
+ * @returns {Promise<string>} The hashed password
+ */
+export async function hashPassword(pw) {
   return bcrypt.hash(pw, 10);
 }
 
-async function verifyPassword(plain, hash) {
+/**
+ * Verify a plain password against a hash
+ * @param {string} plain - The plain text password
+ * @param {string} hash - The hashed password
+ * @returns {Promise<boolean>} Whether the passwords match
+ */
+export async function verifyPassword(plain, hash) {
   return bcrypt.compare(plain, hash);
 }
-
-module.exports = {
-  hashPassword,
-  verifyPassword
-};

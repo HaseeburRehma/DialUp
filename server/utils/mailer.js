@@ -1,7 +1,6 @@
 // server/utils/mailer.js
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
-// Use Gmail’s built-in service configuration
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -11,8 +10,7 @@ const transporter = nodemailer.createTransport({
   debug: true,
 });
 
-// Verify configuration at startup
-transporter.verify((err, success) => {
+transporter.verify((err) => {
   if (err) {
     console.error('⚠️ SMTP transporter verification failed:', err);
   } else {
@@ -20,10 +18,7 @@ transporter.verify((err, success) => {
   }
 });
 
-/**
- * Send a notification email when a note is created or updated.
- */
-async function sendNoteNotification({ to, subject, html }) {
+export async function sendNoteNotification({ to, subject, html }) {
   await transporter.sendMail({
     from: `"VOICE AI" <${process.env.SMTP_USER}>`,
     to,
@@ -31,5 +26,3 @@ async function sendNoteNotification({ to, subject, html }) {
     html,
   });
 }
-
-module.exports = { sendNoteNotification };
