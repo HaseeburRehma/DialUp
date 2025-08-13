@@ -2,19 +2,9 @@ const express = require('express');
 const createError = require('http-errors');
 const { connect } = require('../utils/db');
 const Note = require('../models/Note');
-const path = require("path");
 
-let authOptionsPath;
+const { authOptions } = require('../config/authOptions');
 
-if (process.env.NODE_ENV === "production") {
-  // Use compiled output
-  authOptionsPath = path.join(process.cwd(), "/src/lib/shared/authOptions");
-} else {
-  // Use TypeScript source in dev
-  authOptionsPath = path.join(process.cwd(), "src/lib/shared/authOptions");
-}
-
-const { authOptions } = require(authOptionsPath);
 
 const router = express.Router();
 const { getServerSession } = require("next-auth");
@@ -35,7 +25,7 @@ router.get('/', async (req, res, next) => {
   try {
     await connect();
     const docs = await Note
-      .find({ userId: req.user.id }) // ✅ using req.user.id now
+      .find({ userId: req.user.id })
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -63,7 +53,7 @@ router.post('/', async (req, res, next) => {
   try {
     await connect();
     const note = await Note.create({
-      userId: req.user.id, // ✅ updated
+      userId: req.user.id,
       ...req.body
     });
     res.status(201).json(note);
@@ -77,7 +67,7 @@ router.patch('/:id', async (req, res, next) => {
   try {
     await connect();
     const note = await Note.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id }, // ✅ updated
+      { _id: req.params.id, userId: req.user.id },
       req.body,
       { new: true }
     );
@@ -94,7 +84,7 @@ router.delete('/:id', async (req, res, next) => {
     await connect();
     const result = await Note.deleteOne({
       _id: req.params.id,
-      userId: req.user.id // ✅ updated
+      userId: req.user.id
     });
     if (result.deletedCount === 0) throw createError(404, 'Note not found');
     res.json({ success: true });
