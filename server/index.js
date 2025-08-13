@@ -31,45 +31,52 @@ async function start() {
   // 3) Express app + middleware
   const app = express();
 
-  app.use(cors({
-    origin: [process.env.FRONTEND_ORIGIN || 'http://localhost:3000'],
-    credentials: true,
-  }));
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+  app.use(['/api/notes', '/api/transcribe', '/api/upload', '/api/twilio-token'], cors({
+  origin: [process.env.FRONTEND_ORIGIN || 'http://localhost:3000'],
+  credentials: true,
+}));
 
-  // Use Mongo-backed session store (no MemoryStore warning)
-  app.use(session({
-    secret: process.env.SESSION_SECRET || 'dev-secret',
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl: process.env.MONGODB_URI,
-      collectionName: 'sessions',
-      ttl: 7 * 24 * 60 * 60,
-    }),
-    cookie: {
-      secure: process.env.NODE_ENV === 'production', // needs https in prod
-      httpOnly: true,
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // allow cross-site
-      maxAge: 24 * 60 * 60 * 1000,
-    },
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/auth')) return next();
+    return session({
+      secret: process.env.SESSION_SECRET || 'dev-secret',
+      resave: false,
+      saveUninitialized: false,
+      store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        collectionName: 'sessions',
+        ttl: 7 * 24 * 60 * 60,
+      }),
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+      },
+    })(req, res, next);
+  });
 
-  }));
+
+
+  const jsonParser = express.json({ limit: '50mb' });
+  const urlParser = express.urlencoded({ extended: true, limit: '50mb' });
 
   // static + API routes
   app.use('/audio', express.static(path.join(__dirname, '../public/audio')));
-//  app.use('/api/auth', require('./routes/auth'));
-  app.use('/api/notes', require('./routes/note'));
-  app.use('/api/transcribe', require('./routes/transcribe'));
-  app.use('/api/upload', require('./routes/upload'));
-  app.use('/api/twilio-token', require('./routes/twilio'));
+
+  // DO apply parsers to your custom routes
+  app.use('/api/notes', jsonParser, urlParser, require('./routes/note'));
+  app.use('/api/transcribe', jsonParser, urlParser, require('./routes/transcribe'));
+  app.use('/api/upload', jsonParser, urlParser, require('./routes/upload'));
+  app.use('/api/twilio-token', jsonParser, urlParser, require('./routes/twilio'));
+
+  // DO NOT mount anything at /api/auth — leave it to NextAuth
+  // app.use('/api/auth', require('./routes/auth')); // keep disabled/removed
 
   app.get('/health', (_req, res) => res.json({ ok: true }));
 
-  // 4) Let Next handle everything else
+  // Let Next handle everything else (including /api/auth/*)
   app.all('*', (req, res) => handle(req, res));
-
   // 5) Listen ONCE on the platform port
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, '0.0.0.0', () => {
