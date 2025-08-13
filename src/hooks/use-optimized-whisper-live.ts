@@ -9,7 +9,7 @@ export interface Recording {
 }
 
 export interface OptimizedWhisperLiveConfig {
-  wsPath: string
+  wsPath?: string
   serverUrl: string
   port: number
   language: string
