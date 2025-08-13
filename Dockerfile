@@ -56,16 +56,21 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 # Install Python + WhisperLive for prod
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip ffmpeg wget \
+    python3 python3-pip python3-venv ffmpeg wget \
  && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment for Python packages
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY server/requirement.txt ./server/requirement.txt
 COPY server/WhisperLive/requirements ./server/WhisperLive/requirements
-RUN pip3 install --no-cache-dir \
+
+# Install Python deps into venv
+RUN pip install --no-cache-dir \
     -r server/requirement.txt \
     -r server/WhisperLive/requirements/client.txt \
     -r server/WhisperLive/requirements/server.txt
-
 ############################
 # 4) Runtime (non-root) — run Node + WhisperLive
 ############################
