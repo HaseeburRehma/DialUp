@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from "@/app/api/auth/authOptions" // adjust path if needed
+import { authOptions } from "@/lib/shared/authOptions";
 
 import { connect } from '../../../../../server/utils/db'
 import AnswerAI from '../../../../../server/models/AnswerAi'

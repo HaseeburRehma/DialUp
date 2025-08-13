@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import Settings from '../../../../server/models/Settings'
 import { connect } from '../../../../server/utils/db'
-import { authOptions } from "@/app/api/auth/authOptions" // adjust path if needed
+import { authOptions } from "@/lib/shared/authOptions";
 
 
 export async function GET(req: NextRequest) {

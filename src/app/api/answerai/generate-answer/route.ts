@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
-import { authOptions } from "@/app/api/auth/authOptions" // adjust path if needed
+import { authOptions } from "@/lib/shared/authOptions";
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'

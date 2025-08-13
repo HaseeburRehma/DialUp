@@ -1,7 +1,7 @@
 // src/app/api/twilio-token/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/authOptions" // adjust path if needed
+import { authOptions } from "@/lib/shared/authOptions";
 
 import { jwt as TwilioJwt } from "twilio"
 
