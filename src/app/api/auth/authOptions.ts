@@ -14,7 +14,7 @@ export const authOptions: AuthOptions = {
       clientId: process.env.GOOGLE_ID!,
       clientSecret: process.env.GOOGLE_SECRET!,
     }),
-  CredentialsProvider({
+    CredentialsProvider({
       name: "Credentials",
       credentials: {
         username: { label: "Username", type: "text" },
@@ -55,10 +55,18 @@ export const authOptions: AuthOptions = {
     },
     async session({ session, token }) {
       (session.user as any).id = token.id as string
-      ;(session.user as any).role = token.role as string
-      ;(session.user as any).plan = token.plan as string
+        ; (session.user as any).role = token.role as string
+        ; (session.user as any).plan = token.plan as string
       return session
     },
+    async signIn({ user, account, profile, email, credentials }) {
+      console.log('signIn callback', { user, account, credentials });
+      return true;
+    },
+    async redirect({ url, baseUrl }) {
+      console.log('redirect callback', { url, baseUrl });
+      return baseUrl;
+    }
   },
   session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,
