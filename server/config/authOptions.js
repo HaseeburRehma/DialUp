@@ -1,8 +1,9 @@
-const GoogleProvider = require("next-auth/providers/google").default || require("next-auth/providers/google");
-const CredentialsProvider = require("next-auth/providers/credentials").default || require("next-auth/providers/credentials");
+const GoogleProvider = require("next-auth/providers/google");
+const CredentialsProvider = require("next-auth/providers/credentials");
 const { connect } = require("../utils/db");
 const User = require("../models/User");
 const { verifyPassword } = require("../utils/auth");
+/** @type {import('next-auth').AuthOptions} */
 
 const authOptions = {
   providers: [
@@ -47,7 +48,7 @@ const authOptions = {
       session.user.role = token.role;
       session.user.plan = token.plan;
       return session;
-    }
+    },
   },
   session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,

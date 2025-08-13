@@ -28,25 +28,42 @@ export default function SignUpPage() {
     e.preventDefault()
     setLoading(true)
 
-
-
-
     try {
+      // Create the account first
       const response = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
 
-
       const data = await response.json()
 
       if (response.ok) {
         toast({
           title: 'Success',
-          description: 'Account created successfully! Welcome to Vhisper.',
+          description: 'Account created successfully!',
         })
-        router.push('/notes')
+
+        // Now sign in the user automatically
+        const signInResult = await signIn('credentials', {
+          redirect: false,
+          username: formData.username,
+          password: formData.password,
+        })
+
+        if (signInResult?.ok) {
+          toast({
+            title: 'Welcome!',
+            description: 'You have been signed in automatically.',
+          })
+          router.push('/notes')
+        } else {
+          toast({
+            title: 'Account created',
+            description: 'Please sign in with your new account.',
+          })
+          router.push('/auth/signin')
+        }
       } else {
         toast({
           title: 'Error',
@@ -55,6 +72,7 @@ export default function SignUpPage() {
         })
       }
     } catch (error) {
+      console.error('Signup error:', error)
       toast({
         title: 'Error',
         description: 'Network error. Please try again.',
@@ -193,6 +211,7 @@ export default function SignUpPage() {
                       placeholder="Create a strong password"
                       className="h-11 pr-10 transition-all focus:ring-2 focus:ring-green-500/20"
                       required
+                      minLength={6}
                     />
                     <Button
                       type="button"

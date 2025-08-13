@@ -5,8 +5,6 @@ if (process.env.NODE_ENV !== 'production') {
 
 const express = require('express');
 const cors = require('cors');
-const session = require('express-session');
-const MongoStore = require('connect-mongo');
 const next = require('next');
 
 // your mongoose connect helper
@@ -31,52 +29,30 @@ async function start() {
   // 3) Express app + middleware
   const app = express();
 
-  app.use(['/api/notes', '/api/transcribe', '/api/upload', '/api/twilio-token'], cors({
-  origin: [process.env.FRONTEND_ORIGIN || 'http://localhost:3000'],
-  credentials: true,
-}));
-
-  app.use((req, res, next) => {
-    if (req.path.startsWith('/api/auth')) return next();
-    return session({
-      secret: process.env.SESSION_SECRET || 'dev-secret',
-      resave: false,
-      saveUninitialized: false,
-      store: MongoStore.create({
-        mongoUrl: process.env.MONGODB_URI,
-        collectionName: 'sessions',
-        ttl: 7 * 24 * 60 * 60,
-      }),
-      cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000,
-      },
-    })(req, res, next);
-  });
-
-
+  // CORS for specific API routes only (not auth routes)
+  app.use(['/api/transcribe', '/api/upload', '/api/twilio-token'], cors({
+    origin: [process.env.FRONTEND_ORIGIN || 'http://localhost:3000'],
+    credentials: true,
+  }));
 
   const jsonParser = express.json({ limit: '50mb' });
   const urlParser = express.urlencoded({ extended: true, limit: '50mb' });
 
-  // static + API routes
+  // Static files
   app.use('/audio', express.static(path.join(__dirname, '../public/audio')));
 
-  // DO apply parsers to your custom routes
-  app.use('/api/notes', jsonParser, urlParser, require('./routes/note'));
+  // Only mount non-auth API routes here
+  // Remove the /api/notes route since it's handled by Next.js API routes
   app.use('/api/transcribe', jsonParser, urlParser, require('./routes/transcribe'));
   app.use('/api/upload', jsonParser, urlParser, require('./routes/upload'));
   app.use('/api/twilio-token', jsonParser, urlParser, require('./routes/twilio'));
 
-  // DO NOT mount anything at /api/auth — leave it to NextAuth
-  // app.use('/api/auth', require('./routes/auth')); // keep disabled/removed
-
+  // Health check
   app.get('/health', (_req, res) => res.json({ ok: true }));
 
-  // Let Next handle everything else (including /api/auth/*)
+  // Let Next handle everything else (including all /api/auth/* and /api/notes/*)
   app.all('*', (req, res) => handle(req, res));
+
   // 5) Listen ONCE on the platform port
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, '0.0.0.0', () => {
