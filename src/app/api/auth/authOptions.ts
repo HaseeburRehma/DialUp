@@ -14,7 +14,7 @@ export const authOptions: AuthOptions = {
       clientId: process.env.GOOGLE_ID!,
       clientSecret: process.env.GOOGLE_SECRET!,
     }),
-    CredentialsProvider({
+  CredentialsProvider({
       name: "Credentials",
       credentials: {
         username: { label: "Username", type: "text" },
@@ -22,52 +22,44 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         try {
-          if (!credentials) throw new Error('Missing credentials');
+          if (!credentials) return null
+          await connect()
+          const user = await User.findOne({ username: credentials.username })
+          if (!user?.password) return null
 
-          await connect();
-
-          const user = await User.findOne({ username: credentials.username });
-          if (!user || !user.password) {
-            throw new Error('Invalid username or password');
-          }
-
-          const valid = await verifyPassword(credentials.password, user.password);
-          if (!valid) throw new Error('Invalid username or password');
+          const valid = await verifyPassword(credentials.password, user.password)
+          if (!valid) return null
 
           return {
             id: user._id.toString(),
-            name: user.name,
-            email: user.email,
+            name: user.name ?? user.username,
+            email: user.email ?? "",
             role: user.role,
             plan: user.plan,
-          };
-        } catch (err) {
-          console.error('Authorize error:', err);
-          throw new Error('Invalid username or password');
+          }
+        } catch (e) {
+          console.error("credentials authorize error:", e)
+          return null
         }
-      }
-
-
+      },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      const typedUser = user as AdapterUser & { role?: string; plan?: string }
-
-      if (typedUser?.id) {
-        token.id = typedUser.id
-        token.role = typedUser.role
-        token.plan = typedUser.plan
+      if (user) {
+        token.id = (user as any).id
+        token.role = (user as any).role
+        token.plan = (user as any).plan
       }
       return token
     },
     async session({ session, token }) {
-      session.user.id = token.id as string
-      session.user.role = token.role as string
-      session.user.plan = token.plan as string
+      (session.user as any).id = token.id as string
+      ;(session.user as any).role = token.role as string
+      ;(session.user as any).plan = token.plan as string
       return session
     },
   },
-  session: { strategy: "jwt" as const },
+  session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,
-}
+} as const
