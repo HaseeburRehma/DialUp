@@ -1,8 +1,6 @@
-import NextAuth from "next-auth"
-import { authOptions } from "@/lib/shared/authOptions";
+import NextAuth from 'next-auth';
+import { authOptions } from '../../../../../server/config/authOptions.js';
 
-export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
+const handler = NextAuth(authOptions);
 
-const handler = NextAuth(authOptions)
-export { handler as GET, handler as POST }
+export { handler as GET, handler as POST };

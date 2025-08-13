@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { connect } from '../../../../../server/utils/db.js';
-import User from '../../../../../server/models/User.js';
-import { verifyPassword } from '../../../../../server/utils/auth.js';
-import NextAuth from 'next-auth';
-import { authOptions } from '../../../../../server/config/authOptions.js';
+import { NextRequest, NextResponse } from 'next/server'
+import { connect } from '../../../../../server/utils/db.js'
+import User from '../../../../../server/models/User.js'
+import { verifyPassword } from '../../../../../server/utils/auth.js'
+import { SignJWT } from 'jose'
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,33 +13,33 @@ export async function POST(req: NextRequest) {
     const { username, password } = await req.json()
 
     if (!username || !password) {
-      return NextResponse.json(
-        { error: 'All fields are required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
     }
 
-    // Validate credentials manually first (optional, since NextAuth will do it again)
     const user = await User.findOne({ username })
     if (!user || !(await verifyPassword(password, user.password))) {
-      return NextResponse.json(
-        { error: 'Invalid username or password' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 })
     }
 
-    /**
-     * Now delegate to NextAuth to create the session.
-     * This uses the Credentials provider inside authOptions
-     * so it sets the correct JWT cookie for getServerSession().
-     */
-    const handler = NextAuth(authOptions)
-    return handler(req, NextResponse.next())
+    // Create NextAuth-like JWT token
+    const token = await new SignJWT({ sub: user._id.toString(), name: user.username })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('7d')
+      .sign(new TextEncoder().encode(process.env.NEXTAUTH_SECRET))
+
+    // Create the response and set the cookie
+    const res = NextResponse.json({ success: true })
+    res.cookies.set('next-auth.session-token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      sameSite: 'lax',
+    })
+
+    return res
   } catch (error: any) {
     console.error('Signin error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
