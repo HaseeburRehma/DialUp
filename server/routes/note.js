@@ -2,7 +2,19 @@ const express = require('express');
 const createError = require('http-errors');
 const { connect } = require('../utils/db');
 const Note = require('../models/Note');
-const { authOptions } = require("../../src/lib/shared/authOptions");
+const path = require("path");
+
+let authOptionsPath;
+
+if (process.env.NODE_ENV === "production") {
+  // Use compiled output
+  authOptionsPath = path.join(process.cwd(), "dist/src/lib/shared/authOptions");
+} else {
+  // Use TypeScript source in dev
+  authOptionsPath = path.join(process.cwd(), "src/lib/shared/authOptions");
+}
+
+const { authOptions } = require(authOptionsPath);
 
 const router = express.Router();
 const { getServerSession } = require("next-auth");
