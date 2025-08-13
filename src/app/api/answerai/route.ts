@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
   await connect()
   const now = new Date()
 
-  const dbUser = await User.findOne({ email: session.user.email })
+   const dbUser = await User.findById(session.user.id)
   if (!dbUser) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   }))
 
   const answerAISession = await AnswerAI.create({
-    userId: session.user.id,
+   userId: dbUser._id, 
     sessionName,
     interviewerName,
     candidateName,

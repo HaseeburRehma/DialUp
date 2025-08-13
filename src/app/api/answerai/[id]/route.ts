@@ -8,6 +8,7 @@ import { sendNoteNotification } from '../../../../../server/utils/mailer'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+import User from '../../../../../server/models/User'
 
 export async function PATCH(req: NextRequest, context: any) {
   const { id } = context.params
@@ -41,9 +42,14 @@ export async function PATCH(req: NextRequest, context: any) {
       ? new Date(answer.generatedAt).getTime()
       : answer.generatedAt || Date.now()
   }))
+  // Optional: ensure user exists in DB
+  const dbUser = await User.findById(session.user.id)
+  if (!dbUser) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  }
 
   const updatedSession = await AnswerAI.findOneAndUpdate(
-    { _id: id, userId: session.user.id },
+    { _id: id, userId: dbUser._id, },
     {
       sessionName,
       interviewerName,

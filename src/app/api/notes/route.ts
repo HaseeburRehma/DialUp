@@ -25,16 +25,16 @@ export async function GET() {
   const docs = await Note.find({ userId: session.user.id }).sort({ createdAt: -1 })
 
   const notes = docs.map(doc => ({
-    id:            doc._id.toString(),     // ← expose an `id` field
-    text:          doc.text,
-    audioUrls:     doc.audioUrls,
-    callerName:    doc.callerName,
-    callerEmail:   doc.callerEmail,
-    callerLocation:doc.callerLocation,
+    id: doc._id.toString(),     // ← expose an `id` field
+    text: doc.text,
+    audioUrls: doc.audioUrls,
+    callerName: doc.callerName,
+    callerEmail: doc.callerEmail,
+    callerLocation: doc.callerLocation,
     callerAddress: doc.callerAddress,
-    callReason:    doc.callReason,
-    createdAt:     doc.createdAt,
-    updatedAt:     doc.updatedAt,
+    callReason: doc.callReason,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
   }))
 
   return NextResponse.json(notes)
@@ -57,13 +57,13 @@ export async function POST(req: NextRequest) {
 
   await connect()
   const now = new Date()
-   // ← Lookup the Mongo _id for this user
-  const dbUser = await User.findOne({ email: session.user.email })
+  // ← Lookup the Mongo _id for this user
+  const dbUser = await User.findById(session.user.id)
   if (!dbUser) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
   const note = await Note.create({
-    userId: session.user.id,
+    userId: dbUser._id,
     text,
     audioUrls,
     callerName,
