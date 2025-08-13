@@ -8,7 +8,7 @@ let authOptionsPath;
 
 if (process.env.NODE_ENV === "production") {
   // Use compiled output
-  authOptionsPath = path.join(process.cwd(), "dist/src/lib/shared/authOptions");
+  authOptionsPath = path.join(process.cwd(), "/src/lib/shared/authOptions");
 } else {
   // Use TypeScript source in dev
   authOptionsPath = path.join(process.cwd(), "src/lib/shared/authOptions");
