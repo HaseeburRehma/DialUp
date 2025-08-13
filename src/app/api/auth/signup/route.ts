@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connect } from '../../../../../../server/utils/db'
-import User from '../../../../../../server/models/User'
-import { hashPassword } from '../../../../../../server/utils/auth'
+import { connect } from '../../../../../server/utils/db'
+import User from '../../../../../server/models/User'
+import { hashPassword } from '../../../../../server/utils/auth'
 import { signIn } from 'next-auth/react'
 
 export const dynamic = 'force-dynamic'

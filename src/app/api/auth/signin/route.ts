@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connect } from '../../../../../../server/utils/db'
-import User from '../../../../../../server/models/User'
-import { verifyPassword } from '../../../../../../server/utils/auth'
+import { connect } from '../../../../../server/utils/db'
+import User from '../../../../../server/models/User'
+import { verifyPassword } from '../../../../../server/utils/auth'
 import { signIn } from 'next-auth/react' // Only for client — not needed server-side
 import NextAuth, { AuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 
 //  Use the same authOptions you export in server/config/authOptions
-import { authOptions } from '../../../../../../server/config/authOptions'
+import { authOptions } from '../../../../../server/config/authOptions'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
