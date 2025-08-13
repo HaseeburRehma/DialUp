@@ -1,5 +1,5 @@
-const CredentialsProvider = require("next-auth/providers/credentials").default;
-const GoogleProvider = require("next-auth/providers/google").default;
+const GoogleProvider = require("next-auth/providers/google").default || require("next-auth/providers/google");
+const CredentialsProvider = require("next-auth/providers/credentials").default || require("next-auth/providers/credentials");
 const { connect } = require("../utils/db");
 const User = require("../models/User");
 const { verifyPassword } = require("../utils/auth");
