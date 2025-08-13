@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const questionSchema = new mongoose.Schema({
   id: { type: String, required: true },
@@ -19,7 +19,7 @@ const answerSchema = new mongoose.Schema({
   questionId: { type: String, required: true },
   content: { type: String, required: true },
   confidence: { type: Number, min: 0, max: 1, default: 0.8 },
-  generatedAt: { type: Number, required: true }, // Changed from Date to Number (timestamp)
+  generatedAt: { type: Number, required: true },
   isAiGenerated: { type: Boolean, default: true },
   metadata: {
     model: { type: String, default: 'mistral-7b' },
@@ -40,14 +40,9 @@ const answerAISchema = new mongoose.Schema({
   questions: [questionSchema],
   answers: [answerSchema],
   audioUrls: [{ type: String }],
-  status: {
-    type: String,
-    enum: ['active', 'paused', 'completed'],
-    default: 'active'
-  },
-  totalDuration: { type: Number, default: 0 }, // in seconds
-  transcript: { type: String, default: '' }, // 
-
+  status: { type: String, enum: ['active', 'paused', 'completed'], default: 'active' },
+  totalDuration: { type: Number, default: 0 },
+  transcript: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
@@ -57,5 +52,4 @@ answerAISchema.pre('save', function (next) {
   next();
 });
 
-module.exports = mongoose.models.AnswerAI || mongoose.model('AnswerAI', answerAISchema);
-
+export default mongoose.models.AnswerAI || mongoose.model('AnswerAI', answerAISchema);
