@@ -2,10 +2,9 @@ const express = require('express');
 const createError = require('http-errors');
 const { connect } = require('../utils/db');
 const Note = require('../models/Note');
-
+const { authOptions } = require("../../app/api/auth/authOptions");
 const router = express.Router();
 const { getServerSession } = require("next-auth");
-const { authOptions } = require("../../src/lib/shared/authOptions"); // relative path
 
 async function requireLogin(req, res, next) {
   const session = await getServerSession(req, res, authOptions);
