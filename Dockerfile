@@ -28,9 +28,7 @@ COPY server/requirement.txt ./server/requirement.txt
 COPY server/WhisperLive/requirements ./server/WhisperLive/requirements
 
 RUN pip install --upgrade pip && \
-    # Remove openai-whisper from all requirements if present
     grep -rl "openai-whisper" server || true | xargs -r sed -i '/openai-whisper/d' && \
-    # Install torch first to prevent Triton conflicts
     pip install torch==2.7.1 --prefer-binary && \
     pip install --prefer-binary \
         -r server/requirement.txt \
@@ -46,23 +44,24 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DEBIAN_FRONTEND=noninteractive
 
-# Install only runtime deps (no compilers)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg portaudio19-dev supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy installed Python packages from builder
+# Copy Python packages from builder
 COPY --from=deps-builder /usr/local/lib/python3.9 /usr/local/lib/python3.9
 COPY --from=deps-builder /usr/local/bin /usr/local/bin
 
-# Copy application code
+# Copy app source
 COPY . .
 
-# Supervisord config
+# Create supervisor directory & config
 RUN mkdir -p /etc/supervisor/conf.d
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Run supervisor
+# Expose both ports if needed
+EXPOSE 9090 3000
+
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
