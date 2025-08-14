@@ -3,12 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"next dev\" \"ts-node server/index.ts\"",
-    "build": "next build && tsc --outDir dist/server server/index.ts",
+    "dev": "concurrently \"next dev\" \"node server/index.js\"",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "server:dev": "cross-env PORT=8000 node server/index.js",
-    "server:build": "tsc --outDir dist/server server/index.ts",
     "server:start": "node dist/server/index.js"
   },
   "dependencies": {
