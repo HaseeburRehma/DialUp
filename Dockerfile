@@ -8,7 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive \
     PATH="/usr/local/bin:$PATH"
 
-# Install Python runtime deps (no compilers here for small size)
+# Install core dependencies (Python + runtime deps)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates ffmpeg portaudio19-dev supervisor \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -20,13 +20,12 @@ WORKDIR /app
 # ============================
 FROM pythonbase AS python-deps
 
-# Install build tools just for pip installs
+# Build tools for pip installs
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY server/requirement.txt ./server/requirement.txt
-COPY server/WhisperLive/requirements ./server/WhisperLive/requirements
+COPY server ./server
 
 RUN pip install --no-cache-dir --upgrade pip && \
     grep -rl "openai-whisper" server || true | xargs -r sed -i '/openai-whisper/d' && \
@@ -43,7 +42,6 @@ FROM node:20.17.0-slim AS node-build
 
 WORKDIR /app
 
-# Install dependencies using npm ci for reproducibility
 COPY package.json package-lock.json* ./
 RUN npm ci
 
@@ -55,13 +53,12 @@ RUN npm run build
 # ============================
 FROM pythonbase AS runtime
 
-# Install Node.js 20.x in final image (for Next.js + Express)
+# Install Node.js 20.x in final image
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g npm@latest \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies
+# Copy Python deps
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
@@ -77,8 +74,12 @@ COPY server ./server
 # Copy supervisord config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Ports for backend and frontend
+# Ports
 EXPOSE 9090 3000
 
-# Start all processes
+# Healthcheck for WhisperLive
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD curl -f http://localhost:9090/ || exit 1
+
+# Start supervisor
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
