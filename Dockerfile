@@ -1,102 +1,104 @@
-# syntax=docker/dockerfile:1
+# ========================
+# Stage 1: Dependencies (dev)
+# ========================
+FROM node:20-bullseye AS deps-dev
 
-############################
-# 1) Install dev dependencies
-############################
-FROM node:20-bookworm-slim AS deps-dev
 WORKDIR /app
 
-ENV NEXT_TELEMETRY_DISABLED=1 \
-    NPM_CONFIG_LEGACY_PEER_DEPS=true
-
+# Install base dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-venv make g++ pkg-config ffmpeg wget git \
- && rm -rf /var/lib/apt/lists/*
+    python3 python3-pip python3-venv ffmpeg wget supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js deps
 COPY package*.json ./
 RUN npm ci
 
-# Install Python dependencies for WhisperLive (dev)
+# Create Python virtual environment
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements
 COPY server/requirement.txt ./server/requirement.txt
 COPY server/WhisperLive/requirements ./server/WhisperLive/requirements
-# Remove conflicting whisper version if present in requirement.txt
+
+# Remove openai-whisper to speed up build
 RUN sed -i '/openai-whisper/d' server/requirement.txt
-RUN pip3 install --no-cache-dir \
-    -r server/requirement.txt \
-    -r server/WhisperLive/requirements/client.txt \
-    -r server/WhisperLive/requirements/server.txt
 
+# Install Python deps inside venv
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir \
+        -r server/requirement.txt \
+        -r server/WhisperLive/requirements/client.txt \
+        -r server/WhisperLive/requirements/server.txt
 
-############################
-# 2) Build Next.js + server
-############################
-FROM node:20-bookworm-slim AS build
+# ========================
+# Stage 2: Dependencies (prod)
+# ========================
+FROM node:20-bullseye AS deps-prod
+
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
-
-COPY --from=deps-dev /app/node_modules ./node_modules
-COPY . .
-
-ARG MONGODB_URI
-ENV MONGODB_URI=$MONGODB_URI
-
-RUN npm run build
-
-
-############################
-# 3) Production dependencies
-############################
-FROM node:20-bookworm-slim AS deps-prod
-WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
-
-COPY package*.json ./
-RUN npm ci --omit=dev && npm cache clean --force
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-venv ffmpeg wget git supervisor \
- && rm -rf /var/lib/apt/lists/*
+    python3 python3-pip python3-venv ffmpeg wget supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create virtual environment for Python packages
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Python venv
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY server/requirement.txt ./server/requirement.txt
 COPY server/WhisperLive/requirements ./server/WhisperLive/requirements
+
 RUN sed -i '/openai-whisper/d' server/requirement.txt
-RUN pip install --no-cache-dir \
-    -r server/requirement.txt \
-    -r server/WhisperLive/requirements/client.txt \
-    -r server/WhisperLive/requirements/server.txt
 
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir \
+        -r server/requirement.txt \
+        -r server/WhisperLive/requirements/client.txt \
+        -r server/WhisperLive/requirements/server.txt
 
-############################
-# 4) Runtime with supervisord
-############################
-FROM node:20-bookworm-slim AS runner
+# ========================
+# Stage 3: Build frontend
+# ========================
+FROM deps-prod AS build
+
+COPY . .
+RUN npm run build
+
+# ========================
+# Stage 4: Final image
+# ========================
+FROM node:20-bullseye
+
 WORKDIR /app
 
-ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1 \
-    PATH="/opt/venv/bin:$PATH" \
-    PORT=${PORT:-3000} \
-    WHISPER_PORT=${WHISPER_PORT:-9090}
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-venv ffmpeg supervisor \
- && rm -rf /var/lib/apt/lists/*
+    python3 python3-pip python3-venv ffmpeg wget supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=deps-prod /app/node_modules ./node_modules
-COPY --from=deps-prod /opt/venv /opt/venv
+# Copy built files
+COPY --from=build /app ./
 
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/public ./public
-COPY --from=build /app/package*.json ./
-COPY --from=build /app/server ./server
+# Python venv
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Python deps
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir \
+        -r server/requirement.txt \
+        -r server/WhisperLive/requirements/client.txt \
+        -r server/WhisperLive/requirements/server.txt
 
 # Add supervisord config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-EXPOSE ${PORT} ${WHISPER_PORT}
+# Expose ports (adjust if needed)
+EXPOSE 3000 8000
 
+# Start both services
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
