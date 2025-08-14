@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"next dev\" \"ts-node server/index.ts\"",
-    "build": "next build && tsc --project tsconfig.json",
+    "build": "next build && tsc --project tsconfig.json && tsc --project server/tsconfig.json --outDir dist/server",
     "start": "next start",
     "lint": "next lint",
     "server:dev": "cross-env PORT=8000 node server/index.js",
-    "server:build": "echo 'Server build complete'",
-    "server:start": "node server/index.js"
+    "server:build": "tsc --project server/tsconfig.json --outDir dist/server",
+    "server:start": "node dist/server/index.js"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.7.2",

@@ -59,19 +59,13 @@ COPY --from=deps-builder /usr/local/bin /usr/local/bin
 # Copy full app source
 COPY . .
 
-# Install Node dependencies for the server directory
-WORKDIR /app/server
-RUN npm install --production
-
-# Go back to main app directory
-WORKDIR /app
+# Install Node dependencies & build both Next.js and Express
+RUN npm install && npm run build
 
 # Create supervisor directory & config
 RUN mkdir -p /etc/supervisor/conf.d
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Expose ports
 EXPOSE 9090 3000
 
-# Start supervisord
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
