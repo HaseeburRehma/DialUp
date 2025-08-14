@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"next dev\" \"ts-node server/index.ts\"",
-    "build": "next build && tsc --project tsconfig.json && tsc --project server/tsconfig.json --outDir dist/server",
+    "build": "next build && tsc",
     "start": "next start",
     "lint": "next lint",
     "server:dev": "cross-env PORT=8000 node server/index.js",
