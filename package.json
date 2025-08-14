@@ -3,14 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-     "dev": "concurrently \"next dev\" \"ts-node server/index.ts\"",
-  "build": "next build && tsc --project tsconfig.json",
-  "start": "concurrently \"next start\" \"node dist/server/index.js\"",
-  "lint": "next lint",
+    "dev": "concurrently \"next dev\" \"ts-node server/index.ts\"",
+    "build": "next build && tsc --project tsconfig.json",
+    "start": "next start",
+    "lint": "next lint",
     "server:dev": "cross-env PORT=8000 node server/index.js",
     "server:build": "echo 'Server build complete'",
     "server:start": "node server/index.js"
-  
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.7.2",
