@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     DEBIAN_FRONTEND=noninteractive
 
-# Install runtime dependencies (no compiler here to keep it small)
+# Install base runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg portaudio19-dev supervisor curl ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -20,7 +20,7 @@ WORKDIR /app
 # ============================
 FROM pythonbase AS python-deps
 
-# Install build tools temporarily for compiling PyAudio
+# Install build tools for PyAudio
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -52,11 +52,24 @@ RUN npm run build
 
 
 # ============================
-# 4. Final Runtime Image
+# 4. Final Runtime Image (Python + Node)
 # ============================
-FROM pythonbase AS runtime
+FROM python:3.11-slim-bookworm AS runtime
 
-# Copy Python dependencies from python-deps stage
+ENV NODE_ENV=production \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install Node.js + minimal runtime deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nodejs npm ffmpeg portaudio19-dev supervisor curl ca-certificates \
+    && npm install -g npm@latest \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy Python deps
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
@@ -66,7 +79,7 @@ COPY --from=node-build /app/public ./public
 COPY --from=node-build /app/node_modules ./node_modules
 COPY --from=node-build /app/package.json ./package.json
 
-# Copy server source and supervisor config
+# Copy server and supervisord config
 COPY server ./server
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
