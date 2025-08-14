@@ -1,55 +1,68 @@
 # ============================
-# Base image with Python & system deps
+# 1. Base builder image
 # ============================
 FROM python:3.9-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DEBIAN_FRONTEND=noninteractive
+    DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1
 
-# Install system dependencies
+# Install system build deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev python3-pip python3-venv \
     build-essential \
     ffmpeg wget git \
     portaudio19-dev \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
-
-# ============================
-# Stage for installing deps
-# ============================
-FROM base AS deps-prod
 
 WORKDIR /app
 
-# Copy requirements files
+# ============================
+# 2. Install dependencies
+# ============================
+FROM base AS deps-builder
+
 COPY server/requirement.txt ./server/requirement.txt
 COPY server/WhisperLive/requirements ./server/WhisperLive/requirements
 
-# Install Python dependencies
 RUN pip install --upgrade pip && \
-    # Remove openai-whisper from all requirements to avoid version conflicts
-    sed -i '/openai-whisper/d' server/requirement.txt && \
-    sed -i '/openai-whisper/d' server/WhisperLive/requirements/server.txt && \
-    sed -i '/openai-whisper/d' server/WhisperLive/requirements/client.txt && \
-    pip install --no-cache-dir \
+    # Remove openai-whisper from all requirements if present
+    grep -rl "openai-whisper" server || true | xargs -r sed -i '/openai-whisper/d' && \
+    # Install torch first to prevent Triton conflicts
+    pip install torch==2.7.1 --prefer-binary && \
+    pip install --prefer-binary \
         -r server/requirement.txt \
         -r server/WhisperLive/requirements/client.txt \
         -r server/WhisperLive/requirements/server.txt
 
 # ============================
-# Copy application code
+# 3. Final minimal runtime image
 # ============================
-FROM deps-prod AS app
+FROM python:3.9-slim AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Install only runtime deps (no compilers)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg portaudio19-dev supervisor \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy the entire application
+# Copy installed Python packages from builder
+COPY --from=deps-builder /usr/local/lib/python3.9 /usr/local/lib/python3.9
+COPY --from=deps-builder /usr/local/bin /usr/local/bin
+
+# Copy application code
 COPY . .
 
-# ============================
-# Runtime command
-# Replace with your actual process manager if needed
-# ============================
-# Example: running both backend server and whisper live server
-CMD [ "sh", "-c", "python3 server/main.py & python3 server/WhisperLive/server.py & wait" ]
+# Supervisord config
+RUN mkdir -p /etc/supervisor/conf.d
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Default command
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
