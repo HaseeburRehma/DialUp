@@ -56,15 +56,23 @@ async function start() {
   app.use('/api/twilio-token', jsonParser, urlParser, require('./routes/twilio'));
 
   // WebSocket proxy to Whisper service
-  app.use(
-    '/ws',
-    createProxyMiddleware({
-      target: 'ws://127.0.0.1:4000',
-      changeOrigin: true,
-      ws: true,
-      logLevel: 'debug',
-    })
-  );
+ // WebSocket proxy with retry tolerance
+app.use(
+  '/ws',
+  createProxyMiddleware({
+    target: 'ws://127.0.0.1:4000',
+    changeOrigin: true,
+    ws: true,
+    logLevel: dev ? 'debug' : 'warn',
+    onError: (err, req, res) => {
+      console.error('❌ WS proxy error:', err.message);
+      if (!res.headersSent) {
+        res.writeHead(502, { 'Content-Type': 'text/plain' });
+        res.end('Whisper backend unavailable, retrying...');
+      }
+    }
+  })
+);
 
   // Health check
   app.get('/health', (_req, res) => res.json({ ok: true }));

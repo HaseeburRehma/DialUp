@@ -1,5 +1,5 @@
 # ============================
-# 1. Python Base
+# 1. Python Base (slim runtime)
 # ============================
 FROM python:3.11-slim-bookworm AS pythonbase
 
@@ -9,37 +9,38 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Base deps for runtime (no compilers)
+# Base runtime deps (no compilers)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates ffmpeg portaudio19-dev supervisor \
+    curl ca-certificates ffmpeg portaudio19-dev supervisor netcat-openbsd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ============================
-# 2. Python Deps
+# 2. Python Build Stage
 # ============================
 FROM pythonbase AS python-deps
 
-# Build tools only in this stage
+# Build tools for Python deps (removed later)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY server ./server
 
+# Install Python deps (Torch first, then app deps)
 RUN pip install --no-cache-dir --upgrade pip && \
     grep -rl "openai-whisper" server || true | xargs -r sed -i '/openai-whisper/d' && \
-    pip install --no-cache-dir --prefer-binary torch==2.7.1 && \
+    pip install --no-cache-dir --prefer-binary torch==2.5.1 && \
     pip install --no-cache-dir --prefer-binary \
         -r server/requirement.txt \
         -r server/WhisperLive/requirements/client.txt \
         -r server/WhisperLive/requirements/server.txt
 
 # ============================
-# 3. Node Build
+# 3. Node Build Stage
 # ============================
 FROM node:20.17.0-slim AS node-build
-
 WORKDIR /app
+
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
@@ -47,19 +48,18 @@ COPY . .
 RUN npm run build
 
 # ============================
-# 4. Final Runtime (fixed)
+# 4. Final Runtime Image
 # ============================
 FROM pythonbase AS runtime
 
-# Copy Node.js from build stage instead of reinstalling
+# Copy Node.js from node-build (no reinstall)
 COPY --from=node-build /usr/local/bin /usr/local/bin
 COPY --from=node-build /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node-build /opt /opt
+ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
 
-# Ensure npm is available in PATH
-ENV PATH="/usr/local/lib/node_modules/npm/bin:${PATH}"
 
-# Copy Python deps
+# Copy Python deps from python-deps
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
@@ -69,15 +69,18 @@ COPY --from=node-build /app/public ./public
 COPY --from=node-build /app/node_modules ./node_modules
 COPY --from=node-build /app/package.json ./package.json
 
-# Copy server files
+# Copy backend
 COPY server ./server
 
-# Copy Supervisor config
+# Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Ports
 EXPOSE 3000 4000
 
+# Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:3000/health && curl -f http://localhost:4000/health || exit 1
+
 
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

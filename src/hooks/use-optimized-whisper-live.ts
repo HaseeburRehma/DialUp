@@ -228,13 +228,12 @@ export function useOptimizedWhisperLive(
         max_clients: config.maxClients,
         max_connection_time: Math.max(config.maxConnectionTime, 3600),
         sample_rate: sampleRateRef.current,
-        chunk_size: config.optimization?.chunkSize || 2048, // Smaller chunks for faster processing
+        chunk_size: config.optimization?.chunkSize || 2048,
         buffer_size: config.optimization?.bufferSize || 4096,
         enable_smart_buffering: config.optimization?.enableSmartBuffering ?? true,
-        same_output_threshold: 10,
-        no_speech_thresh: 0.45
-
-      }))
+        same_output_threshold: config.optimization?.same_output_threshold ?? 0.5,
+        no_speech_thresh: config.optimization?.no_speech_thresh ?? 0.45
+      }));
 
       setState(s => ({ ...s, isConnected: true, connectionQuality: 'excellent' }))
       await startTranscription()
@@ -350,13 +349,11 @@ export function useOptimizedWhisperLive(
       setState(s => ({ ...s, isConnected: false, isTranscribing: false }))
 
       // Auto-reconnect logic
-      if (event.code !== 1000 && connectionAttempts.current < 3) {
-        connectionAttempts.current++
-        console.log(`[OptimizedWhisperLive] Attempting reconnection ${connectionAttempts.current}/3`)
-
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connect()
-        }, Math.min(1000 * Math.pow(2, connectionAttempts.current), 10000))
+      if (event.code !== 1000) {
+        const delay = Math.min(30000, 1000 * 2 ** connectionAttempts.current);
+        console.warn(`[OptimizedWhisperLive] Reconnecting in ${delay / 1000}s...`);
+        connectionAttempts.current++;
+        reconnectTimeoutRef.current = setTimeout(connect, delay);
       }
     }
 
