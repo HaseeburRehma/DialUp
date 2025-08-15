@@ -1,23 +1,28 @@
-import mongoose from 'mongoose'
+const mongoose = require('mongoose');
 
-let cached = global._mongo
+let cached = global._mongo;
 if (!cached) {
-  cached = global._mongo = { conn: null, promise: null }
+  cached = global._mongo = { conn: null, promise: null };
 }
 
-export async function connect() {
-  if (cached.conn) return cached.conn
+async function connect() {
+  if (cached.conn) return cached.conn;
+  
   if (!cached.promise) {
-    const uri = process.env.MONGODB_URI
-    if (!uri) throw new Error('Missing MONGODB_URI environment variable')
-    console.log('→ MONGODB_URI is', uri)
+    const uri = process.env.MONGODB_URI;
+    if (!uri) throw new Error('Missing MONGODB_URI environment variable');
+    
+    console.log('→ MONGODB_URI is', uri);
     cached.promise = mongoose.connect(uri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-    }).then(m => m)
+    }).then(m => m);
   }
-  cached.conn = await cached.promise
-  return cached.conn
+  
+  cached.conn = await cached.promise;
+  return cached.conn;
 }
 
-export const db = mongoose.connection
+const db = mongoose.connection;
+
+module.exports = { connect, db };
