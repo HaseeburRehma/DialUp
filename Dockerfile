@@ -52,12 +52,9 @@ RUN npm run build
 # ============================
 FROM pythonbase AS runtime
 
-# Copy Node.js from node-build (no reinstall)
-COPY --from=node-build /usr/local/bin /usr/local/bin
-COPY --from=node-build /usr/local/lib/node_modules /usr/local/lib/node_modules
-COPY --from=node-build /opt /opt
+# ✅ Copy ALL of /usr/local from node-build (Node.js + deps)
+COPY --from=node-build /usr/local /usr/local
 ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
-
 
 # Copy Python deps from python-deps
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
@@ -81,6 +78,5 @@ EXPOSE 3000 4000
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3000/health && curl -f http://localhost:4000/health || exit 1
-
 
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
