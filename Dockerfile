@@ -41,8 +41,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 FROM node:20.17.0-slim AS node-build
 WORKDIR /app
 
+# Install all deps (including dev) for build
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY . .
 RUN npm run build
@@ -60,11 +61,12 @@ ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-# Copy built frontend
-COPY --from=node-build /app/.next ./.next
-COPY --from=node-build /app/public ./public
+
+# Copy production deps only
 COPY --from=node-build /app/node_modules ./node_modules
 COPY --from=node-build /app/package.json ./package.json
+COPY --from=node-build /app/.next ./.next
+COPY --from=node-build /app/public ./public
 
 # Copy backend
 COPY server ./server
