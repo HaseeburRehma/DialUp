@@ -47,15 +47,17 @@ COPY . .
 RUN npm run build
 
 # ============================
-# 4. Final Runtime
+# 4. Final Runtime (fixed)
 # ============================
 FROM pythonbase AS runtime
 
-# Install Node.js runtime (20.x)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g npm@latest \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Copy Node.js from build stage instead of reinstalling
+COPY --from=node-build /usr/local/bin /usr/local/bin
+COPY --from=node-build /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=node-build /opt /opt
+
+# Ensure npm is available in PATH
+ENV PATH="/usr/local/lib/node_modules/npm/bin:${PATH}"
 
 # Copy Python deps
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
@@ -73,10 +75,8 @@ COPY server ./server
 # Copy Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Railway will route only $PORT externally
-EXPOSE 3000
+EXPOSE 3000 4000
 
-# Healthcheck for Express
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 
