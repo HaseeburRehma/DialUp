@@ -60,6 +60,16 @@ async function start() {
     // 3) Create Express app
     const app = express();
 
+    // ✅ Define PORT early in the function
+    const PORT = Number(process.env.PORT) || 3000;
+
+    // ✅ Ensure NEXTAUTH_URL is set dynamically if not provided
+    if (!process.env.NEXTAUTH_URL) {
+      const host = process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
+      process.env.NEXTAUTH_URL = `https://${host}`;
+      console.log(`ℹ️ NEXTAUTH_URL set to ${process.env.NEXTAUTH_URL}`);
+    }
+
     // ✅ Always ensure CORS origin matches FRONTEND_ORIGIN or Railway's domain
     const allowedOrigins = [
       process.env.FRONTEND_ORIGIN,
@@ -94,22 +104,17 @@ async function start() {
       throw error;
     }
 
-    // ✅ WebSocket proxy to Whisper service with better resilience
-
+    // ✅ WebSocket setup with proper imports
     const { Server } = require('ws');
     const net = require('net');
-
-    // Remove the proxy middleware section and replace with:
+    const http = require('http');
 
     // ✅ Direct WebSocket Server with internal forwarding
     const whisperPort = process.env.WHISPER_PORT || 4000;
     console.log(`🎤 Setting up direct WebSocket server forwarding to port ${whisperPort}`);
 
-    // Create WebSocket server attached to your Express server
-    const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
-      console.log('✅ Express backend started successfully');
-    });
+    // Create HTTP server first
+    const server = http.createServer(app);
 
     // WebSocket server
     const wss = new Server({
@@ -183,6 +188,7 @@ async function start() {
         }
       });
     });
+
     // Health check
     app.get('/health', (_req, res) => {
       console.log('💓 Health check requested');
@@ -197,17 +203,8 @@ async function start() {
     // Next.js handles all other routes
     app.all('*', (req, res) => handle(req, res));
 
-    // 4) Start server — default to Railway's PORT
-    const PORT = Number(process.env.PORT) || 3000;
-
-    // ✅ Ensure NEXTAUTH_URL is set dynamically if not provided
-    if (!process.env.NEXTAUTH_URL) {
-      const host = process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
-      process.env.NEXTAUTH_URL = `https://${host}`;
-      console.log(`ℹ️ NEXTAUTH_URL set to ${process.env.NEXTAUTH_URL}`);
-    }
-
-    app.listen(PORT, '0.0.0.0', () => {
+    // 4) Start server
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
       console.log('✅ Express backend started successfully');
     });
