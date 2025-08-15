@@ -32,7 +32,6 @@ export interface OptimizedWhisperLiveConfig {
     same_output_threshold?: number
     no_speech_thresh?: number
   }
-
 }
 
 interface OptimizedWhisperLiveState {
@@ -174,32 +173,13 @@ export function useOptimizedWhisperLive(
 
     setState(s => ({ ...s, error: null }))
 
-    // Enhanced WebSocket connection with Railway auto-detection
-    const isLocal =
-      location.hostname === 'localhost' ||
-      location.hostname === '127.0.0.1' ||
-      location.hostname === '::1';
-
-    let wsUrl: string;
-    if (isLocal) {
-      // Local development - connect to separate Whisper service
-      wsUrl = `ws://127.0.0.1:${config.port || 4000}${config.wsPath || ''}`;
-    } else {
-      // Production - connect to Express server WebSocket endpoint
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      wsUrl = `${protocol}://${window.location.host}/ws`;
-    }
+    // ✅ FIXED: Always use the Express proxy endpoint
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+    const wsUrl = `${protocol}://${window.location.host}/ws`
 
     console.log("[OptimizedWhisperLive] Connecting to WebSocket:", wsUrl);
 
     const ws = new WebSocket(wsUrl);
-    ws.onerror = (err) => {
-      console.error("[OptimizedWhisperLive] WebSocket error:", err);
-    };
-    ws.onclose = (event) => {
-      console.warn("[OptimizedWhisperLive] WebSocket closed:", event.code, event.reason);
-    };
-    // Log for debugging
     ws.binaryType = 'arraybuffer'
     wsRef.current = ws
     lastSegmentIndexRef.current = 0
@@ -346,12 +326,14 @@ export function useOptimizedWhisperLive(
       console.log('[OptimizedWhisperLive] 🔴 WebSocket closed:', event.code, event.reason)
       setState(s => ({ ...s, isConnected: false, isTranscribing: false }))
 
-      // Auto-reconnect logic
-      if (event.code !== 1000) {
+      // Auto-reconnect logic with exponential backoff
+      if (event.code !== 1000 && connectionAttempts.current < 5) {
         const delay = Math.min(30000, 1000 * 2 ** connectionAttempts.current);
         console.warn(`[OptimizedWhisperLive] Reconnecting in ${delay / 1000}s...`);
         connectionAttempts.current++;
         reconnectTimeoutRef.current = setTimeout(connect, delay);
+      } else if (connectionAttempts.current >= 5) {
+        setState(s => ({ ...s, error: 'Connection failed after multiple attempts. Please refresh the page.' }))
       }
     }
 
@@ -504,10 +486,9 @@ export function useOptimizedWhisperLive(
         }
 
         const wavBytes = encodeWAVOptimized(interleaved, sampleRate)
-        const blob = new Blob([wavBytes], { type: 'audio/wav' })     // OK for BlobPart
+        const blob = new Blob([wavBytes], { type: 'audio/wav' })
         const formData = new FormData()
         formData.append('file', blob, config.outputFilename || `recording-${Date.now()}.wav`)
-
 
         const response = await fetch('/api/upload', {
           method: 'POST',

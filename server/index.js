@@ -62,6 +62,7 @@ async function start() {
 
     // ✅ Define PORT early in the function
     const PORT = Number(process.env.PORT) || 3000;
+    const whisperPort = process.env.WHISPER_PORT || 4000;
 
     // ✅ Ensure NEXTAUTH_URL is set dynamically if not provided
     if (!process.env.NEXTAUTH_URL) {
@@ -104,90 +105,31 @@ async function start() {
       throw error;
     }
 
-    // ✅ WebSocket setup with proper imports
-    const { Server } = require('ws');
-    const net = require('net');
-    const http = require('http');
-
-    // ✅ Direct WebSocket Server with internal forwarding
-    const whisperPort = process.env.WHISPER_PORT || 4000;
-    console.log(`🎤 Setting up direct WebSocket server forwarding to port ${whisperPort}`);
-
-    // Create HTTP server first
-    const server = http.createServer(app);
-
-    // WebSocket server
-    const wss = new Server({
-      server,
-      path: '/ws',
-      perMessageDeflate: false // Better for real-time audio
-    });
-
-    wss.on('connection', (ws, request) => {
-      console.log('🔗 WebSocket client connected');
-
-      // Create connection to internal Whisper service
-      const whisperSocket = new net.Socket();
-      let isWhisperConnected = false;
-
-      whisperSocket.connect(whisperPort, '127.0.0.1', () => {
-        console.log('✅ Connected to internal Whisper service');
-        isWhisperConnected = true;
-      });
-
-      whisperSocket.on('error', (err) => {
-        console.error('❌ Whisper socket error:', err.message);
-        ws.close(1011, 'Internal service unavailable');
-      });
-
-      whisperSocket.on('close', () => {
-        console.warn('⚠️ Whisper service disconnected');
-        ws.close(1011, 'Internal service disconnected');
-      });
-
-      // Forward data: Client -> Whisper
-      ws.on('message', (data) => {
-        if (isWhisperConnected) {
-          try {
-            if (typeof data === 'string') {
-              // JSON control messages
-              whisperSocket.write(data);
-            } else {
-              // Binary audio data
-              whisperSocket.write(data);
-            }
-          } catch (err) {
-            console.error('❌ Error forwarding to Whisper:', err);
+    // ✅ WebSocket proxy to Whisper service using http-proxy-middleware
+    console.log(`🎤 Setting up WebSocket proxy to Whisper backend on port ${whisperPort}`);
+    
+    app.use(
+      '/ws',
+      createProxyMiddleware({
+        target: `http://127.0.0.1:${whisperPort}`,
+        changeOrigin: true,
+        ws: true,
+        logLevel: dev ? 'debug' : 'warn',
+        onError: (err, req, res) => {
+          console.error('❌ WebSocket proxy error:', err.message);
+          if (!res.headersSent) {
+            res.writeHead(502, { 'Content-Type': 'text/plain' });
+            res.end('Whisper backend unavailable');
           }
+        },
+        onProxyReqWs: (proxyReq, req, socket) => {
+          console.log('🔗 WebSocket proxy request to Whisper backend');
+        },
+        onProxyResWs: (proxyRes, req, socket) => {
+          console.log('✅ WebSocket proxy response from Whisper backend');
         }
-      });
-
-      // Forward data: Whisper -> Client
-      whisperSocket.on('data', (data) => {
-        if (ws.readyState === ws.OPEN) {
-          try {
-            ws.send(data);
-          } catch (err) {
-            console.error('❌ Error sending to client:', err);
-          }
-        }
-      });
-
-      // Cleanup on client disconnect
-      ws.on('close', () => {
-        console.log('🔌 WebSocket client disconnected');
-        if (whisperSocket && !whisperSocket.destroyed) {
-          whisperSocket.destroy();
-        }
-      });
-
-      ws.on('error', (err) => {
-        console.error('❌ WebSocket error:', err);
-        if (whisperSocket && !whisperSocket.destroyed) {
-          whisperSocket.destroy();
-        }
-      });
-    });
+      })
+    );
 
     // Health check
     app.get('/health', (_req, res) => {
@@ -204,9 +146,15 @@ async function start() {
     app.all('*', (req, res) => handle(req, res));
 
     // 4) Start server
-    server.listen(PORT, '0.0.0.0', () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
       console.log('✅ Express backend started successfully');
+    });
+
+    // Enable WebSocket support for the proxy
+    server.on('upgrade', (request, socket, head) => {
+      console.log('🔄 WebSocket upgrade request received');
+      // The proxy middleware will handle the upgrade
     });
 
   } catch (error) {
