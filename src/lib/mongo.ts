@@ -1,14 +1,14 @@
 // src/lib/mongo.ts
 import { MongoClient, GridFSBucket } from "mongodb"
 
-if (!process.env.MONGODB_URI) {
-  throw new Error("❌ MONGODB_URI is not set in environment variables")
-}
-
 let client: MongoClient
 let bucket: GridFSBucket
 
 export async function getBucket() {
+  if (!process.env.MONGODB_URI) {
+    throw new Error("❌ MONGODB_URI is not set in environment variables")
+  }
+
   if (!client) {
     client = new MongoClient(process.env.MONGODB_URI)
     await client.connect()
@@ -22,3 +22,4 @@ export async function getBucket() {
 
   return bucket
 }
+
