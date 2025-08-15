@@ -30,10 +30,11 @@ COPY server ./server
 RUN pip install --no-cache-dir --upgrade pip && \
     grep -rl "openai-whisper" server || true | xargs -r sed -i '/openai-whisper/d' && \
     pip install --no-cache-dir --prefer-binary torch==2.5.1 && \
+    pip install --no-cache-dir --prefer-binary faster-whisper && \
     pip install --no-cache-dir --prefer-binary \
-        -r server/requirement.txt \
-        -r server/WhisperLive/requirements/client.txt \
-        -r server/WhisperLive/requirements/server.txt
+    -r server/requirement.txt \
+    -r server/WhisperLive/requirements/client.txt \
+    -r server/WhisperLive/requirements/server.txt
 
 # ============================
 # 3. Node Build Stage
@@ -80,6 +81,6 @@ EXPOSE 3000 4000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health && curl -f http://localhost:4000/health || exit 1
+    CMD curl -f http://localhost:3000/health && curl -f http://localhost:4000/health || exit 1
 
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

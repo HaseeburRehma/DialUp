@@ -180,26 +180,24 @@ export function useOptimizedWhisperLive(
       location.hostname === '127.0.0.1' ||
       location.hostname === '::1';
 
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-
     let wsUrl: string;
     if (isLocal) {
-      wsUrl = `${protocol}://127.0.0.1:${config.port || 4000}${config.wsPath || ''}`;
+      // Local development - connect to separate Whisper service
+      wsUrl = `ws://127.0.0.1:${config.port || 4000}${config.wsPath || ''}`;
     } else {
-      const cleanHost = config.serverUrl
-        .replace(/^https?:\/\//, '')
-        .replace(/^wss?:\/\//, '')
-        .replace(/\/$/, '');
-      // In production on Railway → no port in URL
-      wsUrl = `wss://${cleanHost}${config.wsPath || '/ws'}`;
+      // Production - connect to Express server WebSocket endpoint
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      wsUrl = `${protocol}://${window.location.host}/ws`;
     }
+
     console.log("[OptimizedWhisperLive] Connecting to WebSocket:", wsUrl);
+
     const ws = new WebSocket(wsUrl);
     ws.onerror = (err) => {
       console.error("[OptimizedWhisperLive] WebSocket error:", err);
     };
-    ws.onclose = () => {
-      console.warn("[OptimizedWhisperLive] WebSocket closed");
+    ws.onclose = (event) => {
+      console.warn("[OptimizedWhisperLive] WebSocket closed:", event.code, event.reason);
     };
     // Log for debugging
     ws.binaryType = 'arraybuffer'
