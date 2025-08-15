@@ -62,9 +62,15 @@ ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-# ✅ Copy entire built app from node-build
-COPY --from=node-build /app /app
+# ✅ Copy package files first
+COPY --from=node-build /app/package.json /app/package-lock.json* /app/
 WORKDIR /app
+
+# ✅ Install ONLY production dependencies to ensure all runtime deps are present
+RUN npm ci --only=production --prefer-offline
+
+# ✅ Copy the rest of the built app
+COPY --from=node-build /app /app
 
 # Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf

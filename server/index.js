@@ -32,13 +32,13 @@ const { connect: connectDb } = require('./utils/db');
 async function start() {
   try {
     console.log('🔗 Connecting to database...');
-    
+
     // 1) Connect DB with timeout
     const dbPromise = connectDb();
-    const timeoutPromise = new Promise((_, reject) => 
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Database connection timeout after 30s')), 30000)
     );
-    
+
     const conn = await Promise.race([dbPromise, timeoutPromise]);
     console.log(
       '✅ MongoDB connected to',
@@ -48,13 +48,13 @@ async function start() {
     );
 
     console.log('📦 Preparing Next.js...');
-    
+
     // 2) Prepare Next.js
     const dev = process.env.NODE_ENV !== 'production';
     const nextApp = next({ dev, dir: path.resolve(__dirname, '..') });
     const handle = nextApp.getRequestHandler();
     await nextApp.prepare();
-    
+
     console.log('🚀 Next.js prepared, creating Express app...');
 
     // 3) Create Express app
@@ -97,29 +97,43 @@ async function start() {
     // ✅ WebSocket proxy to Whisper service with better resilience
     const whisperPort = process.env.WHISPER_PORT || 4000;
     console.log(`🎤 Setting up Whisper WebSocket proxy to port ${whisperPort}`);
-    
-    app.use(
-      '/ws',
-      createProxyMiddleware({
-        target: `ws://127.0.0.1:${whisperPort}`,
-        changeOrigin: true,
-        ws: true,
-        logLevel: dev ? 'debug' : 'warn',
-        onError: (err, req, res) => {
-          console.error('❌ WS proxy error:', err.message);
-          if (!res.headersSent) {
-            res.writeHead(502, { 'Content-Type': 'text/plain' });
-            res.end('Whisper backend unavailable, retrying...');
-          }
-        }
-      })
-    );
 
+    try {
+      const { createProxyMiddleware } = require('http-proxy-middleware');
+
+      app.use(
+        '/ws',
+        createProxyMiddleware({
+          target: `ws://127.0.0.1:${whisperPort}`,
+          changeOrigin: true,
+          ws: true,
+          logLevel: dev ? 'debug' : 'warn',
+          onError: (err, req, res) => {
+            console.error('❌ WS proxy error:', err.message);
+            if (!res.headersSent) {
+              res.writeHead(502, { 'Content-Type': 'text/plain' });
+              res.end('Whisper backend unavailable, retrying...');
+            }
+          }
+        })
+      );
+      console.log('✅ WebSocket proxy configured');
+    } catch (error) {
+      console.warn('⚠️ http-proxy-middleware not available, WebSocket proxy disabled:', error.message);
+
+      // Fallback handler for /ws routes
+      app.use('/ws', (req, res) => {
+        res.status(503).json({
+          error: 'WebSocket proxy unavailable',
+          message: 'http-proxy-middleware not installed'
+        });
+      });
+    }
     // Health check
     app.get('/health', (_req, res) => {
       console.log('💓 Health check requested');
-      res.json({ 
-        ok: true, 
+      res.json({
+        ok: true,
         timestamp: new Date().toISOString(),
         env: process.env.NODE_ENV,
         whisper_port: whisperPort
