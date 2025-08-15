@@ -180,22 +180,18 @@ export function useOptimizedWhisperLive(
       location.hostname === '127.0.0.1' ||
       location.hostname === '::1';
 
-    // Pick protocol based on current page
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
 
     let wsUrl: string;
     if (isLocal) {
-      // Local development
-      wsUrl = `${protocol}://127.0.0.1:${config.port || 8000}${config.wsPath || ''}`;
+      wsUrl = `${protocol}://127.0.0.1:${config.port || 4000}${config.wsPath || ''}`;
     } else {
-      // Production on Railway → always use secure WebSockets
       const cleanHost = config.serverUrl
         .replace(/^https?:\/\//, '')
         .replace(/^wss?:\/\//, '')
         .replace(/\/$/, '');
-
-      const path = config.wsPath || '/ws'; // default to /ws if not provided
-      wsUrl = `wss://${cleanHost}${config.port ? `:${config.port}` : ''}${path}`;
+      // In production on Railway → no port in URL
+      wsUrl = `wss://${cleanHost}${config.wsPath || '/ws'}`;
     }
     console.log("[OptimizedWhisperLive] Connecting to WebSocket:", wsUrl);
     const ws = new WebSocket(wsUrl);
