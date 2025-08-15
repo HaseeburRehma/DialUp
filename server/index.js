@@ -7,8 +7,6 @@ const express = require('express');
 const cors = require('cors');
 const next = require('next');
 const { createProxyMiddleware } = require('http-proxy-middleware');
-
-// Mongo connect helper
 const { connect: connectDb } = require('./utils/db');
 
 async function start() {
@@ -35,11 +33,17 @@ async function start() {
   // 3) Create Express app
   const app = express();
 
-  // CORS for specific API routes
+  // ✅ Always ensure CORS origin matches FRONTEND_ORIGIN or Railway's domain
+  const allowedOrigins = [
+    process.env.FRONTEND_ORIGIN,
+    process.env.NEXTAUTH_URL,
+    dev ? 'http://localhost:3000' : undefined
+  ].filter(Boolean);
+
   app.use(
     ['/api/transcribe', '/api/upload', '/api/twilio-token'],
     cors({
-      origin: [process.env.FRONTEND_ORIGIN || 'http://localhost:3000'],
+      origin: allowedOrigins,
       credentials: true,
     })
   );
@@ -55,24 +59,23 @@ async function start() {
   app.use('/api/upload', jsonParser, urlParser, require('./routes/upload'));
   app.use('/api/twilio-token', jsonParser, urlParser, require('./routes/twilio'));
 
-  // WebSocket proxy to Whisper service
- // WebSocket proxy with retry tolerance
-app.use(
-  '/ws',
-  createProxyMiddleware({
-    target: 'ws://127.0.0.1:4000',
-    changeOrigin: true,
-    ws: true,
-    logLevel: dev ? 'debug' : 'warn',
-    onError: (err, req, res) => {
-      console.error('❌ WS proxy error:', err.message);
-      if (!res.headersSent) {
-        res.writeHead(502, { 'Content-Type': 'text/plain' });
-        res.end('Whisper backend unavailable, retrying...');
+  // ✅ WebSocket proxy to Whisper service with better resilience
+  app.use(
+    '/ws',
+    createProxyMiddleware({
+      target: `ws://127.0.0.1:${process.env.WHISPER_PORT || 4000}`,
+      changeOrigin: true,
+      ws: true,
+      logLevel: dev ? 'debug' : 'warn',
+      onError: (err, req, res) => {
+        console.error('❌ WS proxy error:', err.message);
+        if (!res.headersSent) {
+          res.writeHead(502, { 'Content-Type': 'text/plain' });
+          res.end('Whisper backend unavailable, retrying...');
+        }
       }
-    }
-  })
-);
+    })
+  );
 
   // Health check
   app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -80,8 +83,16 @@ app.use(
   // Next.js handles all other routes
   app.all('*', (req, res) => handle(req, res));
 
-  // 4) Start server
-  const PORT = process.env.PORT || 3000;
+  // 4) Start server — default to Railway's PORT
+  const PORT = Number(process.env.PORT) || 3000;
+
+  // ✅ Ensure NEXTAUTH_URL is set dynamically if not provided
+  if (!process.env.NEXTAUTH_URL) {
+    const host = process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
+    process.env.NEXTAUTH_URL = `https://${host}`;
+    console.log(`ℹ️ NEXTAUTH_URL set to ${process.env.NEXTAUTH_URL}`);
+  }
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
   });

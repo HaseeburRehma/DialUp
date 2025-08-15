@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ============================
 FROM pythonbase AS python-deps
 
-# Build tools for Python deps (removed later)
+# Build tools for Python deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -43,7 +43,8 @@ WORKDIR /app
 
 # Install all deps (including dev) for build
 COPY package.json package-lock.json* ./
-RUN npm ci
+# Ensure PostCSS + Autoprefixer are installed in prod
+RUN npm install autoprefixer postcss && npm ci
 
 COPY . .
 RUN npm run build
@@ -53,28 +54,22 @@ RUN npm run build
 # ============================
 FROM pythonbase AS runtime
 
-# ✅ Copy ALL of /usr/local from node-build (Node.js + deps)
+# ✅ Copy built Node.js + deps
 COPY --from=node-build /usr/local /usr/local
 ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
 
-# Copy Python deps from python-deps
+# ✅ Copy Python deps
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-
-# Copy production deps only
-COPY --from=node-build /app/node_modules ./node_modules
-COPY --from=node-build /app/package.json ./package.json
-COPY --from=node-build /app/.next ./.next
-COPY --from=node-build /app/public ./public
-
-# Copy backend
-COPY server ./server
+# ✅ Copy entire built app from node-build
+COPY --from=node-build /app /app
+WORKDIR /app
 
 # Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Ports
+# Ports (docs only; Railway ignores)
 EXPOSE 3000 4000
 
 # Health check
