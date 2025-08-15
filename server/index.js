@@ -98,4 +98,19 @@ async function start() {
   });
 }
 
-start();
+start()
+  .then(() => console.log('✅ Express backend started successfully'))
+  .catch(err => {
+    console.error('❌ Fatal error starting backend:', err);
+    process.exit(1);
+  });
+
+process.on('unhandledRejection', err => {
+  console.error('❌ Unhandled rejection:', err);
+  process.exit(1);
+});
+
+process.on('uncaughtException', err => {
+  console.error('❌ Uncaught exception:', err);
+  process.exit(1);
+});
