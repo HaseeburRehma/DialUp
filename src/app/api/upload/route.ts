@@ -1,43 +1,39 @@
 // src/app/api/upload/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
+import { getBucket } from "@/lib/mongo"
+import { Readable } from "stream"
 
 export const config = { api: { bodyParser: false } }
 
 export async function POST(req: NextRequest) {
-  const form = await req.formData()
-  const file = form.get("file") as File
-  if (!file) return NextResponse.json({ error: "Missing file" }, { status: 400 })
+  try {
+    const form = await req.formData()
+    const file = form.get("file") as File
+    if (!file) return NextResponse.json({ error: "Missing file" }, { status: 400 })
 
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const uploadsDir = join(process.cwd(), "public", "uploads")
-  await mkdir(uploadsDir, { recursive: true })
+    // Convert file to Buffer
+    const buffer = Buffer.from(await file.arrayBuffer())
 
-  const ext = file.type.split("/")[1] || "webm"
-  const filename = `audio-${Date.now()}.${ext}`
-  const filepath = join(uploadsDir, filename)
-  await writeFile(filepath, buffer)
+    // Upload to GridFS
+    const bucket = await getBucket()
+    const filename = file.name || `audio-${Date.now()}`
+    const contentType = file.type || "application/octet-stream"
 
-  return NextResponse.json({ url: `/uploads/${filename}` })
-}
+    const uploadStream = bucket.openUploadStream(filename, { contentType })
+    const readable = Readable.from(buffer)
+    readable.pipe(uploadStream)
 
-export async function PUT(req: NextRequest) {
-  // Optional: user session validation
-  // const user = await requireUserSession(req)
+    return await new Promise((resolve, reject) => {
+      uploadStream.on("finish", () => {
+        resolve(NextResponse.json({ id: uploadStream.id.toString() }))
+      })
+      uploadStream.on("error", (err) => {
+        reject(NextResponse.json({ error: err.message }, { status: 500 }))
+      })
+    })
 
-  const form = await req.formData()
-  const file = form.get("file") as File
-  if (!file) return NextResponse.json({ error: "Missing file" }, { status: 400 })
-
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const uploadsDir = join(process.cwd(), "public", "uploads")
-  await mkdir(uploadsDir, { recursive: true })
-
-  const ext = file.type.split("/")[1] || "webm"
-  const filename = `recording-${Date.now()}.${ext}`
-  const filepath = join(uploadsDir, filename)
-  await writeFile(filepath, buffer)
-
-  return NextResponse.json({ url: `/uploads/${filename}` })
+  } catch (err: any) {
+    console.error("❌ Upload error:", err)
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 }

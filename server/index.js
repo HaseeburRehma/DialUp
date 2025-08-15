@@ -107,29 +107,21 @@ async function start() {
 
     // ✅ WebSocket proxy to Whisper service using http-proxy-middleware
     console.log(`🎤 Setting up WebSocket proxy to Whisper backend on port ${whisperPort}`);
-    
-    app.use(
-      '/ws',
-      createProxyMiddleware({
-        target: `http://127.0.0.1:${whisperPort}`,
-        changeOrigin: true,
-        ws: true,
-        logLevel: dev ? 'debug' : 'warn',
-        onError: (err, req, res) => {
-          console.error('❌ WebSocket proxy error:', err.message);
-          if (!res.headersSent) {
-            res.writeHead(502, { 'Content-Type': 'text/plain' });
-            res.end('Whisper backend unavailable');
-          }
-        },
-        onProxyReqWs: (proxyReq, req, socket) => {
-          console.log('🔗 WebSocket proxy request to Whisper backend');
-        },
-        onProxyResWs: (proxyRes, req, socket) => {
-          console.log('✅ WebSocket proxy response from Whisper backend');
-        }
-      })
-    );
+
+    const wsProxy = createProxyMiddleware({
+      target: `http://127.0.0.1:${whisperPort}`,
+      changeOrigin: true,
+      ws: true,
+      logLevel: dev ? 'debug' : 'warn',
+      onError: (err, req, socket) => {
+        console.error('❌ WebSocket proxy error:', err.message);
+        socket.destroy();
+      },
+    });
+
+    app.use('/ws', wsProxy);
+
+   
 
     // Health check
     app.get('/health', (_req, res) => {
@@ -152,9 +144,10 @@ async function start() {
     });
 
     // Enable WebSocket support for the proxy
-    server.on('upgrade', (request, socket, head) => {
-      console.log('🔄 WebSocket upgrade request received');
-      // The proxy middleware will handle the upgrade
+    
+     server.on('upgrade', (req, socket, head) => {
+      console.log('🔄 Forwarding WebSocket upgrade to Whisper backend');
+      wsProxy.upgrade(req, socket, head);
     });
 
   } catch (error) {

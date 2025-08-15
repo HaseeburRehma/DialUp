@@ -28,14 +28,13 @@ COPY server ./server
 
 # Install Python deps (Torch first, then app deps)
 RUN pip install --no-cache-dir --upgrade pip && \
-    grep -rl "openai-whisper" server || true | xargs -r sed -i '/openai-whisper/d' && \
     pip install --no-cache-dir --prefer-binary torch==2.5.1 && \
-    pip install --no-cache-dir --prefer-binary faster-whisper && \
+    pip install --no-cache-dir --prefer-binary openai-whisper && \
     pip install --no-cache-dir --prefer-binary \
-    -r server/requirement.txt \
-    -r server/WhisperLive/requirements/client.txt \
-    -r server/WhisperLive/requirements/server.txt
-
+        -r server/requirement.txt \
+        -r server/WhisperLive/requirements/client.txt \
+        -r server/WhisperLive/requirements/server.txt
+    
 # ============================
 # 3. Node Build Stage
 # ============================

@@ -147,8 +147,8 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
             fd.append('file', rec.blob);
             const resp = await fetch('/api/upload', { method: 'POST', body: fd });
             if (!resp.ok) throw new Error('Upload failed');
-            const { url } = await resp.json();
-            return url as string;
+            const { id } = await resp.json();
+            return `/api/uploads/${id}`;
           }
           return rec.url as string;
         })
