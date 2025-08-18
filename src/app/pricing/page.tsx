@@ -60,7 +60,7 @@ export default function PricingPage() {
       price: { monthly: 19, yearly: 190 },
       description: 'For professionals and power users',
       icon: Zap,
-      color: 'from-blue-500 to-purple-600',
+      color: 'from-green-500 to-green-600',
       popular: true,
       features: [
         '500 minutes of transcription/month',
@@ -86,7 +86,7 @@ export default function PricingPage() {
       price: { monthly: 49, yearly: 490 },
       description: 'Perfect for teams and organizations',
       icon: Users,
-      color: 'from-purple-500 to-pink-600',
+      color: 'from-green-500 to-pink-600',
       popular: false,
       features: [
         '2000 minutes of transcription/month',
@@ -204,15 +204,15 @@ export default function PricingPage() {
 
       <main className="flex-1 pt-16">
         {/* Hero Section */}
-        <section className="bg-gradient-to-b from-blue-50/50 to-white dark:from-blue-950/20 dark:to-background">
+        <section className="bg-gradient-to-b from-green-50/50 to-white dark:from-green-950/20 dark:to-background">
           <div className="container mx-auto px-4 py-20">
             <div className="text-center max-w-3xl mx-auto">
-              <Badge variant="secondary" className="mb-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300">
+              <Badge variant="secondary" className="mb-4 bg-gradient-to-r from-green-500/10 to-green-500/10 text-green-700 dark:text-green-300">
                 <Sparkles className="w-3 h-3 mr-1" />
                 Choose Your Plan
               </Badge>
 
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-green-600 to-green-600 bg-clip-text text-transparent">
                 Simple, Transparent Pricing
               </h1>
 
@@ -256,12 +256,12 @@ export default function PricingPage() {
                   className={cn(
                     'relative overflow-hidden transition-all duration-300 hover:scale-105',
                     plan.popular
-                      ? 'ring-2 ring-blue-500 shadow-2xl scale-105'
+                      ? 'ring-2 ring-green-500 shadow-2xl scale-105'
                       : 'hover:shadow-xl'
                   )}
                 >
                   {plan.popular && (
-                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-center py-2 text-sm font-medium">
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-green-500 to-green-600 text-white text-center py-2 text-sm font-medium">
                       <Star className="w-4 h-4 inline mr-1" />
                       Most Popular
                     </div>
@@ -306,21 +306,24 @@ export default function PricingPage() {
                   </CardHeader>
 
                   <CardContent className="space-y-4">
-                    <Button
-                      className={cn(
-                        'w-full transition-all duration-200',
-                        plan.popular
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
-                          : 'border border-input hover:bg-accent'
-                      )}
-                      variant={plan.popular ? 'default' : 'outline'}
-                      asChild
-                    >
-                      <Link href={session ? '/notes' : '/auth/signup'}>
-                        {plan.name === 'enterprise' ? 'Contact Sales' : 'Get Started'}
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Link>
-                    </Button>
+                    {/* Button pinned to bottom */}
+                    <div className="p-6 border-t mt-auto">
+                      <Button
+                        className={cn(
+                          'w-full transition-all duration-200',
+                          plan.popular
+                            ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+                            : 'border border-input hover:bg-accent'
+                        )}
+                        variant={plan.popular ? 'default' : 'outline'}
+                        asChild
+                      >
+                        <Link href={session ? '/notes' : '/auth/signup'}>
+                          {plan.name === 'enterprise' ? 'Contact Sales' : 'Get Started'}
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </Link>
+                      </Button>
+                    </div>
 
                     <Separator />
 
@@ -375,7 +378,7 @@ export default function PricingPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {additionalFeatures.map((feature, index) => (
                 <div key={index} className="flex items-start space-x-4 p-6 bg-background rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
                     <feature.icon className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -414,16 +417,16 @@ export default function PricingPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="py-20 bg-gradient-to-r from-blue-500 to-purple-600">
+        <section className="py-20 bg-gradient-to-r from-green-500 to-green-600">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
               Ready to Transform Your Voice Notes?
             </h2>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            <p className="text-xl text-green-100 mb-8 max-w-2xl mx-auto">
               Join thousands of professionals who use Vhisper to capture, transcribe, and enhance their ideas.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100" asChild>
+              <Button size="lg" className="bg-white text-green-600 hover:bg-gray-100" asChild>
                 <Link href={session ? '/notes' : '/auth/signup'}>
                   Start Free Trial
                   <ArrowRight className="w-4 h-4 ml-2" />

@@ -25,8 +25,9 @@ export async function POST(req: NextRequest) {
 
     return await new Promise((resolve, reject) => {
       uploadStream.on("finish", () => {
-        resolve(NextResponse.json({ id: uploadStream.id.toString() }))
-      })
+        const fileId = uploadStream.id;
+        resolve(NextResponse.json({ id: fileId.toHexString?.() || fileId.toString() }));
+      });
       uploadStream.on("error", (err) => {
         reject(NextResponse.json({ error: err.message }, { status: 500 }))
       })

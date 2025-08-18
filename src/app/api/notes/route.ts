@@ -24,9 +24,9 @@ export async function GET() {
   const docs = await Note.find({ userId: session.user.id }).sort({ createdAt: -1 })
 
   const notes = docs.map(doc => ({
-    id: doc._id.toString(),     // ← expose an `id` field
+    id: doc._id.toString(),
     text: doc.text,
-    audioUrls: doc.audioUrls,
+    audioUrls: doc.audioUrls?.map((id: any) => `/api/uploads/${id}`) || [],
     callerName: doc.callerName,
     callerEmail: doc.callerEmail,
     callerLocation: doc.callerLocation,
@@ -35,6 +35,7 @@ export async function GET() {
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   }))
+
 
   return NextResponse.json(notes)
 }
