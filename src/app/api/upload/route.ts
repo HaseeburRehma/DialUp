@@ -26,7 +26,14 @@ export async function POST(req: NextRequest) {
     return await new Promise((resolve, reject) => {
       uploadStream.on("finish", () => {
         const fileId = uploadStream.id;
-        resolve(NextResponse.json({ id: fileId.toHexString?.() || fileId.toString() }));
+        const idStr = fileId.toHexString?.() || fileId.toString();
+        const base = process.env.NEXT_PUBLIC_APP_URL || ""; // e.g. "https://yourapp.com"
+        resolve(
+          NextResponse.json({
+            id: idStr,
+            url: `${base}/api/uploads/${idStr}`,
+          })
+        );
       });
       uploadStream.on("error", (err) => {
         reject(NextResponse.json({ error: err.message }, { status: 500 }))

@@ -4,13 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { NoteCard } from '@/components/notes/note-card'
 import { NoteEditorModal } from '@/components/notes/note-editor-modal'
 import { NoteDeleteModal } from '@/components/notes/note-delete-modal'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import { NoteRecorderHandle } from '@/components/notes/note-recorder'
-
+import { NotesTable } from '@/components/notes/notes-table'
 interface Note {
   id: string
   text: string
@@ -127,16 +126,14 @@ export default function NotesPage() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {notes.map((note) => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              onEdit={() => handleEditNote(note)}
-              onDelete={() => handleDeleteNote(note)}
-            />
-          ))}
-        </div>
+        <NotesTable
+          notes={notes}
+          onEdit={handleEditNote}
+          onDelete={(id) => {
+            const note = notes.find((n) => n.id === id)
+            if (note) handleDeleteNote(note)
+          }}
+        />
       )}
 
       {showEditor && (

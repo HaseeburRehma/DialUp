@@ -21,9 +21,10 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   token.addGrant(
     new VoiceGrant({
       incomingAllow: true,
-      pushCredentialSid: process.env.TWILIO_PUSH_CREDENTIAL_SID
+      outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID,
     })
   )
+
 
   res.status(200).json({ token: token.toJwt() })
 }
