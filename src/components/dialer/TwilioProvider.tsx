@@ -4,14 +4,28 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { Device } from '@twilio/voice-sdk'
 
+// Alias type for Twilio connections
+
+interface TwilioConnection {
+  accept: () => void
+  reject: () => void
+  disconnect: () => void
+  parameters: Record<string, any>
+}
 interface DialerContextProps {
   device: Device | null
   isCalling: boolean
   callSeconds: number
   callLog: { time: string; message: string }[]
+  incomingConnection: TwilioConnection | null
   startCall: (number: string) => void
   hangUp: () => void
+  acceptCall: () => void
+  rejectCall: () => void
 }
+
+
+
 
 const DialerContext = createContext<DialerContextProps | undefined>(undefined)
 
@@ -26,6 +40,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   const [isCalling, setIsCalling] = useState(false)
   const [callSeconds, setCallSeconds] = useState(0)
   const [callLog, setCallLog] = useState<{ time: string; message: string }[]>([])
+  const [incomingConnection, setIncomingConnection] = useState<TwilioConnection | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   const log = (message: string) => {
@@ -38,41 +53,47 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     const { token } = await res.json()
     return token
   }
-type Codec = 'opus' | 'pcmu'
 
   useEffect(() => {
     let mounted = true
-    ;(async () => {
-      try {
-        const token = await fetchToken()
-        const dev = new Device(token, {
-          codecPreferences: ['opus', 'pcmu'] as any
+      ; (async () => {
+        try {
+          const token = await fetchToken()
+          const dev = new Device(token, {
+            codecPreferences: ['opus', 'pcmu'] as any,
+          })
 
-        })
+          dev.on('ready', () => log('Device ready'))
+          dev.on('error', e => log(`Error: ${e.message}`))
 
-        dev.on('ready', () => log('Device ready'))
-        dev.on('error', e => log(`Error: ${e.message}`))
-        dev.on('connect', () => {
-          if (!mounted) return
-          setIsCalling(true)
-          setCallSeconds(0)
-          timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
-          log('Call connected')
-        })
-        dev.on('disconnect', () => {
-          setIsCalling(false)
-          if (timerRef.current) {
-            clearInterval(timerRef.current)
-            timerRef.current = null
-          }
-          log('Call ended')
-        })
+          dev.on('connect', () => {
+            if (!mounted) return
+            setIsCalling(true)
+            setCallSeconds(0)
+            timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
+            log('Call connected')
+          })
 
-        if (mounted) setDevice(dev)
-      } catch {
-        log('Failed to initialize device')
-      }
-    })()
+          dev.on('disconnect', () => {
+            setIsCalling(false)
+            if (timerRef.current) {
+              clearInterval(timerRef.current)
+              timerRef.current = null
+            }
+            log('Call ended')
+          })
+
+          dev.on('incoming', (connection: any) => {
+            log(`Incoming call from ${connection.parameters.From || 'Unknown'}`)
+            setIncomingConnection(connection)
+          })
+
+
+          if (mounted) setDevice(dev)
+        } catch (err: any) {
+          log(`Failed to initialize device: ${err.message}`)
+        }
+      })()
 
     return () => {
       mounted = false
@@ -89,11 +110,38 @@ type Codec = 'opus' | 'pcmu'
 
   const hangUp = () => {
     device?.disconnectAll()
+    setIncomingConnection(null)
+  }
+
+  const acceptCall = () => {
+    if (incomingConnection) {
+      incomingConnection.accept()
+      setIncomingConnection(null)
+      log('Incoming call accepted')
+    }
+  }
+
+  const rejectCall = () => {
+    if (incomingConnection) {
+      incomingConnection.reject()
+      setIncomingConnection(null)
+      log('Incoming call rejected')
+    }
   }
 
   return (
     <DialerContext.Provider
-      value={{ device, isCalling, callSeconds, callLog, startCall, hangUp }}
+      value={{
+        device,
+        isCalling,
+        callSeconds,
+        callLog,
+        incomingConnection,
+        startCall,
+        hangUp,
+        acceptCall,
+        rejectCall,
+      }}
     >
       {children}
     </DialerContext.Provider>
