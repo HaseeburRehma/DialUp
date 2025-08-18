@@ -48,11 +48,32 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     setCallLog(prev => [{ time: now, message }, ...prev])
   }
 
-  const fetchToken = async () => {
-    const res = await fetch('/api/twilio-token', { credentials: 'include' })
-    const { token } = await res.json()
-    return token
+  async function fetchToken() {
+  try {
+    const res = await fetch('/api/twilio-token', {
+      credentials: 'include',
+    })
+
+    if (!res.ok) {
+      // log backend error if available
+      const errText = await res.text()
+      console.error('Token fetch failed:', res.status, errText)
+      return null
+    }
+
+    const data = await res.json()
+    if (!data?.token) {
+      console.error('No token in response:', data)
+      return null
+    }
+
+    return data.token
+  } catch (err) {
+    console.error('Token fetch error:', err)
+    return null
   }
+}
+
 
   useEffect(() => {
     let mounted = true

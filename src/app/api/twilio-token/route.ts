@@ -1,26 +1,30 @@
 // src/app/api/twilio-token/route.ts
-import { NextApiRequest, NextApiResponse } from "next"
-import twilio from "twilio"
+import { NextResponse } from 'next/server'
+import twilio from 'twilio'
 
 const AccessToken = twilio.jwt.AccessToken
 const VoiceGrant = AccessToken.VoiceGrant
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const identity = "web_dialer_user" // 🔥 must match your dial.client()
+export async function GET() {
+  try {
+    const identity = "web_dialer_user" // must match your client identity
 
-  const token = new AccessToken(
-    process.env.TWILIO_ACCOUNT_SID!,
-    process.env.TWILIO_API_KEY!,
-    process.env.TWILIO_API_SECRET!,
-    { identity }
-  )
+    const token = new AccessToken(
+      process.env.TWILIO_ACCOUNT_SID!,
+      process.env.TWILIO_API_KEY!,
+      process.env.TWILIO_API_SECRET!,
+      { identity }
+    )
 
-  const voiceGrant = new VoiceGrant({
-    outgoingApplicationSid: process.env.TWIML_APP_SID!,
-    incomingAllow: true
-  })
+    const voiceGrant = new VoiceGrant({
+      outgoingApplicationSid: process.env.TWIML_APP_SID!,
+      incomingAllow: true,
+    })
 
-  token.addGrant(voiceGrant)
+    token.addGrant(voiceGrant)
 
-  res.status(200).json({ token: token.toJwt() })
+    return NextResponse.json({ token: token.toJwt() })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
 }
