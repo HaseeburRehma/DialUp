@@ -114,31 +114,7 @@ export function Sidebar() {
         </nav>
       </div>
 
-      {/* User Profile & Sign Out */}
-      <div className="p-6 border-t border-white/20">
-        <div className="bg-white/10 rounded-xl p-4 mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="h-10 w-10 bg-gradient-to-br from-blue-400 to-teal-400 rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold text-sm">
-                {session?.user?.name?.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-white">{session?.user?.name}</p>
-              <p className="text-xs text-white/60 capitalize">{session?.user?.role} Account</p>
-            </div>
-          </div>
-        </div>
-        
-        <Button
-          onClick={() => signOut()}
-          variant="ghost"
-          className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors duration-200"
-        >
-          <LogOut className="mr-3 h-4 w-4" />
-          Sign Out
-        </Button>
-      </div>
+    
     </aside>
   )
 }
