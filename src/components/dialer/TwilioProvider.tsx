@@ -4,28 +4,26 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { Device } from '@twilio/voice-sdk'
 
-// Alias type for Twilio connections
-
 interface TwilioConnection {
   accept: () => void
   reject: () => void
   disconnect: () => void
   parameters: Record<string, any>
 }
+
 interface DialerContextProps {
   device: Device | null
   isCalling: boolean
   callSeconds: number
   callLog: { time: string; message: string }[]
+  callNotes: string
   incomingConnection: TwilioConnection | null
   startCall: (number: string) => void
   hangUp: () => void
   acceptCall: () => void
   rejectCall: () => void
+  updateCallNotes: (text: string) => void
 }
-
-
-
 
 const DialerContext = createContext<DialerContextProps | undefined>(undefined)
 
@@ -40,6 +38,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   const [isCalling, setIsCalling] = useState(false)
   const [callSeconds, setCallSeconds] = useState(0)
   const [callLog, setCallLog] = useState<{ time: string; message: string }[]>([])
+  const [callNotes, setCallNotes] = useState('')
   const [incomingConnection, setIncomingConnection] = useState<TwilioConnection | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -49,72 +48,62 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   }
 
   async function fetchToken() {
-  try {
-    const res = await fetch('/api/twilio-token', {
-      credentials: 'include',
-    })
-
-    if (!res.ok) {
-      // log backend error if available
-      const errText = await res.text()
-      console.error('Token fetch failed:', res.status, errText)
+    try {
+      const res = await fetch('/api/twilio-token', { credentials: 'include' })
+      if (!res.ok) {
+        const errText = await res.text()
+        console.error('Token fetch failed:', res.status, errText)
+        return null
+      }
+      const data = await res.json()
+      return data?.token || null
+    } catch (err) {
+      console.error('Token fetch error:', err)
       return null
     }
-
-    const data = await res.json()
-    if (!data?.token) {
-      console.error('No token in response:', data)
-      return null
-    }
-
-    return data.token
-  } catch (err) {
-    console.error('Token fetch error:', err)
-    return null
   }
-}
-
 
   useEffect(() => {
     let mounted = true
-      ; (async () => {
-        try {
-          const token = await fetchToken()
-          const dev = new Device(token, {
-            codecPreferences: ['opus', 'pcmu'] as any,
-          })
+    ;(async () => {
+      try {
+        const token = await fetchToken()
+        if (!token) return
 
-          dev.on('ready', () => log('Device ready'))
-          dev.on('error', e => log(`Error: ${e.message}`))
+        const dev = new Device(token, {
+          codecPreferences: ['opus', 'pcmu'] as any,
+        })
 
-          dev.on('connect', () => {
-            if (!mounted) return
-            setIsCalling(true)
-            setCallSeconds(0)
-            timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
-            log('Call connected')
-          })
+        dev.on('ready', () => log('Device ready'))
+        dev.on('error', e => log(`Error: ${e.message}`))
 
-          dev.on('disconnect', () => {
-            setIsCalling(false)
-            if (timerRef.current) {
-              clearInterval(timerRef.current)
-              timerRef.current = null
-            }
-            log('Call ended')
-          })
+        dev.on('connect', () => {
+          if (!mounted) return
+          setIsCalling(true)
+          setCallSeconds(0)
+          timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
+          log('Call connected')
+        })
 
-          dev.on('incoming', (connection: any) => {
-            log(`Incoming call from ${connection.parameters.From || 'Unknown'}`)
-            setIncomingConnection(connection)
-          })
+        dev.on('disconnect', () => {
+          setIsCalling(false)
+          if (timerRef.current) {
+            clearInterval(timerRef.current)
+            timerRef.current = null
+          }
+          log('Call ended')
+        })
 
+        dev.on('incoming', (connection: any) => {
+          log(`Incoming call from ${connection.parameters.From || 'Unknown'}`)
+          setIncomingConnection(connection)
+        })
 
-          if (mounted) setDevice(dev)
-        } catch (err: any) {
-          log(`Failed to initialize device: ${err.message}`)
-        }
-      })()
+        if (mounted) setDevice(dev)
+      } catch (err: any) {
+        log(`Failed to initialize device: ${err.message}`)
+      }
+    })()
 
     return () => {
       mounted = false
@@ -150,6 +139,8 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
+  const updateCallNotes = (text: string) => setCallNotes(text)
+
   return (
     <DialerContext.Provider
       value={{
@@ -157,11 +148,13 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         isCalling,
         callSeconds,
         callLog,
+        callNotes,
         incomingConnection,
         startCall,
         hangUp,
         acceptCall,
         rejectCall,
+        updateCallNotes,
       }}
     >
       {children}
