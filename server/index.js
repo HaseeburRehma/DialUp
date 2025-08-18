@@ -80,7 +80,7 @@ async function start() {
     try {
       app.use("/api/transcribe", jsonParser, urlParser, require("./routes/transcribe"));
       app.use("/api/upload", jsonParser, urlParser, require("./routes/upload"));
-      app.use("/api/twilio-token", jsonParser, urlParser, require("./routes/twilio"));
+     // app.use("/api/twilio-token", jsonParser, urlParser, require("./routes/twilio"));
       console.log("✅ API routes loaded");
     } catch (error) {
       console.error("❌ Failed to load API routes:", error);
