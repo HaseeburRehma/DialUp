@@ -253,7 +253,7 @@ export function Header() {
 
           {/* Right side actions */}
           <div className="flex items-center space-x-2">
-            <ThemeToggle />
+           {/*  <ThemeToggle /> */}
 
             {/* GitHub button 
             <Button variant="ghost" size="sm" className="hidden sm:flex" asChild>

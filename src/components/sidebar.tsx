@@ -1,33 +1,23 @@
 'use client'
 
-import { FileText, Phone, Settings, LogOut, Mic2, Crown, Users, BarChart3, CreditCard, Brain } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
+import { 
+  FileText, Phone, Settings, LogOut, Crown, Users, 
+  BarChart3, CreditCard, Brain, ChevronLeft, ChevronRight 
+} from 'lucide-react'
 import NextLink from 'next/link'
 
-// Mock session and navigation hooks
-function useSession() {
-  return {
-    data: {
-      user: {
-        name: 'John Doe',
-        email: 'john@example.com',
-        role: 'admin'
-      }
-    }
-  }
-}
-
-function usePathname() {
-  return window.location.pathname
-}
-
-function signOut() {
-  console.log('Sign out clicked')
-  // In a real app, this would handle sign out
-}
-
-// Mock Link component
-function Link({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
+function Link({
+  href,
+  children,
+  className,
+}: {
+  href: string
+  children: React.ReactNode
+  className?: string
+}) {
   return (
     <NextLink href={href} className={className}>
       {children}
@@ -35,10 +25,10 @@ function Link({ href, children, className }: { href: string; children: React.Rea
   )
 }
 
-
 export function Sidebar() {
   const { data: session } = useSession()
   const pathname = usePathname()
+  const [collapsed, setCollapsed] = useState(false)
 
   const isActive = (path: string) => pathname === path
 
@@ -57,56 +47,63 @@ export function Sidebar() {
   ]
 
   return (
-    <aside className="fixed left-0 top-20 bottom-0 w-72 bg-white/10 backdrop-blur-md border-r border-white/20 flex flex-col">
+    <aside
+      className={`fixed left-0 top-20 bottom-0 
+        ${collapsed ? 'w-20' : 'w-72'} 
+        bg-white/10 backdrop-blur-md border-r border-white/20 flex flex-col transition-all duration-300`}
+    >
+      {/* Collapse/Expand Toggle */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="p-2 m-2 rounded-lg bg-white/20 hover:bg-white/30 transition"
+      >
+        {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+      </button>
+
       {/* Navigation */}
-      <div className="flex-1 p-6">
-        <nav className="space-y-2">
+      <div className="flex-1 p-4 space-y-6 overflow-y-auto">
+        <nav className="space-y-4">
           {session?.user?.role === 'admin' && (
-            <>
-              <div className="mb-4">
-                <h3 className="text-xs font-semibold text-black/60 uppercase tracking-wider mb-3">
+            <div>
+              {!collapsed && (
+                <h3 className="text-xs font-semibold text-black/60 uppercase tracking-wider mb-2">
                   Administration
                 </h3>
-                {adminNavItems.map((item) => (
-                  <Link key={item.href} href={item.href}>
-                    <div className={`group flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
-                      isActive(item.href) 
-                        ? 'bg-white/20 text-black shadow-lg shadow-blue-500/20' 
-                        : 'text-black/70 hover:bg-black/10 hover:text-green'
-                    }`}>
-                      <item.icon className={`mr-3 h-5 w-5 ${item.color} ${
-                        isActive(item.href) ? 'scale-110' : 'group-hover:scale-105'
-                      } transition-transform duration-200`} />
-                      <span className="font-medium">{item.label}</span>
-                      {isActive(item.href) && (
-                        <div className="ml-auto w-2 h-2 bg-blue-400 rounded-full"></div>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-              <div className="border-t border-black/20 my-6"></div>
-            </>
+              )}
+              {adminNavItems.map((item) => (
+                <Link key={item.href} href={item.href}>
+                  <div
+                    className={`group flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 ${
+                      isActive(item.href)
+                        ? 'bg-white/20 text-black shadow-lg shadow-blue-500/20'
+                        : 'text-black/70 hover:bg-black/10'
+                    }`}
+                  >
+                    <item.icon className={`h-5 w-5 ${item.color}`} />
+                    {!collapsed && <span className="font-medium">{item.label}</span>}
+                  </div>
+                </Link>
+              ))}
+            </div>
           )}
-          
+
           <div>
-            <h3 className="text-xs font-semibold text-black/60 uppercase tracking-wider mb-3">
-              Workspace
-            </h3>
+            {!collapsed && (
+              <h3 className="text-xs font-semibold text-black/60 uppercase tracking-wider mb-2">
+                Workspace
+              </h3>
+            )}
             {userNavItems.map((item) => (
               <Link key={item.href} href={item.href}>
-                <div className={`group flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
-                  isActive(item.href) 
-                    ? 'bg-white/20 text-black shadow-lg shadow-blue-500/20' 
-                    : 'text-black/70 hover:bg-black/10 hover:text-green'
-                }`}>
-                  <item.icon className={`mr-3 h-5 w-5 ${item.color} ${
-                    isActive(item.href) ? 'scale-110' : 'group-hover:scale-105'
-                  } transition-transform duration-200`} />
-                  <span className="font-medium">{item.label}</span>
-                  {isActive(item.href) && (
-                    <div className="ml-auto w-2 h-2 bg-blue-400 rounded-full"></div>
-                  )}
+                <div
+                  className={`group flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 ${
+                    isActive(item.href)
+                      ? 'bg-white/20 text-black shadow-lg shadow-blue-500/20'
+                      : 'text-black/70 hover:bg-black/10'
+                  }`}
+                >
+                  <item.icon className={`h-5 w-5 ${item.color}`} />
+                  {!collapsed && <span className="font-medium">{item.label}</span>}
                 </div>
               </Link>
             ))}
@@ -114,7 +111,19 @@ export function Sidebar() {
         </nav>
       </div>
 
-    
+      {/* Footer: user info + logout */}
+      {!collapsed && session?.user && (
+        <div className="p-4 border-t border-white/20">
+          <p className="text-sm font-medium">{session.user.name}</p>
+          <p className="text-xs text-black/60">{session.user.email}</p>
+          <button
+            onClick={() => signOut()}
+            className="mt-2 flex items-center gap-2 text-sm text-red-500 hover:underline"
+          >
+            <LogOut className="h-4 w-4" /> Logout
+          </button>
+        </div>
+      )}
     </aside>
   )
 }
