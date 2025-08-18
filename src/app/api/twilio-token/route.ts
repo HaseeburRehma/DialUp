@@ -1,39 +1,26 @@
 // src/app/api/twilio-token/route.ts
-import { NextResponse } from "next/server"
-import { jwt as TwilioJwt } from "twilio"
-import { authOptions } from 'server/config/authOptions.js'
-import { getServerSession } from "next-auth"
+import { NextApiRequest, NextApiResponse } from "next"
+import twilio from "twilio"
 
-const { AccessToken } = TwilioJwt
+const AccessToken = twilio.jwt.AccessToken
 const VoiceGrant = AccessToken.VoiceGrant
 
-export async function GET() {
-  const session = await getServerSession(authOptions)
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const identity = "web_dialer_user" // 🔥 must match your dial.client()
 
-  if (!session?.user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
-  }
+  const token = new AccessToken(
+    process.env.TWILIO_ACCOUNT_SID!,
+    process.env.TWILIO_API_KEY!,
+    process.env.TWILIO_API_SECRET!,
+    { identity }
+  )
 
-  try {
-    const identity = session.user.email || session.user.id || "guest_user"
+  const voiceGrant = new VoiceGrant({
+    outgoingApplicationSid: process.env.TWIML_APP_SID!,
+    incomingAllow: true
+  })
 
-    const token = new AccessToken(
-      process.env.TWILIO_ACCOUNT_SID!,
-      process.env.TWILIO_API_KEY_SID!,
-      process.env.TWILIO_API_KEY_SECRET!,
-      { identity }
-    )
+  token.addGrant(voiceGrant)
 
-    token.addGrant(
-      new VoiceGrant({
-        outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID!,
-        incomingAllow: true,
-      })
-    )
-
-    return NextResponse.json({ token: token.toJwt() })
-  } catch (err: any) {
-    console.error("❌ Token error:", err)
-    return NextResponse.json({ error: err.message }, { status: 500 })
-  }
+  res.status(200).json({ token: token.toJwt() })
 }

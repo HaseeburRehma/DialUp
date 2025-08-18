@@ -1,31 +1,31 @@
 // src/app/api/voice/route.ts
-import { NextRequest } from "next/server"
+import { NextApiRequest, NextApiResponse } from "next"
 import twilio from "twilio"
 
-const VoiceResponse = twilio.twiml.VoiceResponse
+const { VoiceResponse } = twilio.twiml
 
-export async function POST(req: NextRequest) {
-    const body = await req.formData()
-    const to = body.get("To") as string | null
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const twiml = new VoiceResponse()
 
-    const twiml = new VoiceResponse()
+  // Who is being called? Use "To" param if present
+  const to = req.body.To
 
-    if (to) {
-        // Outbound call (browser -> phone)
-        const dial = twiml.dial({ callerId: process.env.TWILIO_PHONE_NUMBER })
-        if (to.startsWith("+")) {
-            dial.number(to)  // real PSTN number
-        } else {
-            dial.client(to)  // another Twilio client identity
-        }
+  if (to) {
+    const dial = twiml.dial()
+    // If the "To" looks like a phone number, dial out
+    if (/^\+?\d+$/.test(to)) {
+      dial.number(to)
     } else {
-        // Inbound call (phone -> Twilio number)
-        const dial = twiml.dial()
-        // e.g. route to john@example.com (must match token identity)
-        dial.client(process.env.DEFAULT_CLIENT_IDENTITY || "guest_user") // route to browser client
+      // Otherwise assume it's a Client identity
+      dial.client(to)
     }
+  } else {
+    // Default: dial a known client identity
+    const dial = twiml.dial()
+    dial.client("web_dialer_user")
+  }
 
-    return new Response(twiml.toString(), {
-        headers: { "Content-Type": "text/xml" },
-    })
+  res.setHeader("Content-Type", "text/xml")
+  res.status(200).send(twiml.toString())
 }
+
