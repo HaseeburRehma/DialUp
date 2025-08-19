@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  app:
+    command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
+    ports:
+      - "3000:3000"
+      - "4000:4000"
+    environment:
+      NODE_ENV: production

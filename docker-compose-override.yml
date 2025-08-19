@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  app:
+    command: sh -c "python3 server/WhisperLive/run_server.py --port 4000 & node server/index.js"
+    ports:
+      - "3000:3000"  # Next.js
+      - "4000:4000"  # WhisperLive
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
