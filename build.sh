@@ -2,14 +2,12 @@
 # build.sh - Clean build script
 
 echo "Cleaning previous build..."
-rm -rf .nuxt
-rm -rf .output
-rm -rf dist
+rm -rf .nuxt .output dist
 
 echo "Installing dependencies..."
-pnpm install --frozen-lockfile
+npm ci --omit=dev
 
 echo "Building for production..."
-NODE_ENV=production pnpm build
+NODE_ENV=production npm run build
 
 echo "Build completed successfully!"

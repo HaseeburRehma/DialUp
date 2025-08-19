@@ -25,16 +25,15 @@ RUN pip install --no-cache-dir -r server/requirement.txt -r server/WhisperLive/r
 FROM node:20-slim as node-build
 WORKDIR /app
 
-# install pnpm
-RUN npm install -g pnpm
+# copy package manifests first for caching
+COPY package.json package-lock.json* ./
 
-# copy lockfiles first for caching
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile
+# install deps with npm
+RUN npm ci --omit=dev
 
 # copy rest of app and build
 COPY . .
-RUN pnpm build --no-lint --no-typescript
+RUN npm run build
 
 # ============ Runtime ============ 
 FROM pythonbase as runtime
@@ -61,5 +60,5 @@ EXPOSE 3000 4000
 # If you like Supervisor for logging
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
-# OR, for faster startup without Supervisor, uncomment:
- CMD ["sh", "-c", "python3 server/WhisperLive/run_server.py --port 4000 & node server/index.js"]
+# OR, for faster startup without Supervisor, uncomment this instead:
+# CMD ["sh", "-c", "python3 server/WhisperLive/run_server.py --port 4000 & node server/index.js"]
