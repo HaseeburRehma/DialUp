@@ -96,7 +96,7 @@ export function CallInterface() {
                                 </Badge>
 
                                 {isReady && (
-                                    <Badge variant="outline" className="border-black/30 text-black/70">
+                                    <Badge variant="outline" className="border-black/30 text-black/700">
                                         <Signal className={`h-3 w-3 mr-1 ${getQualityColor(connectionQuality)}`} />
                                         {connectionQuality}
                                     </Badge>

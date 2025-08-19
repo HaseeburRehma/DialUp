@@ -56,21 +56,26 @@ export async function GET() {
 }
 
 // 👉 For Twilio Voice webhook
+// 👉 For Twilio Voice webhook
 export async function POST(req: Request) {
   const body = await req.formData()
-  let to = body.get('To')?.toString()
+  const toRaw = body.get('To')?.toString()
+  console.log("📞 Incoming Voice POST", { toRaw })
 
   const twiml = new VoiceResponse()
   const dial = twiml.dial({ callerId: process.env.TWILIO_CALLER_ID })
 
-  if (to) {
-    if (/^\+?\d+$/.test(to)) {
-      const normalized = normalizeNumber(to)
+  if (toRaw) {
+    if (/^\+?\d+$/.test(toRaw)) {
+      const normalized = normalizeNumber(toRaw)
+      console.log("🔢 Normalized number:", normalized)
       dial.number(normalized)
     } else {
-      dial.client(to)
+      console.log("👤 Dialing client:", toRaw)
+      dial.client(toRaw)
     }
   } else {
+    console.log("👤 No 'To' → defaulting to web_dialer_user")
     dial.client('web_dialer_user')
   }
 
