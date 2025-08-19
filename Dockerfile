@@ -29,7 +29,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 
 # install deps with npm
-RUN npm ci --omit=dev
+RUN npm ci 
 
 # copy rest of app and build
 COPY . .
