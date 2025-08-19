@@ -47,7 +47,7 @@ export function CallInterface() {
     good: 'text-blue-400',
     fair: 'text-yellow-400',
     poor: 'text-red-400'
-  }[quality] || 'text-gray-400')
+  }[quality] || 'text-black-400')
 
   const dtmfButtons = [['1','2','3'], ['4','5','6'], ['7','8','9'], ['*','0','#']]
 
