@@ -18,16 +18,15 @@ const COUNTRY_CODES: Record<string, string> = {
 // Default country from env (fallback = US)
 const DEFAULT_COUNTRY = (process.env.DEFAULT_COUNTRY || 'US') as keyof typeof COUNTRY_CODES
 
-// Helper: normalize to E.164
+// ✅ Helper: normalize to E.164 format
 function normalizeNumber(input: string, defaultCountry: keyof typeof COUNTRY_CODES = DEFAULT_COUNTRY): string {
   let num = input.replace(/\D/g, '') // keep only digits
 
-  // Already E.164
+  // Already in E.164
   if (input.startsWith('+')) return input
 
-  // Handle local formats like 0335..., 071..., 212...
   if (defaultCountry === 'PK' && num.startsWith('0')) {
-    num = num.replace(/^0+/, '') // drop leading 0
+    num = num.replace(/^0+/, '')
     return COUNTRY_CODES['PK'] + num
   }
 
@@ -40,14 +39,13 @@ function normalizeNumber(input: string, defaultCountry: keyof typeof COUNTRY_COD
     return COUNTRY_CODES['US'] + num
   }
 
-  // Fallback: prefix with chosen country code
   return COUNTRY_CODES[defaultCountry] + num
 }
 
-// 👉 For debugging in browser
+// 👉 For debugging (open in browser)
 export async function GET() {
   const twiml = new VoiceResponse()
-  twiml.say({ voice: 'alice' }, 'Your TwiML voice endpoint is working!')
+  twiml.say({ voice: 'alice' }, '✅ Your TwiML voice endpoint is working!')
 
   return new NextResponse(twiml.toString(), {
     status: 200,
@@ -55,7 +53,6 @@ export async function GET() {
   })
 }
 
-// 👉 For Twilio Voice webhook
 // 👉 For Twilio Voice webhook
 export async function POST(req: Request) {
   const body = await req.formData()
