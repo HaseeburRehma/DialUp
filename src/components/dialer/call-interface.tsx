@@ -82,7 +82,7 @@ export function CallInterface() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Dialer */}
             <div className="lg:col-span-2 space-y-6">
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-black/10 backdrop-blur-md border-black/20">
                     <CardContent className="p-6">
                         {/* Status Bar */}
                         <div className="flex items-center justify-between mb-6">
@@ -96,7 +96,7 @@ export function CallInterface() {
                                 </Badge>
 
                                 {isReady && (
-                                    <Badge variant="outline" className="border-white/30 text-white/70">
+                                    <Badge variant="outline" className="border-black/30 text-black/70">
                                         <Signal className={`h-3 w-3 mr-1 ${getQualityColor(connectionQuality)}`} />
                                         {connectionQuality}
                                     </Badge>
@@ -107,7 +107,7 @@ export function CallInterface() {
                                 <div className="flex items-center space-x-2">
                                     <div className="flex items-center space-x-1">
                                         <Circle className="h-2 w-2 text-red-400 fill-current animate-pulse" />
-                                        <span className="text-white font-mono text-lg">{formatTime(callSeconds)}</span>
+                                        <span className="text-black font-mono text-lg">{formatTime(callSeconds)}</span>
                                     </div>
                                 </div>
                             )}
@@ -122,13 +122,13 @@ export function CallInterface() {
                                     value={phoneNumber}
                                     onChange={(e) => setPhoneNumber(e.target.value)}
                                     disabled={isCalling}
-                                    className="flex-1 bg-white/10 border-white/20 text-white placeholder-white/40"
+                                    className="flex-1 bg-black/10 border-black/20 text-black placeholder-black/40"
                                 />
                                 {!isCalling ? (
                                     <Button
                                         onClick={() => startCall(phoneNumber)}
                                         disabled={!isReady || !phoneNumber.trim()}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-8"
+                                        className="bg-green-600 hover:bg-green-700 text-black px-8"
                                     >
                                         <Phone className="h-4 w-4 mr-2" />
                                         Call
@@ -136,7 +136,7 @@ export function CallInterface() {
                                 ) : (
                                     <Button
                                         onClick={hangUp}
-                                        className="bg-red-600 hover:bg-red-700 text-white px-8"
+                                        className="bg-red-600 hover:bg-red-700 text-black px-8"
                                     >
                                         <PhoneOff className="h-4 w-4 mr-2" />
                                         Hang Up
@@ -150,7 +150,7 @@ export function CallInterface() {
                                     <Button
                                         variant="outline"
                                         onClick={toggleMute}
-                                        className={`${isMuted ? 'bg-red-500/20 border-red-500/30 text-red-300' : 'bg-white/10 border-white/20 text-white/70'}`}
+                                        className={`${isMuted ? 'bg-red-500/20 border-red-500/30 text-red-300' : 'bg-black/10 border-black/20 text-black/70'}`}
                                     >
                                         {isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                                         {isMuted ? 'Unmute' : 'Mute'}
@@ -159,7 +159,7 @@ export function CallInterface() {
                                     <Button
                                         variant="outline"
                                         onClick={toggleHold}
-                                        className={`${isOnHold ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300' : 'bg-white/10 border-white/20 text-white/70'}`}
+                                        className={`${isOnHold ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300' : 'bg-black/10 border-black/20 text-black/70'}`}
                                     >
                                         {isOnHold ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
                                         {isOnHold ? 'Resume' : 'Hold'}
@@ -168,7 +168,7 @@ export function CallInterface() {
                                     <Button
                                         variant="outline"
                                         onClick={toggleRecording}
-                                        className={`${isRecording ? 'bg-red-500/20 border-red-500/30 text-red-300' : 'bg-white/10 border-white/20 text-white/70'}`}
+                                        className={`${isRecording ? 'bg-red-500/20 border-red-500/30 text-red-300' : 'bg-black/10 border-black/20 text-black/70'}`}
                                     >
                                         {isRecording ? <Square className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
                                         {isRecording ? 'Stop Rec' : 'Record'}
@@ -177,7 +177,7 @@ export function CallInterface() {
                                     <Button
                                         variant="outline"
                                         onClick={() => setShowDTMF(!showDTMF)}
-                                        className="bg-white/10 border-white/20 text-white/70"
+                                        className="bg-black/10 border-black/20 text-black/70"
                                     >
                                         <Hash className="h-4 w-4" />
                                         DTMF
@@ -187,7 +187,7 @@ export function CallInterface() {
 
                             {/* DTMF Keypad */}
                             {showDTMF && isCalling && (
-                                <Card className="bg-white/5 border-white/10">
+                                <Card className="bg-black/5 border-black/10">
                                     <CardContent className="p-4">
                                         <div className="grid grid-cols-3 gap-2">
                                             {dtmfButtons.flat().map((digit) => (
@@ -195,7 +195,7 @@ export function CallInterface() {
                                                     key={digit}
                                                     variant="outline"
                                                     onClick={() => sendDTMF(digit)}
-                                                    className="bg-white/10 border-white/20 text-white hover:bg-white/20 aspect-square"
+                                                    className="bg-black/10 border-black/20 text-black hover:bg-black/20 aspect-square"
                                                 >
                                                     {digit}
                                                 </Button>
@@ -211,7 +211,7 @@ export function CallInterface() {
                                     <Button
                                         variant="outline"
                                         onClick={() => setShowTransfer(!showTransfer)}
-                                        className="bg-white/10 border-white/20 text-white/70"
+                                        className="bg-black/10 border-black/20 text-black/70"
                                     >
                                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                                         Transfer
@@ -219,7 +219,7 @@ export function CallInterface() {
 
                                     <Button
                                         variant="outline"
-                                        className="bg-white/10 border-white/20 text-white/70"
+                                        className="bg-black/10 border-black/20 text-black/70"
                                     >
                                         <Users className="h-4 w-4 mr-2" />
                                         Conference
@@ -228,7 +228,7 @@ export function CallInterface() {
                                     <Button
                                         variant="outline"
                                         onClick={toggleTranscription}
-                                        className={`${isTranscribing ? 'bg-blue-500/20 border-blue-500/30 text-blue-300' : 'bg-white/10 border-white/20 text-white/70'}`}
+                                        className={`${isTranscribing ? 'bg-blue-500/20 border-blue-500/30 text-blue-300' : 'bg-black/10 border-black/20 text-black/70'}`}
                                     >
                                         {isTranscribing ? <VolumeX className="h-4 w-4 mr-2" /> : <Volume2 className="h-4 w-4 mr-2" />}
                                         {isTranscribing ? 'Stop AI' : 'Live AI'}
@@ -238,29 +238,29 @@ export function CallInterface() {
 
                             {/* Transfer Interface */}
                             {showTransfer && isCalling && (
-                                <Card className="bg-white/5 border-white/10">
+                                <Card className="bg-black/5 border-black/10">
                                     <CardContent className="p-4">
-                                        <h4 className="text-white font-medium mb-3">Call Transfer</h4>
+                                        <h4 className="text-black font-medium mb-3">Call Transfer</h4>
                                         <div className="flex space-x-2 mb-3">
                                             <Input
                                                 type="tel"
                                                 placeholder="Transfer to number..."
                                                 value={transferNumber}
                                                 onChange={(e) => setTransferNumber(e.target.value)}
-                                                className="flex-1 bg-white/10 border-white/20 text-white placeholder-white/40"
+                                                className="flex-1 bg-black/10 border-black/20 text-black placeholder-black/40"
                                             />
                                         </div>
                                         <div className="flex space-x-2">
                                             <Button
                                                 variant="outline"
-                                                className="bg-white/10 border-white/20 text-white/70 flex-1"
+                                                className="bg-black/10 border-black/20 text-black/70 flex-1"
                                                 onClick={() => transferCall(transferNumber, 'blind')}
                                             >
                                                 Blind Transfer
                                             </Button>
                                             <Button
                                                 variant="outline"
-                                                className="bg-white/10 border-white/20 text-white/70 flex-1"
+                                                className="bg-black/10 border-black/20 text-black/70 flex-1"
                                                 onClick={() => transferCall(transferNumber, 'warm')}
                                             >
                                                 Warm Transfer
@@ -275,17 +275,17 @@ export function CallInterface() {
 
                 {/* Live Transcription */}
                 {isTranscribing && (
-                    <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                    <Card className="bg-black/10 backdrop-blur-md border-black/20">
                         <CardContent className="p-6">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-white">Live Transcription</h3>
+                                <h3 className="text-lg font-semibold text-black">Live Transcription</h3>
                                 <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
                                     <Circle className="h-2 w-2 mr-1 fill-current animate-pulse" />
                                     Live
                                 </Badge>
                             </div>
                             <div className="bg-slate-800/50 rounded-lg p-4 min-h-[100px] max-h-[200px] overflow-y-auto">
-                                <p className="text-white/90 leading-relaxed">
+                                <p className="text-black/90 leading-relaxed">
                                     {liveTranscription || 'Listening for speech...'}
                                 </p>
                             </div>
@@ -297,37 +297,37 @@ export function CallInterface() {
             {/* Sidebar */}
             <div className="space-y-6">
                 {/* Call Notes */}
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-black/10 backdrop-blur-md border-black/20">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-white">Call Notes</h3>
-                            <MessageSquare className="h-5 w-5 text-white/60" />
+                            <h3 className="text-lg font-semibold text-black">Call Notes</h3>
+                            <MessageSquare className="h-5 w-5 text-black/60" />
                         </div>
                         <textarea
                             value={callNotes}
                             onChange={(e) => updateCallNotes(e.target.value)}
                             placeholder="Add notes about this call..."
-                            className="w-full h-32 bg-white/10 border border-white/20 rounded-lg p-3 text-white placeholder-white/40 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                            className="w-full h-32 bg-black/10 border border-black/20 rounded-lg p-3 text-black placeholder-black/40 resize-none focus:outline-none focus:ring-2 focus:ring-blue-400/50"
                         />
                     </CardContent>
                 </Card>
 
                 {/* Call Log */}
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-black/10 backdrop-blur-md border-black/20">
                     <CardContent className="p-6">
-                        <h3 className="text-lg font-semibold text-white mb-4">Activity Log</h3>
+                        <h3 className="text-lg font-semibold text-black mb-4">Activity Log</h3>
                         <div className="space-y-2 max-h-64 overflow-y-auto">
                             {callLog.length === 0 ? (
-                                <p className="text-white/60 text-sm text-center py-4">No activity yet</p>
+                                <p className="text-black/60 text-sm text-center py-4">No activity yet</p>
                             ) : (
                                 callLog.map((entry, index) => (
                                     <div key={index} className="flex items-start space-x-2 text-sm">
-                                        <span className="text-white/50 font-mono text-xs mt-0.5 min-w-[60px]">
+                                        <span className="text-black/50 font-mono text-xs mt-0.5 min-w-[60px]">
                                             {entry.time}
                                         </span>
                                         <span className={`${entry.type === 'error' ? 'text-red-300' :
                                                 entry.type === 'warning' ? 'text-yellow-300' :
-                                                    'text-white/80'
+                                                    'text-black/80'
                                             }`}>
                                             {entry.message}
                                         </span>

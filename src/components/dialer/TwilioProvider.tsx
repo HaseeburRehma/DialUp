@@ -124,7 +124,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   // Initialize ringtone
   useEffect(() => {
-    ringtoneRef.current = new Audio('/ringtone.mp3')
+    ringtoneRef.current = new Audio('ringtone')
     ringtoneRef.current.loop = true
     return () => {
       if (ringtoneRef.current) {

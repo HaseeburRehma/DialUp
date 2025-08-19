@@ -11,7 +11,7 @@ export default function DialerPage() {
   return (
     <DashboardLayout>
       <TwilioProvider>
-        <div className="space-y-10 max-w-7xl mx-auto p-6">
+        <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
           {/* Overlay modal for ringing calls */}
           <IncomingCallModal />
 

@@ -54,16 +54,16 @@ export function CallHistory() {
   return (
     <div className="space-y-6">
       {/* Search and Filters */}
-      <Card className="bg-white/10 backdrop-blur-md border-white/20">
+      <Card className="bg-black/10 backdrop-blur-md border-black/20">
         <CardContent className="p-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/40 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black/40 h-4 w-4" />
               <Input
                 placeholder="Search by phone number..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/10 border-white/20 text-white placeholder-white/40"
+                className="pl-10 bg-black/10 border-black/20 text-black placeholder-black/40"
               />
             </div>
             
@@ -71,7 +71,7 @@ export function CallHistory() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white text-sm"
+                className="px-3 py-2 bg-black/10 border border-black/20 rounded-md text-black text-sm"
               >
                 <option value="all">All Status</option>
                 <option value="completed">Completed</option>
@@ -83,7 +83,7 @@ export function CallHistory() {
               <select
                 value={filterDirection}
                 onChange={(e) => setFilterDirection(e.target.value)}
-                className="px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white text-sm"
+                className="px-3 py-2 bg-black/10 border border-black/20 rounded-md text-black text-sm"
               >
                 <option value="all">All Calls</option>
                 <option value="outbound">Outbound</option>
@@ -97,11 +97,11 @@ export function CallHistory() {
       {/* Call History List */}
       <div className="space-y-4">
         {filteredHistory.length === 0 ? (
-          <Card className="bg-white/10 backdrop-blur-md border-white/20">
+          <Card className="bg-black/10 backdrop-blur-md border-black/20">
             <CardContent className="p-12 text-center">
-              <Phone className="h-12 w-12 text-white/40 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-white mb-2">No Call History</h3>
-              <p className="text-white/60">
+              <Phone className="h-12 w-12 text-black/40 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-black mb-2">No Call History</h3>
+              <p className="text-black/60">
                 {searchTerm || filterStatus !== 'all' || filterDirection !== 'all' 
                   ? 'No calls match your current filters.' 
                   : 'Start making calls to see your history here.'}
@@ -110,7 +110,7 @@ export function CallHistory() {
           </Card>
         ) : (
           filteredHistory.map((call) => (
-            <Card key={call.id} className="bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/15 transition-all duration-200">
+            <Card key={call.id} className="bg-black/10 backdrop-blur-md border-black/20 hover:bg-black/15 transition-all duration-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
@@ -124,13 +124,13 @@ export function CallHistory() {
                     
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-1">
-                        <h3 className="text-lg font-semibold text-white">{call.number}</h3>
+                        <h3 className="text-lg font-semibold text-black">{call.number}</h3>
                         <Badge className={getStatusColor(call.status)}>
                           {call.status.replace('-', ' ')}
                         </Badge>
                       </div>
                       
-                      <div className="flex items-center space-x-4 text-sm text-white/60">
+                      <div className="flex items-center space-x-4 text-sm text-black/60">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3" />
                           <span>{formatDistanceToNow(call.timestamp, { addSuffix: true })}</span>
@@ -143,13 +143,13 @@ export function CallHistory() {
                           </div>
                         )}
                         
-                        <span className="capitalize text-white/50">
+                        <span className="capitalize text-black/50">
                           {call.direction}
                         </span>
                       </div>
                       
                       {call.notes && (
-                        <div className="mt-2 p-2 bg-white/5 rounded text-sm text-white/80">
+                        <div className="mt-2 p-2 bg-black/5 rounded text-sm text-black/80">
                           <MessageSquare className="h-3 w-3 inline mr-1" />
                           {call.notes}
                         </div>
@@ -163,14 +163,14 @@ export function CallHistory() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-white/70 hover:text-blue-300 hover:bg-blue-500/20"
+                          className="text-black/70 hover:text-blue-300 hover:bg-blue-500/20"
                         >
                           <Play className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-white/70 hover:text-green-300 hover:bg-green-500/20"
+                          className="text-black/70 hover:text-green-300 hover:bg-green-500/20"
                         >
                           <Download className="h-4 w-4" />
                         </Button>
@@ -180,7 +180,7 @@ export function CallHistory() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-white/70 hover:text-white hover:bg-white/10"
+                      className="text-black/70 hover:text-black hover:bg-black/10"
                     >
                       <Phone className="h-4 w-4" />
                     </Button>

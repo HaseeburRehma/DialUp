@@ -39,48 +39,48 @@ export function CallAnalytics() {
         <div className="space-y-6">
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-black/10 backdrop-blur-md border-black/20">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-white/60 text-sm">Total Calls</p>
-                                <p className="text-2xl font-bold text-white">{stats.totalCalls}</p>
+                                <p className="text-black/60 text-sm">Total Calls</p>
+                                <p className="text-2xl font-bold text-black">{stats.totalCalls}</p>
                             </div>
                             <Phone className="h-8 w-8 text-blue-400" />
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-black/10 backdrop-blur-md border-black/20">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-white/60 text-sm">Today's Calls</p>
-                                <p className="text-2xl font-bold text-white">{stats.todaysCalls}</p>
+                                <p className="text-black/60 text-sm">Today's Calls</p>
+                                <p className="text-2xl font-bold text-black">{stats.todaysCalls}</p>
                             </div>
                             <Calendar className="h-8 w-8 text-green-400" />
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-black/10 backdrop-blur-md border-black/20">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-white/60 text-sm">Avg Duration</p>
-                                <p className="text-2xl font-bold text-white">{formatDuration(stats.averageDuration)}</p>
+                                <p className="text-black/60 text-sm">Avg Duration</p>
+                                <p className="text-2xl font-bold text-black">{formatDuration(stats.averageDuration)}</p>
                             </div>
                             <Clock className="h-8 w-8 text-purple-400" />
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-black/10 backdrop-blur-md border-black/20">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-white/60 text-sm">Success Rate</p>
-                                <p className="text-2xl font-bold text-white">{stats.successRate}%</p>
+                                <p className="text-black/60 text-sm">Success Rate</p>
+                                <p className="text-2xl font-bold text-black">{stats.successRate}%</p>
                             </div>
                             <TrendingUp className="h-8 w-8 text-teal-400" />
                         </div>
@@ -89,11 +89,11 @@ export function CallAnalytics() {
             </div>
 
             {/* Recent Activity Chart */}
-            <Card className="bg-white/10 backdrop-blur-md border-white/20">
+            <Card className="bg-black/10 backdrop-blur-md border-black/20">
                 <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-xl font-semibold text-white">Call Activity</h3>
-                        <BarChart3 className="h-5 w-5 text-white/60" />
+                        <h3 className="text-xl font-semibold text-black">Call Activity</h3>
+                        <BarChart3 className="h-5 w-5 text-black/60" />
                     </div>
 
                     <div className="space-y-4">
@@ -113,7 +113,7 @@ export function CallAnalytics() {
                                         >
                                             <div className="bg-blue-400 rounded-sm w-full h-full opacity-60"></div>
                                         </div>
-                                        <span className="text-xs text-white/60">{day}</span>
+                                        <span className="text-xs text-black/60">{day}</span>
                                     </div>
                                 )
                             })}
@@ -125,9 +125,9 @@ export function CallAnalytics() {
 
             {/* Call Performance */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-black/10 backdrop-blur-md border-black/20">
                     <CardContent className="p-6">
-                        <h3 className="text-xl font-semibold text-white mb-4">Call Status Distribution</h3>
+                        <h3 className="text-xl font-semibold text-black mb-4">Call Status Distribution</h3>
                         <div className="space-y-3">
                             {[
                                 { status: 'completed', count: callHistory.filter((c: { status: string }) => c.status === 'completed').length, icon: CheckCircle },
@@ -137,8 +137,8 @@ export function CallAnalytics() {
                             ].map(({ status, count, icon: Icon }) => (
                                 <div key={status} className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3">
-                                        <Icon className="h-4 w-4 text-white/60" />
-                                        <span className="text-white/80 capitalize">{status.replace('-', ' ')}</span>
+                                        <Icon className="h-4 w-4 text-black/60" />
+                                        <span className="text-black/80 capitalize">{status.replace('-', ' ')}</span>
                                     </div>
                                     <Badge className={getStatusColor(status)}>
                                         {count}
@@ -149,9 +149,9 @@ export function CallAnalytics() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-white/10 backdrop-blur-md border-white/20">
+                <Card className="bg-black/10 backdrop-blur-md border-black/20">
                     <CardContent className="p-6">
-                        <h3 className="text-xl font-semibold text-white mb-4">Call Direction</h3>
+                        <h3 className="text-xl font-semibold text-black mb-4">Call Direction</h3>
                         <div className="space-y-3">
                             {[
                                 { direction: 'outbound', count: callHistory.filter((c: { direction: string }) => c.direction === 'outbound').length },
@@ -160,9 +160,9 @@ export function CallAnalytics() {
                                 <div key={direction} className="flex items-center justify-between">
                                     <div className="flex items-center space-x-3">
                                         <Phone className={`h-4 w-4 ${direction === 'outbound' ? 'text-blue-400' : 'text-green-400'}`} />
-                                        <span className="text-white/80 capitalize">{direction}</span>
+                                        <span className="text-black/80 capitalize">{direction}</span>
                                     </div>
-                                    <Badge className="bg-white/10 text-white/80 border-white/20">
+                                    <Badge className="bg-black/10 text-black/80 border-black/20">
                                         {count}
                                     </Badge>
                                 </div>
