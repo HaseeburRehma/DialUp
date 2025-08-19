@@ -175,118 +175,150 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
 
   // Initialize Twilio Device
-  useEffect(() => {
-    let mounted = true
-      ; (async () => {
-        try {
-          const token = await fetchToken()
-          if (!token || !mounted) return
+// Initialize Twilio Device
+useEffect(() => {
+  let mounted = true
 
-         const dev = new Device(token, {
-  codecPreferences: ['opus', 'pcmu'] as Call.Codec[],
-});
-          await dev.register()
-          dev.on('registered', () => log('✅ Device registered'))
-          dev.on('unregistered', () => log('❌ Device unregistered'))
-          dev.on('ready', () => {
-            if (!mounted) return
-            setIsReady(true)
-            log('Device ready - You can now make and receive calls', 'info')
-          })
+  ; (async () => {
+    try {
+      log('🔄 [Init] Starting Twilio Device initialization...', 'info')
 
-          dev.on('error', (e: any) => {
-            log(`Device error: ${e.message}`, 'error')
-          })
+      // 1. Fetch Token
+      const token = await fetchToken()
+      log(`Step 1️⃣ Token fetched: ${token ? '✅' : '❌ EMPTY'}`, 'info')
+      if (!token || !mounted) return
 
-          dev.on('connect', (connection: any) => {
-            if (!mounted) return
-            setIsCalling(true)
-            setCurrentConnection(connection as TwilioConnection)
+      // 2. Create Device
+      let dev: Device
+      try {
+        dev = new Device(token, {
+          codecPreferences: ['opus', 'pcmu'] as Call.Codec[],
+          logLevel: 3, // verbose Twilio internal logs
+        })
+        log('Step 2️⃣ Device object created ✅', 'info')
+      } catch (err: any) {
+        log(`Step 2️⃣ Device creation failed ❌: ${err.message}`, 'error')
+        return
+      }
 
-            setCallSeconds(0)
-            currentCallStartTime.current = new Date()
+      // 3. Register Device
+      try {
+        await dev.register()
+        log('Step 3️⃣ Device.register() called ✅', 'info')
+      } catch (err: any) {
+        log(`Step 3️⃣ Device.register() failed ❌: ${err.message}`, 'error')
+        return
+      }
 
-            timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
-            log('Call connected', 'info')
+      // 4. Attach Events
+      dev.on('registered', () => log('Step 4️⃣ ✅ Device registered with Twilio', 'info'))
+      dev.on('unregistered', () => log('Step 4️⃣ ❌ Device unregistered', 'info'))
+      dev.on('ready', () => {
+        if (!mounted) return
+        setIsReady(true)
+        log('Step 4️⃣ Device ready - You can now make and receive calls ✅', 'info')
+      })
+      dev.on('error', (e: any) => log(`Step 4️⃣ Device error ❌: ${e.message}`, 'error'))
 
-            // Monitor connection quality
-            connection.on('warning', (name: string) => {
-              if (name === 'high-rtt') setConnectionQuality('fair')
-              else if (name === 'high-packet-loss') setConnectionQuality('poor')
-            })
+      // --- Handle Outgoing / Active Call ---
+      dev.on('connect', (connection: any) => {
+        if (!mounted) return
+        setIsCalling(true)
+        setCurrentConnection(connection as TwilioConnection)
 
-            connection.on('warning-cleared', () => {
-              setConnectionQuality('excellent')
-            })
-          })
+        setCallSeconds(0)
+        currentCallStartTime.current = new Date()
+        timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
 
-          dev.on('disconnect', (connection: any) => {
-            if (!mounted) return
+        log('📞 Call connected ✅', 'info')
 
-            const duration = callSeconds
-            const callRecord: CallRecord = {
-              id: Date.now().toString(),
-              number: connection.parameters?.To || connection.parameters?.From || 'Unknown',
-              direction: connection.parameters?.To ? 'outbound' : 'inbound',
-              duration,
-              status: 'completed',
-              timestamp: currentCallStartTime.current || new Date(),
-              notes: callNotes
-            }
+        // Monitor quality
+        connection.on('warning', (name: string) => {
+          if (name === 'high-rtt') setConnectionQuality('fair')
+          else if (name === 'high-packet-loss') setConnectionQuality('poor')
+        })
+        connection.on('warning-cleared', () => {
+          setConnectionQuality('excellent')
+        })
+      })
 
-            setCallHistory(prev => [callRecord, ...prev])
-            setIsCalling(false)
-            setCurrentConnection(null)
-            setIsOnHold(false)
-            setIsMuted(false)
-            setIsRecording(false)
-            setCallNotes('')
-            setLiveTranscription('')
-            setIsTranscribing(false)
+      // --- Handle Call Disconnect ---
+      dev.on('disconnect', (connection: any) => {
+        if (!mounted) return
 
-            if (timerRef.current) {
-              clearInterval(timerRef.current)
-              timerRef.current = null
-            }
-
-            log(`Call ended - Duration: ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`, 'info')
-          })
-
-          dev.on('incoming', (connection: any) => {
-            if (!mounted) return
-
-            const callerNumber = connection.parameters.From || 'Unknown Number'
-            log(`Incoming call from ${callerNumber}`, 'info')
-
-            setIncomingConnection(connection)
-            setIsRinging(true)
-            playRingtone()
-
-            // Auto-reject after 30 seconds
-            setTimeout(() => {
-              if (connection.status() === 'pending') {
-                connection.reject()
-                setIncomingConnection(null)
-                setIsRinging(false)
-                stopRingtone()
-                log('Incoming call timed out', 'warning')
-              }
-            }, 30000)
-          })
-
-          if (mounted) setDevice(dev)
-        } catch (err: any) {
-          log(`Failed to initialize device: ${err.message}`, 'error')
+        const duration = callSeconds
+        const callRecord: CallRecord = {
+          id: Date.now().toString(),
+          number: connection.parameters?.To || connection.parameters?.From || 'Unknown',
+          direction: connection.parameters?.To ? 'outbound' : 'inbound',
+          duration,
+          status: 'completed',
+          timestamp: currentCallStartTime.current || new Date(),
+          notes: callNotes
         }
-      })()
 
-    return () => {
-      mounted = false
-      if (timerRef.current) clearInterval(timerRef.current)
-      stopRingtone()
-      device?.disconnectAll()
+        setCallHistory(prev => [callRecord, ...prev])
+        setIsCalling(false)
+        setCurrentConnection(null)
+        setIsOnHold(false)
+        setIsMuted(false)
+        setIsRecording(false)
+        setCallNotes('')
+        setLiveTranscription('')
+        setIsTranscribing(false)
+
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = null
+        }
+
+        log(`📴 Call ended - Duration: ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`, 'info')
+      })
+
+      // --- Handle Incoming Call ---
+      dev.on('incoming', (connection: any) => {
+        if (!mounted) return
+
+        const callerNumber = connection.parameters.From || 'Unknown Number'
+        log(`📥 Incoming call from ${callerNumber}`, 'info')
+
+        setIncomingConnection(connection)
+        setIsRinging(true)
+        playRingtone()
+
+        // Auto-reject after 30s
+        setTimeout(() => {
+          if (connection.status() === 'pending') {
+            connection.reject()
+            setIncomingConnection(null)
+            setIsRinging(false)
+            stopRingtone()
+            log('⏱️ Incoming call timed out (auto-rejected)', 'info')
+          }
+        }, 30000)
+      })
+
+      // Save Device
+      if (mounted) {
+        setDevice(dev)
+        log('✅ Twilio Device setup completed successfully', 'info')
+      }
+
+    } catch (err: any) {
+      log(`💥 Fatal error initializing device: ${err.message}`, 'error')
     }
-  }, [])
+  })()
+
+  // Cleanup on unmount
+  return () => {
+    mounted = false
+    if (timerRef.current) clearInterval(timerRef.current)
+    stopRingtone()
+    device?.disconnectAll()
+    log('🧹 Cleanup: Device destroyed & connections closed', 'info')
+  }
+}, [])
+
 
   // Actions
   const startCall = (toNumber: string) => {
