@@ -17,8 +17,7 @@ export async function GET() {
     )
 
     const voiceGrant = new VoiceGrant({
-      outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID!, // ✅ matches your .env
-      incomingAllow: true,
+      outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID!
     })
 
     token.addGrant(voiceGrant)

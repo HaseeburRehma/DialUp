@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
-import { Device } from '@twilio/voice-sdk'
+import { Device, Call } from '@twilio/voice-sdk'
 
 interface CallRecord {
   id: string
@@ -79,6 +79,7 @@ interface DialerContextProps {
 }
 
 const DialerContext = createContext<DialerContextProps | undefined>(undefined)
+// Use the correct codec string values as per Twilio's SDK type definition
 
 export const useDialer = () => {
   const ctx = useContext(DialerContext)
@@ -181,10 +182,12 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           const token = await fetchToken()
           if (!token || !mounted) return
 
-          const dev = new Device(token, {
-            codecPreferences: ['opus', 'pcmu'] as any,
-          })
-
+         const dev = new Device(token, {
+  codecPreferences: ['opus', 'pcmu'] as Call.Codec[],
+});
+          await dev.register()
+          dev.on('registered', () => log('✅ Device registered'))
+          dev.on('unregistered', () => log('❌ Device unregistered'))
           dev.on('ready', () => {
             if (!mounted) return
             setIsReady(true)
