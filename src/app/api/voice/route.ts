@@ -55,8 +55,10 @@ export async function GET() {
 
 // 👉 For Twilio Voice webhook
 export async function POST(req: Request) {
-  const body = await req.formData()
-  const toRaw = body.get('To')?.toString()
+  const raw = await req.text()
+  const params = new URLSearchParams(raw)
+
+  const toRaw = params.get('To')
   console.log("📞 Incoming Voice POST", { toRaw })
 
   const twiml = new VoiceResponse()
@@ -81,3 +83,5 @@ export async function POST(req: Request) {
     headers: { 'Content-Type': 'text/xml' },
   })
 }
+
+
