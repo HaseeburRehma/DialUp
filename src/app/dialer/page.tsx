@@ -1,34 +1,28 @@
-// pages/dialer/page.tsx
 'use client'
 
-import { useState } from 'react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { TwilioProvider } from '@/components/dialer/TwilioProvider'
-import { CallStatus } from '@/components/dialer/CallStatus'
-import { CallInput } from '@/components/dialer/CallInput'
-import { CallControls } from '@/components/dialer/CallControls'
-import { CallLog } from '@/components/dialer/CallLog'
+import { CallInterface } from '@/components/dialer/call-interface'
+import { CallAnalytics } from '@/components/dialer/call-analytics'
+import { CallHistory } from '@/components/dialer/call-history'
+import { IncomingCallModal } from '@/components/dialer/incoming-call-modal'
 
 export default function DialerPage() {
-  const [toNumber, setToNumber] = useState('')
-
   return (
     <DashboardLayout>
       <TwilioProvider>
-        <div className="max-w-md mx-auto space-y-6">
-          <CallStatus />
+        <div className="space-y-10 max-w-7xl mx-auto p-6">
+          {/* Overlay modal for ringing calls */}
+          <IncomingCallModal />
 
-          <div className="flex gap-2">
-            <CallInput
-              value={toNumber}
-              onChange={setToNumber}
-              disabled={false}
-              onEnter={() => {}}
-            />
-            <CallControls toNumber={toNumber} />
-          </div>
+          {/* Main interface */}
+          <CallInterface />
 
-          <CallLog />
+          {/* Analytics dashboard */}
+          <CallAnalytics />
+
+          {/* Call history list */}
+          <CallHistory />
         </div>
       </TwilioProvider>
     </DashboardLayout>
