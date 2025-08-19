@@ -124,15 +124,15 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   // Initialize ringtone
   useEffect(() => {
-    ringtoneRef.current = new Audio('ringtone')
-    ringtoneRef.current.loop = true
-    return () => {
-      if (ringtoneRef.current) {
-        ringtoneRef.current.pause()
-        ringtoneRef.current = null
-      }
+  ringtoneRef.current = new Audio('/ringtone.mp3')  // ✅ absolute path from /public
+  ringtoneRef.current.loop = true
+  return () => {
+    if (ringtoneRef.current) {
+      ringtoneRef.current.pause()
+      ringtoneRef.current = null
     }
-  }, [])
+  }
+}, [])
 
   const log = (message: string, type: 'info' | 'warning' | 'error' = 'info') => {
     const now = new Date().toLocaleTimeString()
