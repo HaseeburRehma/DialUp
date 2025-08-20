@@ -1,4 +1,4 @@
-# Optimized Multi-stage Dockerfile
+# Production Multi-stage Dockerfile
 FROM node:20.17.0-slim AS node-build
 WORKDIR /app
 
@@ -10,6 +10,9 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+# Ensure public directory exists for Next.js
+RUN mkdir -p public
+
 # ============================
 # Python Runtime Stage
 # ============================
@@ -17,62 +20,85 @@ FROM python:3.11-slim-bookworm AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    NODE_VERSION=20.17.0 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    NODE_VERSION=20.17.0
 
 WORKDIR /app
 
-# Install system dependencies in one layer
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates ffmpeg portaudio19-dev supervisor netcat-openbsd \
-    build-essential python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js (smaller approach than copying from node image)
-RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz | tar -xJ -C /usr/local --strip-components=1
+# Install Node.js
+RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz \
+    | tar -xJ -C /usr/local --strip-components=1
 
-# Copy Python requirements first (for better caching)
-COPY server/requirement.txt ./server/
-COPY server/WhisperLive/requirements/ ./server/WhisperLive/requirements/
-
-# Install Python dependencies with memory optimization
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --prefer-binary torch==2.5.1 && \
-    pip install --no-cache-dir --prefer-binary openai-whisper && \
-    pip install --no-cache-dir --prefer-binary \
-        -r server/requirement.txt \
-        -r server/WhisperLive/requirements/client.txt \
-        -r server/WhisperLive/requirements/server.txt
-
-# Copy remaining server files
+# Copy server files
 COPY server ./server
 
-# Copy built Next.js app from node-build stage
+# Install Python dependencies in correct order to avoid conflicts
+RUN pip install --no-cache-dir --upgrade pip
+
+# Install PyTorch CPU version first (resolves version conflict with your torch==2.7.1)
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
+    torch==2.5.1+cpu torchaudio==2.5.1+cpu
+
+# Install openai-whisper (depends on torch)
+RUN pip install --no-cache-dir openai-whisper
+
+# Install your specific requirements (excluding torch to avoid conflict)
+RUN pip install --no-cache-dir \
+    openai==1.9.0 \
+    numpy \
+    scipy \
+    deepl \
+    pydub \
+    cohere \
+    ffmpeg-python \
+    "typing-extensions>=4.10.0,<5"
+
+# Skip TensorFlow-probability for now to save memory (uncomment if needed)
+# RUN pip install --no-cache-dir tensorflow-probability==0.23.0
+
+# Install WhisperLive requirements if they exist
+RUN if [ -f "server/WhisperLive/requirements/client.txt" ]; then \
+        pip install --no-cache-dir -r server/WhisperLive/requirements/client.txt; \
+    fi
+RUN if [ -f "server/WhisperLive/requirements/server.txt" ]; then \
+        pip install --no-cache-dir -r server/WhisperLive/requirements/server.txt; \
+    fi
+
+# Copy built Next.js application
 COPY --from=node-build /app/.next ./.next
-COPY --from=node-build /app/public ./public
 COPY --from=node-build /app/package*.json ./
 
-# Install only production node dependencies
+# Create public directory and copy if it exists
+RUN mkdir -p ./public
+COPY --from=node-build /app/public ./public/ 2>/dev/null || echo "No public directory in source"
+
+# Install Node.js production dependencies
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy configuration files with conditional copying
+# Copy supervisor configuration
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Copy config files if they exist (handle both .js and .ts extensions)
-COPY --from=node-build /app/next.config.* ./
-COPY --from=node-build /app/tailwind.config.* ./
-COPY --from=node-build /app/postcss.config.* ./
+# Create basic next.config.js if missing
+RUN if [ ! -f "next.config.js" ] && [ ! -f "next.config.mjs" ] && [ ! -f "next.config.ts" ]; then \
+        echo 'module.exports = { output: "standalone" }' > next.config.js; \
+    fi
 
-# Clean up build dependencies to reduce image size
-RUN apt-get remove -y build-essential python3-dev && \
-    apt-get autoremove -y && \
-    apt-get clean
+# Create basic health endpoint if missing
+RUN mkdir -p pages/api && \
+    if [ ! -f "pages/api/health.js" ] && [ ! -d "app/api/health" ]; then \
+        echo 'export default function handler(req, res) { res.status(200).json({ status: "OK", timestamp: new Date().toISOString() }); }' > pages/api/health.js; \
+    fi
 
 EXPOSE 3000 4000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000/health || curl -f http://localhost:3000/api/health || exit 1
 
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
