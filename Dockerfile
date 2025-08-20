@@ -1,104 +1,85 @@
-# Production Multi-stage Dockerfile
-FROM node:20.17.0-slim AS node-build
-WORKDIR /app
-
-# Copy package files and install dependencies
-COPY package*.json ./
-RUN npm ci
-
-# Copy source and build
-COPY . .
-RUN npm run build
-
-# Ensure public directory exists for Next.js
-RUN mkdir -p public
-
 # ============================
-# Python Runtime Stage
+# 1. Python Base (slim runtime)
 # ============================
-FROM python:3.11-slim-bookworm AS runtime
+FROM python:3.11-slim-bookworm AS pythonbase
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    NODE_VERSION=20.17.0
+    DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Install system dependencies
+# Base runtime deps (no compilers)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates ffmpeg portaudio19-dev supervisor netcat-openbsd \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# ============================
+# 2. Python Build Stage
+# ============================
+FROM pythonbase AS python-deps
+
+# Build tools for Python deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js
-RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz \
-    | tar -xJ -C /usr/local --strip-components=1
-
-# Copy server files
 COPY server ./server
 
-# Install Python dependencies in correct order to avoid conflicts
-RUN pip install --no-cache-dir --upgrade pip
+# Install Python deps (Torch first, then app deps)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --prefer-binary torch==2.5.1 && \
+    pip install --no-cache-dir --prefer-binary openai-whisper && \
+    pip install --no-cache-dir --prefer-binary \
+        -r server/requirement.txt \
+        -r server/WhisperLive/requirements/client.txt \
+        -r server/WhisperLive/requirements/server.txt
+    
+# ============================
+# 3. Node Build Stage
+# ============================
+FROM node:20.17.0-slim AS node-build
+WORKDIR /app
 
-# Install PyTorch CPU version first (resolves version conflict with your torch==2.7.1)
-RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.5.1+cpu torchaudio==2.5.1+cpu
+# Install all deps (including dev) for build
+COPY package.json package-lock.json* ./
+# Ensure PostCSS + Autoprefixer are installed in prod
+RUN npm install autoprefixer postcss && npm ci
 
-# Install openai-whisper (depends on torch)
-RUN pip install --no-cache-dir openai-whisper
+COPY . .
+RUN npm run build
 
-# Install your specific requirements (excluding torch to avoid conflict)
-RUN pip install --no-cache-dir \
-    openai==1.9.0 \
-    numpy \
-    scipy \
-    deepl \
-    pydub \
-    cohere \
-    ffmpeg-python \
-    "typing-extensions>=4.10.0,<5"
+# ============================
+# 4. Final Runtime Image
+# ============================
+FROM pythonbase AS runtime
 
-# Skip TensorFlow-probability for now to save memory (uncomment if needed)
-# RUN pip install --no-cache-dir tensorflow-probability==0.23.0
+# ✅ Copy built Node.js + deps
+COPY --from=node-build /usr/local /usr/local
+ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
 
-# Install WhisperLive requirements if they exist
-RUN if [ -f "server/WhisperLive/requirements/client.txt" ]; then \
-        pip install --no-cache-dir -r server/WhisperLive/requirements/client.txt; \
-    fi
-RUN if [ -f "server/WhisperLive/requirements/server.txt" ]; then \
-        pip install --no-cache-dir -r server/WhisperLive/requirements/server.txt; \
-    fi
+# ✅ Copy Python deps
+COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-# Copy built Next.js application
-COPY --from=node-build /app/.next ./.next
-COPY --from=node-build /app/package*.json ./
+# ✅ Copy package files first
+COPY --from=node-build /app/package.json /app/package-lock.json* /app/
+WORKDIR /app
 
-# Create public directory and copy if it exists
-RUN mkdir -p ./public
-COPY --from=node-build /app/public ./public/ 2>/dev/null || echo "No public directory in source"
+# ✅ Install ONLY production dependencies to ensure all runtime deps are present
+RUN npm ci --only=production --prefer-offline
 
-# Install Node.js production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# ✅ Copy the rest of the built app
+COPY --from=node-build /app /app
 
-# Copy supervisor configuration
+# Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Create basic next.config.js if missing
-RUN if [ ! -f "next.config.js" ] && [ ! -f "next.config.mjs" ] && [ ! -f "next.config.ts" ]; then \
-        echo 'module.exports = { output: "standalone" }' > next.config.js; \
-    fi
-
-# Create basic health endpoint if missing
-RUN mkdir -p pages/api && \
-    if [ ! -f "pages/api/health.js" ] && [ ! -d "app/api/health" ]; then \
-        echo 'export default function handler(req, res) { res.status(200).json({ status: "OK", timestamp: new Date().toISOString() }); }' > pages/api/health.js; \
-    fi
-
+# Ports (docs only; Railway ignores)
 EXPOSE 3000 4000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000/health || curl -f http://localhost:3000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3000/health && curl -f http://localhost:4000/health || exit 1
 
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
