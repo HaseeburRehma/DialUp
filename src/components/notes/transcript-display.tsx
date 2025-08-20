@@ -1,3 +1,5 @@
+
+// src/components/notes/transcript-display.tsx
 'use client'
 
 import React, { useMemo } from 'react'

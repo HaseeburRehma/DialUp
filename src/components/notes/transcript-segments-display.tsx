@@ -1,3 +1,5 @@
+
+// src/components/notes/transcript-segments-display.tsx
 'use client'
 import React from 'react'
 import { Mic, Speaker } from 'lucide-react'

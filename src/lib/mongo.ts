@@ -1,25 +1,48 @@
 // src/lib/mongo.ts
-import { MongoClient, GridFSBucket } from "mongodb"
+import { MongoClient, GridFSBucket } from 'mongodb'
 
-let client: MongoClient
-let bucket: GridFSBucket
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/voiceai'
 
-export async function getBucket() {
-  if (!process.env.MONGODB_URI) {
-    throw new Error("❌ MONGODB_URI is not set in environment variables")
+let client: MongoClient | null = null
+let bucket: GridFSBucket | null = null
+
+export async function getBucket(): Promise<GridFSBucket> {
+  try {
+    if (!client) {
+      console.log('[MongoDB] Connecting to:', MONGODB_URI.replace(/:[^:]*@/, ':***@'))
+      client = new MongoClient(MONGODB_URI, {
+        serverSelectionTimeoutMS: 10000,
+        connectTimeoutMS: 10000,
+        socketTimeoutMS: 30000,
+      })
+      await client.connect()
+      console.log('[MongoDB] ✅ Connected successfully')
+    }
+
+    if (!bucket) {
+      const db = client.db()
+      bucket = new GridFSBucket(db, { bucketName: 'uploads' })
+      console.log('[MongoDB] ✅ GridFS bucket ready')
+    }
+
+    return bucket
+  } catch (error: any) {
+    console.error('[MongoDB] ❌ Connection failed:', error)
+    // Reset so next attempt will try to reconnect
+    client = null
+    bucket = null
+    throw new Error(`Database connection failed: ${error.message}`)
   }
-
-  if (!client) {
-    client = new MongoClient(process.env.MONGODB_URI)
-    await client.connect()
-    console.log("✅ Connected to MongoDB")
-  }
-
-  const db = client.db(process.env.MONGODB_DB || "voiceai")
-  if (!bucket) {
-    bucket = new GridFSBucket(db, { bucketName: "uploads" })
-  }
-
-  return bucket
 }
+
+// Optional: Add a function to test the connection
+export async function testConnection(): Promise<boolean> {
+  try {
+    await getBucket()
+    return true
+  } catch {
+    return false
+  }
+}
+
 

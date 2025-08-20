@@ -120,6 +120,11 @@ export function useOptimizedWhisperLive(
     averageLatency: 0,
   })
 
+  // Enhanced deduplication tracking
+  const transcriptHistoryRef = useRef<Set<string>>(new Set())
+  const lastProcessedMessageRef = useRef<string>('')
+  const segmentHistoryRef = useRef<Map<string, number>>(new Map())
+
   // Audio processing refs
   const micRef = useRef<MediaStream | null>(null)
   const systemRef = useRef<MediaStream | null>(null)
@@ -136,9 +141,55 @@ export function useOptimizedWhisperLive(
 
   const { toast } = useToast()
 
+  // Enhanced deduplication utility functions
+  const normalizeText = useCallback((text: string): string => {
+    return text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }, [])
+
+  const isDuplicate = useCallback((text: string): boolean => {
+    const normalized = normalizeText(text)
+    if (normalized.length < 3) return true // Ignore very short texts
+    
+    if (transcriptHistoryRef.current.has(normalized)) {
+      return true
+    }
+    
+    // Check for substring matches in recent history
+    for (const historical of transcriptHistoryRef.current) {
+      if (historical.includes(normalized) || normalized.includes(historical)) {
+        return true
+      }
+    }
+    
+    return false
+  }, [normalizeText])
+
+  const addToHistory = useCallback((text: string): void => {
+    const normalized = normalizeText(text)
+    if (normalized.length >= 3) {
+      transcriptHistoryRef.current.add(normalized)
+      
+      // Keep history manageable (last 50 items)
+      if (transcriptHistoryRef.current.size > 50) {
+        const entries = Array.from(transcriptHistoryRef.current)
+        transcriptHistoryRef.current.clear()
+        entries.slice(-25).forEach(entry => transcriptHistoryRef.current.add(entry))
+      }
+    }
+  }, [normalizeText])
+
   // Enhanced connection with retry logic
   const connect = useCallback(async () => {
     console.log('[OptimizedWhisperLive] Connecting with enhanced performance...')
+
+    // Clear history on new connection
+    transcriptHistoryRef.current.clear()
+    segmentHistoryRef.current.clear()
+    lastProcessedMessageRef.current = ''
 
     // Request permissions first
     try {
@@ -217,7 +268,7 @@ export function useOptimizedWhisperLive(
       await startTranscription()
     }
 
-    // Optimized message handling
+    // ENHANCED: Completely rewritten message handling with better deduplication
     ws.onmessage = (e) => {
       const now = Date.now()
       const perf = performanceRef.current
@@ -243,6 +294,13 @@ export function useOptimizedWhisperLive(
 
       try {
         const msg = JSON.parse(e.data)
+        
+        // Skip duplicate messages
+        const messageKey = JSON.stringify(msg)
+        if (messageKey === lastProcessedMessageRef.current) {
+          return
+        }
+        lastProcessedMessageRef.current = messageKey
 
         if (msg.message === 'SERVER_READY') return
 
@@ -251,29 +309,8 @@ export function useOptimizedWhisperLive(
           return
         }
 
-        // Handle partial transcription
-
-        if (msg.type === 'partial') {
-          setState(s => ({
-            ...s,
-            isTranscribing: true,
-            currentPartial: msg.text   // keep separate
-          }))
-          return
-        }
-
-        if (msg.type === 'final' || msg.type === 'transcript') {
-          setState(s => ({
-            ...s,
-            isTranscribing: false,
-            transcript: (s.transcript + " " + msg.text).trim(),
-            currentPartial: ''
-          }))
-          return
-        }
-
-        // Enhanced segment processing
-        if (Array.isArray(msg.segments)) {
+        // Enhanced segment processing with better deduplication
+        if (Array.isArray(msg.segments) && msg.segments.length > 0) {
           // Calculate RMS for volume detection
           let rms = 0
           if (audioDataRef.current) {
@@ -283,43 +320,95 @@ export function useOptimizedWhisperLive(
             rms = Math.sqrt(sum / data.length) / 128
           }
 
-          const newSegments: Segment[] = msg.segments
-            .filter((wsSeg: any) => wsSeg.text && wsSeg.text.trim().length > 0)
-            .map((wsSeg: any) => ({
-              speaker: wsSeg.speaker === 0 ? 'mic' : 'speaker',
-              content: wsSeg.text.trim(),
-              volume: rms,
-              confidence: wsSeg.confidence || 0.8,
-            }))
+          const newSegments: Segment[] = []
+          
+          for (const wsSeg of msg.segments) {
+            if (!wsSeg.text || !wsSeg.text.trim()) continue
+            
+            const content = wsSeg.text.trim()
+            const segmentKey = normalizeText(content)
+            
+            // Skip if we've seen this exact segment content recently
+            if (segmentHistoryRef.current.has(segmentKey)) {
+              continue
+            }
+            
+            // Check for duplicate content
+            if (!isDuplicate(content)) {
+              const segment: Segment = {
+                speaker: wsSeg.speaker === 0 ? 'mic' : 'speaker',
+                content,
+                volume: rms,
+                confidence: wsSeg.confidence || 0.8,
+                id: '',
+                timestamp: 0
+              }
+              
+              newSegments.push(segment)
+              addToHistory(content)
+              
+              // Track this segment to prevent immediate duplicates
+              segmentHistoryRef.current.set(segmentKey, now)
+            }
+          }
+
+          // Clean old segment history (remove entries older than 30 seconds)
+          for (const [key, timestamp] of segmentHistoryRef.current.entries()) {
+            if (now - timestamp > 30000) {
+              segmentHistoryRef.current.delete(key)
+            }
+          }
 
           if (newSegments.length > 0) {
-            setState(s => {
-              // Smart deduplication
-              const lastContent = s.segments.length ? s.segments[s.segments.length - 1].content : ''
-              const uniqueSegments = newSegments.filter(seg =>
-                seg.content.length > 0 &&
-                !lastContent.toLowerCase().includes(seg.content.toLowerCase())
-              )
-
-
-              return {
-                ...s,
-                segments: [...s.segments, ...uniqueSegments],
-                isTranscribing: true,
-              }
-            })
+            setState(s => ({
+              ...s,
+              segments: [...s.segments, ...newSegments],
+              isTranscribing: true,
+            }))
           }
           return
         }
 
-        // Fallback message handling
-        if (msg.message && msg.message !== 'SERVER_READY') {
+        // Handle partial transcription (keep separate, don't add to main transcript)
+        if (msg.type === 'partial') {
+          if (msg.text && msg.text.trim() && !isDuplicate(msg.text)) {
+            setState(s => ({
+              ...s,
+              isTranscribing: true,
+              currentPartial: msg.text.trim()
+            }))
+          }
+          return
+        }
+
+        // Handle final transcription
+        if (msg.type === 'final' || msg.type === 'transcript') {
+          if (msg.text && msg.text.trim() && !isDuplicate(msg.text)) {
+            const cleanText = msg.text.trim()
+            addToHistory(cleanText)
+            
+            setState(s => ({
+              ...s,
+              isTranscribing: false,
+              transcript: s.transcript ? `${s.transcript} ${cleanText}` : cleanText,
+              currentPartial: ''
+            }))
+          }
+          return
+        }
+
+        // Enhanced fallback message handling
+        if (msg.message && msg.message !== 'SERVER_READY' && !isDuplicate(msg.message)) {
+          const cleanMessage = msg.message.trim()
+          addToHistory(cleanMessage)
+          
           setState(s => ({
             ...s,
             isTranscribing: true,
-            transcript: s.transcript + msg.message
+            transcript: s.transcript ? `${s.transcript} ${cleanMessage}` : cleanMessage
           }))
         }
+        
       } catch (err) {
         console.warn('[OptimizedWhisperLive] Failed to parse message:', err)
       }
@@ -343,7 +432,7 @@ export function useOptimizedWhisperLive(
     ws.onerror = (err) => {
       console.warn('[OptimizedWhisperLive] WebSocket error:', err)
     }
-  }, [config, toast])
+  }, [config, toast, isDuplicate, addToHistory, normalizeText])
 
   // Optimized transcription start
   const startTranscription = useCallback(async () => {
@@ -498,7 +587,10 @@ export function useOptimizedWhisperLive(
           body: formData
         })
 
-        if (!response.ok) throw new Error('Upload failed')
+        if (!response.ok) {
+          const errorText = await response.text()
+          throw new Error(`Upload failed: ${response.status} ${errorText}`)
+        }
 
         const { url } = await response.json()
         const recording: Recording = {
@@ -508,6 +600,7 @@ export function useOptimizedWhisperLive(
         }
 
         setRecordings(rs => [...rs, recording])
+        console.log('[OptimizedWhisperLive] ✅ Recording uploaded successfully:', url)
       } catch (err: any) {
         console.error('[OptimizedWhisperLive] Upload error:', err)
         toast({
@@ -548,6 +641,10 @@ export function useOptimizedWhisperLive(
     // Stop transcription
     stopTranscription()
 
+    // Clear history
+    transcriptHistoryRef.current.clear()
+    segmentHistoryRef.current.clear()
+
     // Reset state
     setState(s => ({
       ...s,
@@ -565,6 +662,8 @@ export function useOptimizedWhisperLive(
 
   // Utility functions
   const clearTranscript = useCallback(() => {
+    transcriptHistoryRef.current.clear()
+    segmentHistoryRef.current.clear()
     setState(s => ({ ...s, transcript: '', segments: [] }))
   }, [])
 

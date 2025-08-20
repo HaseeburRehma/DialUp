@@ -1,3 +1,5 @@
+
+// src/components/notes/recordings-list.tsx
 'use client'
 
 import React from 'react'

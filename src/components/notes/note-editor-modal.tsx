@@ -1,3 +1,5 @@
+// src/components/notes/note-editor-modal.tsx
+
 'use client'
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
