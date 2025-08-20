@@ -15,12 +15,8 @@ RAILWAY_STATIC_URL = "true"
 # Resource limits
 [build.env]
 # Set memory limits for build processes
-NODE_OPTIONS = "--max_old_space_size=2048"
-NIXPACKS_MEMORY = "4GB"
-
-[deploy.env]
-# Runtime memory settings
-PYTHON_BUFFERED = "1"
+NODE_OPTIONS = "--max_old_space_size=4096"
+PYTHON_BUILD_MEMORY = "4GB"
 
 # Auto-remove old containers
 [experimental]
