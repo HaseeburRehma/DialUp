@@ -1,3 +1,5 @@
+// src/app/api/notes/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from 'server/config/authOptions.js'
@@ -9,6 +11,7 @@ import User from '../../../../../server/models/User.js';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
 /**
  * PATCH /api/notes/:id
  */
@@ -31,6 +34,8 @@ export async function PATCH(req: NextRequest, context: any) {
   } = data
 
   await connect()
+  
+  // ✅ FIX: Store audioUrls exactly as received, don't modify them
   const note = await Note.findOneAndUpdate(
     { _id: id, userId: session.user.id },
     { text, audioUrls, callerName, callerEmail, callerLocation, callerAddress, callReason },

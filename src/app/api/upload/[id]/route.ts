@@ -1,4 +1,4 @@
-// src/app/api/uploads/[id]/route.ts
+// src/app/api/upload/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { getBucket } from "@/lib/mongo"
 import { ObjectId } from "mongodb"

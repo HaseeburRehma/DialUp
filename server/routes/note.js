@@ -1,3 +1,5 @@
+// server/routes/note.js
+
 const express = require('express');
 const createError = require('http-errors');
 const { connect } = require('../utils/db');

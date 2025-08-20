@@ -1,3 +1,5 @@
+// src/app/api/notes/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from 'server/config/authOptions.js'
@@ -26,7 +28,15 @@ export async function GET() {
   const notes = docs.map(doc => ({
     id: doc._id.toString(),
     text: doc.text,
-    audioUrls: doc.audioUrls?.map((id: any) => `/api/uploads/${id}`) || [],
+    // ✅ FIX: Don't transform URLs if they're already full URLs
+    audioUrls: doc.audioUrls?.map((url: string) => {
+      // If it's already a full URL, return as-is
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+      }
+      // If it's just an ID, construct the URL
+      return `/api/uploads/${url}`;
+    }) || [],
     callerName: doc.callerName,
     callerEmail: doc.callerEmail,
     callerLocation: doc.callerLocation,
@@ -36,9 +46,9 @@ export async function GET() {
     updatedAt: doc.updatedAt,
   }))
 
-
   return NextResponse.json(notes)
 }
+
 /**
  * POST /api/notes
  * Creates a new note with provided details and emails both the user and caller.
@@ -62,10 +72,12 @@ export async function POST(req: NextRequest) {
   if (!dbUser) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
+  
+  // ✅ FIX: Store the full URLs as-is, don't modify them
   const note = await Note.create({
     userId: dbUser._id,
     text,
-    audioUrls,
+    audioUrls, // Store exactly what we receive
     callerName,
     callerEmail,
     callerLocation,
