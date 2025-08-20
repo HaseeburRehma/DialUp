@@ -8,30 +8,7 @@
 dist/
 
 # Node dependencies
-node_modules
-.next
-.git
-.gitignore
-README.md
-.env.local
-.env.example
-Dockerfile
-docker-compose*.yml
-.dockerignore
-coverage
-.coverage
-*.log
-.DS_Store
-*.md
-docs/
-tests/
-.pytest_cache
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.vscode/
-.idea/
+node_modules/
 
 # Logs
 logs
@@ -43,7 +20,9 @@ logs
 .idea
 
 # Local env files
-
+.env
+.env.*
+!.env.example
 
 # private keys and certificates
 *.key
@@ -58,5 +37,10 @@ server/utils/ffmpeg.exe
 server/utils/ffplay.exe
 server/utils/ffprobe.exe
 
+dev.sqlite
+dev.sqlite-journal
 
 
+
+# (you may also want to ignore other .exe/.dll under site-packages)
+.next/
