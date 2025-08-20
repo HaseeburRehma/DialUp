@@ -1,0 +1,12 @@
+[build]
+buildCommand = "chmod +x build.sh && ./build.sh"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Auto-remove old containers
+[experimental]
+incrementalBuildCaching = true

@@ -1,13 +1,20 @@
 #!/bin/bash
-# build.sh - Clean build script
+# build.sh - Optimized build script
 
-echo "Cleaning previous build..."
-rm -rf .nuxt .output dist
+set -e  # Exit on error
 
-echo "Installing dependencies..."
-npm ci --omit=dev
+echo "🧹 Cleaning previous build artifacts..."
+rm -rf .next .output dist node_modules/.cache
 
-echo "Building for production..."
+echo "📦 Installing dependencies (production only)..."
+npm ci --only=production --prefer-offline
+
+echo "🏗️  Building for production..."
 NODE_ENV=production npm run build
 
-echo "Build completed successfully!"
+# Clean up dev dependencies and caches to reduce image size
+echo "🗑️  Cleaning up build artifacts..."
+npm prune --production
+npm cache clean --force
+
+echo "✅ Build completed successfully!"
