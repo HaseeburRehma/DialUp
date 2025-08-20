@@ -61,6 +61,7 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
   const [noteText, setNoteText] = useState(note?.text || '');
   const [isSaving, setIsSaving] = useState(false);
   const [liveSegments, setLiveSegments] = useState<Segment[]>([]);
+  const [recordings, setRecordings] = useState<Recording[]>(savedRecs);
 
   useEffect(() => {
     if (open && note) {
@@ -84,8 +85,10 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
           : []
       );
       recorderRef.current?.setAudioUrls(note.audioUrls || []);
+      setRecordings(note.audioUrls?.map((url, i) => ({ id: `saved-${i}`, url })) || []);
     }
   }, [open, note]);
+
 
   const extractFields = useCallback((text: string) => {
     const lines = text.split(/\r?\n/);
@@ -157,10 +160,16 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
         })
       );
 
+      const recordingObjs = audioUrls.map((url, i) => ({
+        id: `saved-${Date.now()}-${i}`,
+        url,
+      }));
+
+      // ✅ Update local recordings state
+      setRecordings(prev => [...prev, ...recordingObjs]);
 
       const payload = { text: noteText, audioUrls, ...formData };
       const url = note ? `/api/notes/${note.id}` : '/api/notes';
-
       const method = note ? 'PATCH' : 'POST';
 
       const response = await fetch(url, {
@@ -182,6 +191,7 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
     }
   }, [noteText, transcriptionMode, whisperlive?.enabled, formData, note, onSave, onClose, toast]);
 
+
   return (
     <Dialog open={open}
       onOpenChange={(val) => {
@@ -201,12 +211,8 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
 
                 {/* show the old URLs */}
                 {savedRecs.length > 0 && (
-                  <RecordingsList
-                    recordings={savedRecs}
-                    onDelete={() => {
-                      /* you could disable deletion of saved URLs if you like */
-                    }}
-                  />
+                  <RecordingsList recordings={recordings} onDelete={(rec) => setRecordings(prev => prev.filter(r => r.id !== rec.id))} />
+
                 )}
 
                 <WhisperLiveRecorder

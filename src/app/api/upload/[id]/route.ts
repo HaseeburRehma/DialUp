@@ -17,11 +17,20 @@ export async function GET(
     }
 
     const file = files[0]
-    const stream = bucket.openDownloadStream(fileId)
+    const downloadStream = bucket.openDownloadStream(fileId)
 
-    return new Response(stream as any, {
+    // ✅ Wrap Node.js stream in a web ReadableStream
+    const stream = new ReadableStream({
+      start(controller) {
+        downloadStream.on("data", (chunk) => controller.enqueue(chunk))
+        downloadStream.on("end", () => controller.close())
+        downloadStream.on("error", (err) => controller.error(err))
+      }
+    })
+
+    return new Response(stream, {
       headers: {
-        "Content-Type": file.contentType || "application/octet-stream",
+        "Content-Type": file.contentType || "audio/wav",
         "Content-Disposition": `inline; filename="${file.filename}"`,
       },
     })

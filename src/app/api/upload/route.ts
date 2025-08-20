@@ -27,7 +27,9 @@ export async function POST(req: NextRequest) {
       uploadStream.on("finish", () => {
         const fileId = uploadStream.id;
         const idStr = fileId.toHexString?.() || fileId.toString();
-        const base = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/+$/, "");
+        const base =
+          process.env.NEXT_PUBLIC_APP_URL ||
+          (req.headers.get("origin") ?? "");
         resolve(
           NextResponse.json({
             id: idStr,
