@@ -65,7 +65,7 @@ export default function SignInPage() {
             Vhisper
           </span>
         </Link>
-        <ThemeToggle />
+        
       </div>
 
       {/* Main Content */}

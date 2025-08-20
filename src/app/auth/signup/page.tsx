@@ -107,7 +107,7 @@ export default function SignUpPage() {
             Vhisper
           </span>
         </Link>
-        <ThemeToggle />
+        
       </div>
 
       {/* Main Content */}
