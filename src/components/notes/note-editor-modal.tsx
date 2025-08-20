@@ -113,11 +113,14 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
   }, [extractFields]);
 
   const handleLiveTranscription = useCallback((segments: Segment[]) => {
-    const full = segments.map(s => s.content).join('\n');
-    setNoteText(full);
-    setLiveSegments(segments);
-    extractFields(full);
-  }, [extractFields]);
+    const unique = segments.filter((seg, i, arr) =>
+      i === 0 || seg.content.trim().toLowerCase() !== arr[i - 1].content.trim().toLowerCase()
+    )
+    const full = unique.map(s => s.content).join('\n')
+    setNoteText(full)
+    setLiveSegments(unique)
+    extractFields(full)
+  }, [extractFields])
 
   const resetNote = useCallback(() => {
     setNoteText(note?.text || '');

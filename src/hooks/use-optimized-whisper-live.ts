@@ -252,21 +252,22 @@ export function useOptimizedWhisperLive(
         }
 
         // Handle partial transcription
+
         if (msg.type === 'partial') {
           setState(s => ({
             ...s,
             isTranscribing: true,
-            transcript: s.transcript + msg.text
+            currentPartial: msg.text   // keep separate
           }))
           return
         }
 
-        // Handle final transcription
         if (msg.type === 'final' || msg.type === 'transcript') {
           setState(s => ({
             ...s,
             isTranscribing: false,
-            transcript: s.transcript + msg.text + '\n'
+            transcript: (s.transcript + " " + msg.text).trim(),
+            currentPartial: ''
           }))
           return
         }
@@ -294,10 +295,12 @@ export function useOptimizedWhisperLive(
           if (newSegments.length > 0) {
             setState(s => {
               // Smart deduplication
-              const existingContent = new Set(s.segments.map(seg => seg.content.toLowerCase().trim()))
+              const lastContent = s.segments.length ? s.segments[s.segments.length - 1].content : ''
               const uniqueSegments = newSegments.filter(seg =>
-                !existingContent.has(seg.content.toLowerCase().trim())
+                seg.content.length > 0 &&
+                !lastContent.toLowerCase().includes(seg.content.toLowerCase())
               )
+
 
               return {
                 ...s,

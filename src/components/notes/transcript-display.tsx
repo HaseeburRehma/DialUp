@@ -11,13 +11,13 @@ interface TranscriptDisplayProps {
   showSpeakerSeparation?: boolean
 }
 
-export function TranscriptDisplay({ 
-  transcript = '', 
-  segments = [], 
-  showSpeakerSeparation = true 
+export function TranscriptDisplay({
+  transcript = '',
+  segments = [],
+  showSpeakerSeparation = true
 }: TranscriptDisplayProps) {
-  
-  // Process segments for display with proper speaker identification
+
+  // Process segments OR fallback to parsing transcript
   const processedSegments = useMemo(() => {
     if (segments.length > 0) {
       return segments.map((segment, index) => ({
@@ -29,21 +29,19 @@ export function TranscriptDisplay({
         volume: segment.volume || 0.5
       }))
     }
-    
-    // Fallback: parse plain transcript text
+
     if (transcript) {
       const lines = transcript.split(/\r?\n/).filter(line => line.trim())
       return lines.map((line, index) => {
-        // Enhanced speaker detection
-        const isQuestion = line.includes('?') || 
+        const isQuestion = line.includes('?') ||
           /^(what|how|why|when|where|who|which|can|could|would|will|should|do|does|did|tell|explain|describe|walk me through)/i.test(line.trim())
-        
+
         const isResponse = /^(yes|no|well|so|i think|i believe|my experience|i have|i've worked)/i.test(line.trim())
-        
+
         let speaker: 'interviewer' | 'candidate' = 'candidate'
         if (isQuestion) speaker = 'interviewer'
         else if (isResponse) speaker = 'candidate'
-        
+
         return {
           id: `line-${index}`,
           speaker,
@@ -54,7 +52,7 @@ export function TranscriptDisplay({
         }
       })
     }
-    
+
     return []
   }, [segments, transcript])
 
