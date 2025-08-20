@@ -11,7 +11,11 @@ const nextConfig: NextConfig = {
         'your-site.netlify.app'
       ],
     },
+    serverComponentsExternalPackages: ['fluent-ffmpeg'],
+
   },
+  output: 'standalone',
+
   async rewrites() {
     if (process.env.NODE_ENV === 'development') {
       return [

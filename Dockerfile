@@ -17,7 +17,9 @@ FROM python:3.11-slim-bookworm AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    NODE_VERSION=20.17.0
+    NODE_VERSION=20.17.0 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
@@ -30,14 +32,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Node.js (smaller approach than copying from node image)
 RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz | tar -xJ -C /usr/local --strip-components=1
 
-# Copy and install Python requirements
-COPY server ./server
+# Copy Python requirements first (for better caching)
+COPY server/requirement.txt ./server/
+COPY server/WhisperLive/requirements/ ./server/WhisperLive/requirements/
+
+# Install Python dependencies with memory optimization
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --prefer-binary torch==2.5.1 openai-whisper && \
+    pip install --no-cache-dir --prefer-binary torch==2.5.1 && \
+    pip install --no-cache-dir --prefer-binary openai-whisper && \
     pip install --no-cache-dir --prefer-binary \
         -r server/requirement.txt \
         -r server/WhisperLive/requirements/client.txt \
         -r server/WhisperLive/requirements/server.txt
+
+# Copy remaining server files
+COPY server ./server
 
 # Copy built Next.js app from node-build stage
 COPY --from=node-build /app/.next ./.next
@@ -47,11 +56,13 @@ COPY --from=node-build /app/package*.json ./
 # Install only production node dependencies
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy remaining app files (excluding what's already copied)
+# Copy configuration files with conditional copying
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY --from=node-build /app/next.config.js ./
-COPY --from=node-build /app/tailwind.config.ts ./
-COPY --from=node-build /app/postcss.config.js ./
+
+# Copy config files if they exist (handle both .js and .ts extensions)
+COPY --from=node-build /app/next.config.* ./
+COPY --from=node-build /app/tailwind.config.* ./
+COPY --from=node-build /app/postcss.config.* ./
 
 # Clean up build dependencies to reduce image size
 RUN apt-get remove -y build-essential python3-dev && \
