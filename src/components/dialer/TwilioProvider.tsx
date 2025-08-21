@@ -128,7 +128,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   // Initialize ringtone
   useEffect(() => {
-    ringtoneRef.current = new Audio('/ringtone.mp3')
+    ringtoneRef.current = new Audio('./ringtone.mp3')
     ringtoneRef.current.loop = true
     return () => {
       if (ringtoneRef.current) {
@@ -180,6 +180,8 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     const evtSource = new EventSource('/api/voice/stream')
 
     evtSource.onmessage = (e) => {
+      console.log("SSE message:", e.data)
+
       try {
         const data = JSON.parse(e.data)
         console.log('🤖 Omnidim update:', data)
@@ -295,7 +297,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
             log(`❌ Failed to save call: ${err.message}`, 'error')
           }
 
-          
+
           setCallHistory(prev => [callRecord, ...prev])
           setIsCalling(false)
           setCurrentConnection(null)
@@ -373,12 +375,8 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       setIsCalling(true)
 
       // FIXED: device.connect() returns a Promise<Call>, so we await it
-      const call = await device.connect({
-        params: {
-          To: cleanNumber,
-          Record: isRecording ? 'true' : 'false'
-        }
-      })
+      const call = await device.connect({ params: { To: cleanNumber, From: 'agent',  } })
+      setIsCalling(true)
 
       log(`📞 Call connection initiated for ${cleanNumber}`, 'info')
 
@@ -453,6 +451,11 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       setIsRinging(false)
       stopRingtone()
       log('Incoming call accepted', 'info')
+      // Start timer
+      setCallSeconds(0)
+      currentCallStartTime.current = new Date()
+      if (timerRef.current) clearInterval(timerRef.current)
+      timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
     }
   }
 
@@ -475,11 +478,34 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  const toggleHold = () => {
-    const newHold = !isOnHold
-    setIsOnHold(newHold)
-    log(newHold ? 'Call on hold' : 'Call resumed', 'info')
+  const toggleHold = async () => {
+  if (!currentConnection) return
+
+  const callSid = (currentConnection as any).parameters?.CallSid
+  if (!callSid) {
+    log('⚠️ No CallSid found', 'error')
+    return
   }
+
+  try {
+    const url = !isOnHold
+      ? `${process.env.NEXT_PUBLIC_BASE_URL}/api/voice/hold`
+      : `${process.env.NEXT_PUBLIC_BASE_URL}/api/voice/resume`
+
+    await fetch('/api/twilio/redirect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callSid, url }),
+    })
+
+    setIsOnHold(!isOnHold)
+    log(!isOnHold ? '🎵 Call placed on hold' : '✅ Call resumed', 'info')
+  } catch (err: any) {
+    log(`❌ Hold toggle failed: ${err.message}`, 'error')
+  }
+}
+
+
 
   const toggleRecording = () => {
     const newRecording = !isRecording
