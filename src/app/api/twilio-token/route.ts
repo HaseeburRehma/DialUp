@@ -7,26 +7,28 @@ const VoiceGrant = AccessToken.VoiceGrant
 
 export async function GET() {
   try {
-    const identity = "web_dialer_user" // must match your client identity
+    const identity = "web_dialer_user" // consistent client identity
 
     const token = new AccessToken(
-      process.env.TWILIO_ACCOUNT_SID!,     // ✅ OK
-      process.env.TWILIO_API_KEY_SID!,     // ✅ use _SID
-      process.env.TWILIO_API_KEY_SECRET!,  // ✅ use _SECRET
+      process.env.TWILIO_ACCOUNT_SID!,
+      process.env.TWILIO_API_KEY_SID!,
+      process.env.TWILIO_API_KEY_SECRET!,
       { identity }
     )
 
-    const voiceGrant = new VoiceGrant({
-      outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID!,
-      incomingAllow: true
-    })
+    token.addGrant(
+      new VoiceGrant({
+        outgoingApplicationSid: process.env.TWILIO_TWIML_APP_SID!,
+        incomingAllow: true,
+      })
+    )
 
-    token.addGrant(voiceGrant)
-
-    return NextResponse.json({ token: token.toJwt() })
+    return NextResponse.json(
+      { token: token.toJwt(), identity },
+      { headers: { "Access-Control-Allow-Origin": "*" } }
+    )
   } catch (err: any) {
     console.error("❌ Token generation failed:", err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
-

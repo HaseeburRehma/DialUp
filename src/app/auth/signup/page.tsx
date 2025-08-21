@@ -19,7 +19,7 @@ export default function SignUpPage() {
     name: '',
     username: '',
     email: '',
-    Phone: '',
+    phone: '',
     password: ''
   })
   const [showPassword, setShowPassword] = useState(false)

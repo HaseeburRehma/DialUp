@@ -41,7 +41,12 @@ export async function POST(req: Request) {
 
     return new NextResponse(vr.toString(), {
       status: 200,
-      headers: { 'Content-Type': 'text/xml' },
+      headers: {
+        'Content-Type': 'text/xml',
+        'Access-Control-Allow-Origin': '*',  // 🔑 Omnidim needs this
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': '*',
+      },
     })
   }
 
