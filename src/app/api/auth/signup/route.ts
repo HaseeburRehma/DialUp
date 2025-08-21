@@ -1,3 +1,5 @@
+// src/app/api/auth/signup/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { connect } from '../../../../../server/utils/db.js';
 import User from '../../../../../server/models/User.js';
@@ -12,10 +14,10 @@ export async function POST(req: NextRequest) {
   try {
     await connect()
     
-    const { name, username, email, password } = await req.json()
+    const { name, username, email, password, phone } = await req.json()
     
     // Validate required fields
-    if (!name || !username || !email || !password) {
+    if (!name || !username || !email || !password || !phone) {
       return NextResponse.json(
         { error: 'All fields are required' },
         { status: 400 }
@@ -24,7 +26,7 @@ export async function POST(req: NextRequest) {
     
     // Check if user already exists
     const existingUser = await User.findOne({
-      $or: [{ username }, { email }]
+      $or: [{ username }, { email } , { phone }]
     })
     
     if (existingUser) {
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest) {
       name,
       username,
       email,
+      phone,  // 🔑 Store phone number
       password: hashedPassword,
       role: 'user',
       plan: 'free'
@@ -52,7 +55,8 @@ export async function POST(req: NextRequest) {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
-          username: user.username
+          username: user.username,
+          phone: user.phone  
         }
       },
       { status: 201 }

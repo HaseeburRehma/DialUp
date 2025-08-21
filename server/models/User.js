@@ -1,10 +1,12 @@
+// server/models/User.js
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 
 const userSchema = new mongoose.Schema({
   name: String,
-  username: String,
-  email: String,
+  username: { type: String, unique: true },
+  email: { type: String, unique: true },
+  phone: { type: String, unique: true },   // 🔑 Add phone number
   password: String,
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   plan: { type: String, enum: ['free', 'pro', 'team', 'enterprise'], default: 'free' },

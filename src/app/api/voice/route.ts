@@ -1,87 +1,83 @@
 // src/app/api/voice/route.ts
 import { NextResponse } from 'next/server'
 import twilio from 'twilio'
+import { connect } from '../../../../server/utils/db.js';
+import Call from '../../../../server/models/Call';
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __OMNIDIM_LAST_EVENT__: any
+}
 
 const { VoiceResponse } = twilio.twiml
 
-// 🌍 Country code map
-const COUNTRY_CODES: Record<string, string> = {
-  US: '+1',
-  PK: '+92',
-  UK: '+44',
-  IN: '+91',
-  CA: '+1',
-  AU: '+61',
-  // add more as needed
+// Normalize numbers to E.164
+function normalizeNumber(num: string): string {
+  let digits = num.replace(/\D/g, '')
+  if (num.startsWith('+')) return num
+  if (digits.length === 10) return '+1' + digits // default US
+  return '+' + digits
 }
 
-// Default country from env (fallback = US)
-const DEFAULT_COUNTRY = (process.env.DEFAULT_COUNTRY || 'US') as keyof typeof COUNTRY_CODES
-
-// ✅ Helper: normalize to E.164 format
-function normalizeNumber(input: string, defaultCountry: keyof typeof COUNTRY_CODES = DEFAULT_COUNTRY): string {
-  let num = input.replace(/\D/g, '') // keep only digits
-
-  // Already in E.164
-  if (input.startsWith('+')) return input
-
-  if (defaultCountry === 'PK' && num.startsWith('0')) {
-    num = num.replace(/^0+/, '')
-    return COUNTRY_CODES['PK'] + num
-  }
-
-  if (defaultCountry === 'UK' && num.startsWith('0')) {
-    num = num.replace(/^0+/, '')
-    return COUNTRY_CODES['UK'] + num
-  }
-
-  if (defaultCountry === 'US' && num.length === 10) {
-    return COUNTRY_CODES['US'] + num
-  }
-
-  return COUNTRY_CODES[defaultCountry] + num
-}
-
-// 👉 For debugging (open in browser)
 export async function GET() {
-  const twiml = new VoiceResponse()
-  twiml.say({ voice: 'alice' }, '✅ Your TwiML voice endpoint is working!')
-
-  return new NextResponse(twiml.toString(), {
-    status: 200,
-    headers: { 'Content-Type': 'text/xml' },
-  })
+  const vr = new VoiceResponse()
+  vr.say({ voice: 'alice' }, '✅ Your Twilio voice endpoint is working')
+  return new NextResponse(vr.toString(), { status: 200, headers: { 'Content-Type': 'text/xml' } })
 }
 
-// 👉 For Twilio Voice webhook
 export async function POST(req: Request) {
-  const raw = await req.text()
-  const params = new URLSearchParams(raw)
+  const contentType = req.headers.get('content-type') || ''
 
-  const toRaw = params.get('To')
-  console.log("📞 Incoming Voice POST", { toRaw })
+  // 🟢 Twilio Voice Webhook
+  if (contentType.includes('application/x-www-form-urlencoded')) {
+    const vr = new VoiceResponse()
 
-  const twiml = new VoiceResponse()
-  const dial = twiml.dial({ callerId: process.env.TWILIO_CALLER_ID })
+    // Stream caller audio to Omnidim AI
+    const connect = vr.connect()
+    connect.stream({
+      url: process.env.OMNIDIM_AI_ENDPOINT!, // Omnidim listens here
+      track: 'both_tracks',
+    })
 
-  if (toRaw) {
-    if (/^\+?\d+$/.test(toRaw)) {
-      const normalized = normalizeNumber(toRaw)
-      console.log("🔢 Normalized number:", normalized)
-      dial.number(normalized)
-    } else {
-      console.log("👤 Dialing client:", toRaw)
-      dial.client(toRaw)
-    }
-  } else {
-    console.log("👤 No 'To' → defaulting to web_dialer_user")
-    dial.client('web_dialer_user')
+    return new NextResponse(vr.toString(), {
+      status: 200,
+      headers: { 'Content-Type': 'text/xml' },
+    })
   }
 
-  return new NextResponse(twiml.toString(), {
-    status: 200,
-    headers: { 'Content-Type': 'text/xml' },
-  })
+  // 🟡 Omnidim AI → JSON events
+  if (contentType.includes('application/json')) {
+    const body = await req.json()
+    console.log('🤖 Omnidim AI Event:', body)
+
+    // Save transcription + reply for SSE
+    globalThis.__OMNIDIM_LAST_EVENT__ = body
+
+    // If agent replied, create TwiML to inject back to call
+    if (body.agent_reply) {
+      try {
+        await connect()
+        await Call.findOneAndUpdate(
+          { number: body.callerNumber, status: 'completed' }, // match latest
+          { $push: { agentReplies: body.agent_reply } },
+          { sort: { timestamp: -1 } }
+        )
+      } catch (err) {
+        console.error('❌ Failed to save agent reply:', err)
+      }
+      const vr = new VoiceResponse()
+      vr.say({ voice: 'Polly.Joanna' }, body.agent_reply) // can change voice
+      return new NextResponse(vr.toString(), {
+        status: 200,
+        headers: { 'Content-Type': 'text/xml' },
+      })
+
+    }
+
+    return NextResponse.json({ status: 'ok' })
+  }
+
+  return NextResponse.json({ error: 'Unsupported content type' }, { status: 400 })
 }
 
 

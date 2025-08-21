@@ -1,3 +1,5 @@
+// src/app/auth/signin/page.tsx
+
 'use client'
 
 import { signIn } from 'next-auth/react'
@@ -10,13 +12,14 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/hooks/use-toast'
 import { ThemeToggle } from '@/components/theme-toggle'
-import { Eye, EyeOff, Mic2, ArrowLeft, Check } from 'lucide-react'
+import { Eye, EyeOff, Mic2, ArrowLeft, Check, Phone } from 'lucide-react'
 
 export default function SignUpPage() {
   const [formData, setFormData] = useState({
     name: '',
     username: '',
     email: '',
+    Phone: '',
     password: ''
   })
   const [showPassword, setShowPassword] = useState(false)
@@ -107,7 +110,7 @@ export default function SignUpPage() {
             Vhisper
           </span>
         </Link>
-        
+
       </div>
 
       {/* Main Content */}
@@ -195,6 +198,18 @@ export default function SignUpPage() {
                     value={formData.email}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="john@example.com"
+                    className="h-11 transition-all focus:ring-2 focus:ring-green-500/20"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+1234567890"
                     className="h-11 transition-all focus:ring-2 focus:ring-green-500/20"
                     required
                   />

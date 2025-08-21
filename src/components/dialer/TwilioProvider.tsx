@@ -1,7 +1,11 @@
+
+// src/components/dialer/TwilioProvider.tsx
+
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { Device, Call } from '@twilio/voice-sdk'
+import axios from 'axios'
 
 interface CallRecord {
   id: string
@@ -171,6 +175,28 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       return null
     }
   }
+  // Subscribe to AI events in twilio
+  useEffect(() => {
+    const evtSource = new EventSource('/api/voice/stream')
+
+    evtSource.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        console.log('🤖 Omnidim update:', data)
+
+        if (data.transcription) {
+          setLiveTranscription((prev) => prev + '\n' + data.transcription)
+        }
+        if (data.agent_reply) {
+          setLiveTranscription((prev) => prev + '\n🤖 ' + data.agent_reply)
+        }
+      } catch (err) {
+        console.error('❌ SSE parse error:', err)
+      }
+    }
+
+    return () => evtSource.close()
+  }, [])
 
   // Initialize Twilio Device
   useEffect(() => {
@@ -248,7 +274,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         })
 
         // --- Handle Call Disconnect ---
-        dev.on('disconnect', (call: any) => {
+        dev.on('disconnect', async (call: any) => {
           if (!mounted) return
 
           const duration = callSeconds
@@ -259,9 +285,17 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
             duration,
             status: 'completed',
             timestamp: currentCallStartTime.current || new Date(),
-            notes: callNotes
+            notes: callNotes,
+            transcription: liveTranscription,
+          }
+          try {
+            await axios.post('/api/calls', callRecord)
+            log('✅ Call saved to DB', 'info')
+          } catch (err: any) {
+            log(`❌ Failed to save call: ${err.message}`, 'error')
           }
 
+          
           setCallHistory(prev => [callRecord, ...prev])
           setIsCalling(false)
           setCurrentConnection(null)
