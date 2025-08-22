@@ -128,7 +128,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   // Initialize ringtone
   useEffect(() => {
-    ringtoneRef.current = new Audio('./ringtone.mp3')
+    ringtoneRef.current = new Audio('/ringtone.mp3')
     ringtoneRef.current.loop = true
     return () => {
       if (ringtoneRef.current) {
@@ -361,69 +361,46 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   }, [])
 
   // Actions
-  const startCall = async (toNumber: string) => {
-    if (!device || !toNumber.trim() || !isReady) {
-      log('Cannot start call - device not ready or invalid number', 'error')
-      return
+  const startCall = async (phoneNumber: string) => {
+    if (!device) {
+      console.error("❌ Device not initialized");
+      return;
     }
 
-    const cleanNumber = toNumber.trim()
-    log(`🔄 Initiating call to ${cleanNumber}...`, 'info')
+    // Normalize to E.164 (make sure numbers start with +)
+    const cleanNumber = phoneNumber.startsWith("+")
+      ? phoneNumber
+      : `+${phoneNumber.replace(/\D/g, "")}`;
+
+    console.log("📞 Attempting call to:", cleanNumber);
 
     try {
-      // Set calling state immediately when attempting
-      setIsCalling(true)
+      const call = await device.connect({
+        params: { To: cleanNumber },
+      });
 
-      // FIXED: device.connect() returns a Promise<Call>, so we await it
-      const call = await device.connect({ params: { To: cleanNumber, From: 'agent',  } })
-      setIsCalling(true)
+      if (call) {
+        console.log("✅ Call initiated:", call.parameters);
 
-      log(`📞 Call connection initiated for ${cleanNumber}`, 'info')
+        // 🔑 Track the active call in state
+        setCurrentConnection(call as unknown as TwilioConnection);
 
-      // Now we can bind events to the actual Call object
-      call.on('ringing', () => {
-        log(`📞 Call ringing to ${cleanNumber}`, 'info')
-      })
-
-      call.on('accept', () => {
-        log(`✅ Call answered by ${cleanNumber}`, 'info')
-        setCurrentConnection(call as unknown as TwilioConnection)
-
-        setCallSeconds(0)
-        currentCallStartTime.current = new Date()
-        if (timerRef.current) clearInterval(timerRef.current)
-        timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
-      })
-
-      call.on('disconnect', () => {
-        log(`📴 Call to ${cleanNumber} ended`, 'info')
-        setIsCalling(false)
-        setCurrentConnection(null)
-
-        if (timerRef.current) {
-          clearInterval(timerRef.current)
-          timerRef.current = null
-        }
-      })
-
-      call.on('error', (error: any) => {
-        log(`❌ Call error: ${error.message}`, 'error')
-        setIsCalling(false)
-        setCurrentConnection(null)
-      })
-
-      call.on('cancel', () => {
-        log(`📴 Call to ${cleanNumber} was cancelled`, 'info')
-        setIsCalling(false)
-        setCurrentConnection(null)
-      })
-
-    } catch (error: any) {
-      log(`❌ Failed to initiate call: ${error.message}`, 'error')
-      setIsCalling(false)
-      setCurrentConnection(null)
+        // Event listeners for detailed debugging
+        call.on("accept", () => console.log("📲 Call accepted by:", cleanNumber));
+        call.on("disconnect", () => {
+          console.log("📴 Call disconnected");
+          setCurrentConnection(null);
+        });
+        call.on("cancel", () => console.log("🚫 Call canceled"));
+        call.on("error", (err: any) => console.error("❌ Call error:", err));
+      } else {
+        console.error("❌ Device.connect returned null (no call object)");
+      }
+    } catch (err: any) {
+      console.error("❌ Error starting call:", err);
     }
-  }
+  };
+
 
   const hangUp = () => {
     if (currentConnection) {
@@ -479,31 +456,31 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   }
 
   const toggleHold = async () => {
-  if (!currentConnection) return
+    if (!currentConnection) return
 
-  const callSid = (currentConnection as any).parameters?.CallSid
-  if (!callSid) {
-    log('⚠️ No CallSid found', 'error')
-    return
+    const callSid = (currentConnection as any).parameters?.CallSid
+    if (!callSid) {
+      log('⚠️ No CallSid found', 'error')
+      return
+    }
+
+    try {
+      const url = !isOnHold
+        ? `${process.env.NEXT_PUBLIC_BASE_URL}/api/voice/hold`
+        : `${process.env.NEXT_PUBLIC_BASE_URL}/api/voice/resume`
+
+      await fetch('/api/twilio/redirect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callSid, url }),
+      })
+
+      setIsOnHold(!isOnHold)
+      log(!isOnHold ? '🎵 Call placed on hold' : '✅ Call resumed', 'info')
+    } catch (err: any) {
+      log(`❌ Hold toggle failed: ${err.message}`, 'error')
+    }
   }
-
-  try {
-    const url = !isOnHold
-      ? `${process.env.NEXT_PUBLIC_BASE_URL}/api/voice/hold`
-      : `${process.env.NEXT_PUBLIC_BASE_URL}/api/voice/resume`
-
-    await fetch('/api/twilio/redirect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ callSid, url }),
-    })
-
-    setIsOnHold(!isOnHold)
-    log(!isOnHold ? '🎵 Call placed on hold' : '✅ Call resumed', 'info')
-  } catch (err: any) {
-    log(`❌ Hold toggle failed: ${err.message}`, 'error')
-  }
-}
 
 
 
