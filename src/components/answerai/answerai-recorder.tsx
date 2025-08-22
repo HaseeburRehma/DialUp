@@ -246,44 +246,53 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
 
     // Manual question
     const addManualQuestion = useCallback(
-      (content: string) => {
-        if (!content.trim()) return;
+      (content: string, confidence = 0.9) => {
+        const normalizeQuestion = (text: string) =>
+          text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+        const questionKey = normalizeQuestion(content);
 
-        const question: Question = {
-          id: `manual-q-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-          content: content.trim(),
-          speaker: 'interviewer',
-          timestamp: Date.now(),
-          confidence: 1.0,
-          metadata: {
-            detectionMethod: 'manual',
-            context: 'User input',
-            processingTime: 0,
-          },
-        };
+        if (!questionCacheRef.current.has(questionKey)) {
+          const question: Question = {
+            id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+            content,
+            speaker: 'interviewer',
+            timestamp: Date.now(),
+            confidence,
+            metadata: {
+              detectionMethod: 'manual',
+              context: transcriptionBufferRef.current?.getContextForQuestion() ?? '',
+              processingTime: 0,
+            },
+          };
 
+          // ✅ update cache + local state
+          questionCacheRef.current.set(questionKey, question);
+          setAllQuestions((prev) => [...prev, question]);
+          setCurrentQuestion(question);
 
-        const questionKey = question.content.toLowerCase().substring(0, 50);
-        questionCacheRef.current.set(questionKey, question);
+          // ✅ sync across tabs
+          bcRef.current?.postMessage(question);
 
-        bcRef.current?.postMessage(question);
+          // ✅ fire callback once
+          onQuestionDetected(question);
 
-        setAllQuestions((prev) => [...prev, question]);
-        setCurrentQuestion(question);
-        setConfidenceScore(1.0);
-        setStats((prev) => ({ ...prev, questionsDetected: prev.questionsDetected + 1 }));
-
-        onQuestionDetected(question);
-        setManualQuestion('');
-
-        toast({
-          title: '✅ Manual Question Added!',
-          description: 'Question ready for AI answer generation',
-        });
+          toast({
+            title: '✍️ Manual Question Added',
+            description: `"${content}" saved for AI response`,
+          });
+        } else {
+          toast({
+            title: '⚠️ Duplicate Question',
+            description: 'This question was already added.',
+            variant: 'default',
+          });
+        }
       },
       [onQuestionDetected, toast]
     );
 
+
+    
     // Detection
     const detectQuestions = useCallback(
       async (segments: AnswerAISegment[]) => {
@@ -300,7 +309,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
             transcriptionBufferRef.current.addSegment(segment);
           }
 
-          let contextualContent = transcriptionBufferRef.current.getContextForQuestion();
+          const contextualContent = transcriptionBufferRef.current.getContextForQuestion();
 
           // normalize / clean transcript before detection
           const cleanContent = contextualContent
@@ -314,63 +323,64 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
             return;
           }
 
-          const detectedQuestions = await questionDetectorRef.current.detectQuestions(
-            cleanContent,
-            { includeContext: true, maxQuestions: 2, filterDuplicates: true }
-          );
-
-
-
+          const detectedQuestions = await questionDetectorRef.current.detectQuestions(cleanContent, {
+            includeContext: true,
+            maxQuestions: 2,
+            filterDuplicates: true,
+          });
 
           for (const dq of detectedQuestions) {
             const normalizeQuestion = (text: string) =>
               text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
             const questionKey = normalizeQuestion(dq.content);
-            if (questionCacheRef.current.has(questionKey)) continue;
 
-            const question: Question = {
-              id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-              content: dq.content,
-              speaker: 'interviewer',
-              timestamp: Date.now(),
-              confidence: dq.confidence,
-              metadata: {
-                detectionMethod: dq.method,
-                context: dq.context,
-                processingTime: Date.now() - performanceStartRef.current,
-              },
-            };
-
-            questionCacheRef.current.set(questionKey, question);
             if (!questionCacheRef.current.has(questionKey)) {
+              const question: Question = {
+                id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+                content: dq.content,
+                speaker: 'interviewer',
+                timestamp: Date.now(),
+                confidence: dq.confidence,
+                metadata: {
+                  detectionMethod: dq.method,
+                  context: dq.context,
+                  processingTime: Date.now() - performanceStartRef.current,
+                },
+              };
+
+              // ✅ update cache and state
               questionCacheRef.current.set(questionKey, question);
               setAllQuestions((prev) => [...prev, question]);
+              setCurrentQuestion(question);
+
+              // ✅ broadcast to other tabs
+              bcRef.current?.postMessage(question);
+
+              // ✅ fire callback + stats
+              onQuestionDetected(question);
+              setConfidenceScore(dq.confidence);
+              setStats((prev) => ({
+                ...prev,
+                questionsDetected: prev.questionsDetected + 1,
+              }));
+
+              toast({
+                title: '🎯 Question Detected!',
+                description: `${Math.round(
+                  dq.confidence * 100
+                )}% confidence • Press Enter for instant AI response`,
+              });
             }
-
-
-
-            bcRef.current?.postMessage(question);
-
-            setCurrentQuestion(question);
-            setConfidenceScore(dq.confidence);
-            setStats((prev) => ({ ...prev, questionsDetected: prev.questionsDetected + 1 }));
-
-            onQuestionDetected(question);
-
-            toast({
-              title: '🎯 Question Detected!',
-              description: `${Math.round(dq.confidence * 100)}% confidence • Press Enter for instant AI response`,
-            });
-
-            // one at a time
           }
 
           lastProcessedContentRef.current = cleanContent;
 
           const processingTime = Date.now() - performanceStartRef.current;
-          setStats(prev => ({
+          setStats((prev) => ({
             ...prev,
-            processingTime: (prev.processingTime * prev.answersGenerated + processingTime) / (prev.answersGenerated + 1),
+            processingTime:
+              (prev.processingTime * prev.answersGenerated + processingTime) /
+              (prev.answersGenerated + 1),
           }));
         } catch (err) {
           console.error('[AnswerAI] Question detection error:', err);
@@ -383,8 +393,9 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
           setProcessingState('idle');
         }
       },
-      [onQuestionDetected, toast, allQuestions]
+      [onQuestionDetected, toast]
     );
+
 
     const [convertedSegments, setConvertedSegments] = useState<AnswerAISegment[]>([]);
 
