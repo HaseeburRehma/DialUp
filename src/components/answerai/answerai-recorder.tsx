@@ -1,3 +1,6 @@
+// src/components/answerai/answerai-recorder.tsx
+
+
 'use client';
 
 import React, {
@@ -81,6 +84,9 @@ const ConnectionStatus = React.memo(function ConnectionStatus({
     }
   };
 
+
+
+
   return (
     <div className="ml-2 flex items-center gap-2">
       <Badge variant={isConnected ? 'default' : 'destructive'}>
@@ -148,14 +154,34 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       });
 
       transcriptionBufferRef.current = new TranscriptionBuffer({
-        maxSize: 150,
-        mergeThreshold: 1500,
+        maxSegments: 150,
+        mergeWindowMs: 1500,
+
+        minContentLength: 3,
+        enableSmartMerging: true,
       });
 
       return () => {
         if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
       };
     }, []);
+    const bcRef = useRef<BroadcastChannel | null>(null);
+
+    useEffect(() => {
+      bcRef.current = new BroadcastChannel('answerai_questions');
+      bcRef.current.onmessage = (event) => {
+        const q = event.data as Question;
+        if (!questionCacheRef.current.has(q.content.toLowerCase())) {
+          setAllQuestions(prev => [...prev, q]);
+          setCurrentQuestion(q);
+          onQuestionDetected(q);
+          questionCacheRef.current.set(q.content.toLowerCase(), q);
+        }
+      };
+      return () => bcRef.current?.close();
+    }, [onQuestionDetected]);
+
+
 
     // Optimized WhisperLive configuration
     const whisperConfig = useMemo(
@@ -236,8 +262,12 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
           },
         };
 
+
         const questionKey = question.content.toLowerCase().substring(0, 50);
         questionCacheRef.current.set(questionKey, question);
+
+        bcRef.current?.postMessage(question);
+
         setAllQuestions((prev) => [...prev, question]);
         setCurrentQuestion(question);
         setConfidenceScore(1.0);
@@ -270,20 +300,32 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
             transcriptionBufferRef.current.addSegment(segment);
           }
 
-          const contextualContent = transcriptionBufferRef.current.getMergedContent('interviewer');
+          let contextualContent = transcriptionBufferRef.current.getContextForQuestion();
 
-          if (contextualContent === lastProcessedContentRef.current || contextualContent.length < 10) {
+          // normalize / clean transcript before detection
+          const cleanContent = contextualContent
+            .toLowerCase()
+            .replace(/\b(um+|uh+|like|you know)\b/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          if (cleanContent === lastProcessedContentRef.current || cleanContent.length < 10) {
             setProcessingState('idle');
             return;
           }
 
           const detectedQuestions = await questionDetectorRef.current.detectQuestions(
-            contextualContent,
+            cleanContent,
             { includeContext: true, maxQuestions: 2, filterDuplicates: true }
           );
 
+
+
+
           for (const dq of detectedQuestions) {
-            const questionKey = dq.content.toLowerCase().trim().replace(/\s+/g, ' ');
+            const normalizeQuestion = (text: string) =>
+              text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+            const questionKey = normalizeQuestion(dq.content);
             if (questionCacheRef.current.has(questionKey)) continue;
 
             const question: Question = {
@@ -300,13 +342,14 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
             };
 
             questionCacheRef.current.set(questionKey, question);
-            const alreadyInList = allQuestions.some(
-              (q) =>
-                q.id === question.id ||
-                q.content.trim().toLowerCase() === question.content.trim().toLowerCase()
-            );
+            if (!questionCacheRef.current.has(questionKey)) {
+              questionCacheRef.current.set(questionKey, question);
+              setAllQuestions((prev) => [...prev, question]);
+            }
 
-            if (!alreadyInList) setAllQuestions((prev) => [...prev, question]);
+
+
+            bcRef.current?.postMessage(question);
 
             setCurrentQuestion(question);
             setConfidenceScore(dq.confidence);
@@ -319,12 +362,16 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
               description: `${Math.round(dq.confidence * 100)}% confidence • Press Enter for instant AI response`,
             });
 
-            break; // one at a time
+            // one at a time
           }
 
-          lastProcessedContentRef.current = contextualContent;
+          lastProcessedContentRef.current = cleanContent;
+
           const processingTime = Date.now() - performanceStartRef.current;
-          setStats((prev) => ({ ...prev, processingTime }));
+          setStats(prev => ({
+            ...prev,
+            processingTime: (prev.processingTime * prev.answersGenerated + processingTime) / (prev.answersGenerated + 1),
+          }));
         } catch (err) {
           console.error('[AnswerAI] Question detection error:', err);
           toast({
@@ -365,7 +412,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
         (s) => s.speaker === 'interviewer' && (s.content.includes('?') || s.confidence > 0.9)
       );
 
-      const debounceTime = hasQuestionMarkers ? 500 : 1200;
+      const debounceTime = 0;
 
       processingTimeoutRef.current = setTimeout(() => {
         detectQuestions(answerAISegments);
@@ -412,12 +459,14 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
               'Content-Type': 'application/json',
               Accept: 'application/json',
             },
+
             body: JSON.stringify({
               question: question.content,
               position: position || 'Software Developer',
               company: company || 'Technology Company',
               context:
-                transcriptionBufferRef.current?.getMergedContent() || whisperState.transcript,
+                transcriptionBufferRef.current?.getRecentContent(undefined, 30000) ||
+                whisperState.transcript,
               confidence: question.confidence || 0.8,
               metadata: {
                 ...question.metadata,
@@ -427,6 +476,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
             }),
             signal: controller.signal,
           });
+
 
           clearTimeout(timeoutId);
 
@@ -499,7 +549,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
     // Force detection
     const forceQuestionDetection = useCallback(() => {
       if (transcriptionBufferRef.current) {
-        const content = transcriptionBufferRef.current.getMergedContent('interviewer');
+        const content = transcriptionBufferRef.current.getContextForQuestion();
         if (content.length > 5) {
           const segments: AnswerAISegment[] = [
             {

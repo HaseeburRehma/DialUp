@@ -1,3 +1,6 @@
+// src/hooks/use-optimized-whisper-live.ts
+
+
 import { useState, useRef, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import type { Segment } from '@/types/transcription'

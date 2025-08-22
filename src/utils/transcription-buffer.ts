@@ -1,161 +1,164 @@
-import type { AnswerAISegment } from '@/types/answerai'
 
-export interface TranscriptionBufferConfig {
-  maxSize: number
-  mergeThreshold: number // milliseconds
+// src/utils/transcription-buffer.ts
+
+/**
+ *  Transcription Buffer for Enhanced Performance
+ * Minimal latency with intelligent content management
+ */
+
+interface BufferSegment {
+  content: string;
+  speaker: 'interviewer' | 'candidate';
+  timestamp: number;
+  volume: number;
+  confidence: number;
+  audioFeatures?: {
+    pitch?: number;
+    rhythm?: number;
+    volume: number;
+  };
 }
 
-export interface BufferedSegment extends AnswerAISegment {
-  processedAt: number
-  merged?: boolean
+interface BufferConfig {
+  maxSegments: number;
+  mergeWindowMs: number;
+  minContentLength: number;
+  enableSmartMerging: boolean;
 }
 
 export class TranscriptionBuffer {
-  private config: TranscriptionBufferConfig
-  private segments: BufferedSegment[] = []
-  private lastCleanup: number = Date.now()
+  private segments: BufferSegment[] = [];
+  private lastMergeTime = 0;
+  private duplicateCache = new Set<string>();
+  
+  constructor(private config: BufferConfig = {
+    maxSegments: 50,
+    mergeWindowMs: 1000,
+    minContentLength: 3,
+    enableSmartMerging: true
+  }) {}
 
-  constructor(config: TranscriptionBufferConfig) {
-    this.config = config
-  }
-
-  addSegment(segment: AnswerAISegment): void {
-    const bufferedSegment: BufferedSegment = {
-      ...segment,
-      processedAt: Date.now(),
+  addSegment(segment: BufferSegment): boolean {
+    // Ultra-fast duplicate check
+    const contentKey = `${segment.speaker}:${this.normalizeContent(segment.content)}`;
+    if (this.duplicateCache.has(contentKey)) {
+      return false;
     }
 
-    // Try to merge with recent segments from the same speaker
-    const merged = this.tryMergeWithRecent(bufferedSegment)
-
-    if (!merged) {
-      this.segments.push(bufferedSegment)
+    // Length validation
+    if (segment.content.length < this.config.minContentLength) {
+      return false;
     }
 
-    // Cleanup old segments periodically
-    this.performMaintenance()
-  }
+    // Add to cache and buffer
+    this.duplicateCache.add(contentKey);
+    this.segments.push(segment);
 
-  private tryMergeWithRecent(newSegment: BufferedSegment): boolean {
-    if (this.segments.length === 0) return false
-
-    // Look for recent segment from same speaker
-    for (let i = this.segments.length - 1; i >= 0; i--) {
-      const existingSegment = this.segments[i]
-
-      // Stop looking if segment is too old
-      if (newSegment.processedAt - existingSegment.processedAt > this.config.mergeThreshold) {
-        break
-      }
-
-      // Merge if same speaker and content continues naturally
-      if (
-        existingSegment.speaker === newSegment.speaker &&
-        !existingSegment.merged &&
-        this.shouldMergeContent(existingSegment.content, newSegment.content)
-      ) {
-        existingSegment.content = this.mergeContent(existingSegment.content, newSegment.content)
-        existingSegment.timestamp = Math.max(existingSegment.timestamp, newSegment.timestamp)
-        existingSegment.processedAt = newSegment.processedAt
-        existingSegment.merged = true
-
-        return true
-      }
+    // Smart merging for performance
+    if (this.config.enableSmartMerging) {
+      this.performSmartMerge();
     }
 
-    return false
+    // Maintain buffer size
+    this.maintainBufferSize();
+    
+    return true;
   }
 
-  private shouldMergeContent(existing: string, newContent: string): boolean {
-    // Don't merge if either is too long
-    if (existing.length > 200 || newContent.length > 200) return false
-
-    // Don't merge if new content seems like a complete thought
-    if (newContent.includes('?') && existing.includes('?')) return false
-
-    // Don't merge if there's a significant pause (detected by structure)
-    if (existing.endsWith('.') || existing.endsWith('!')) return false
-
-    // Merge if it seems like continuation
-    const combinedLength = existing.length + newContent.length
-    return combinedLength <= 500
+  getInterviewerContent(maxSegments = 10): BufferSegment[] {
+    return this.segments
+      .filter(s => s.speaker === 'interviewer')
+      .slice(-maxSegments);
   }
 
-  private mergeContent(existing: string, newContent: string): string {
-    const existingTrimmed = existing.trim()
-    const newTrimmed = newContent.trim()
+  getRecentContent(speakerFilter?: 'interviewer' | 'candidate', windowMs = 30000): string {
+    const cutoff = Date.now() - windowMs;
+    const filtered = this.segments
+      .filter(s => s.timestamp >= cutoff)
+      .filter(s => !speakerFilter || s.speaker === speakerFilter);
+    
+    return filtered.map(s => s.content).join(' ').trim();
+  }
 
-    // Simple concatenation with smart spacing
-    if (existingTrimmed.endsWith(' ') || newTrimmed.startsWith(' ')) {
-      return existingTrimmed + newTrimmed
-    } else {
-      return existingTrimmed + ' ' + newTrimmed
+  getContextForQuestion(maxLength = 500): string {
+    const interviewerSegments = this.getInterviewerContent(5);
+    let context = '';
+    
+    for (let i = interviewerSegments.length - 1; i >= 0; i--) {
+      const newContext = interviewerSegments[i].content + ' ' + context;
+      if (newContext.length > maxLength) break;
+      context = newContext;
     }
+    
+    return context.trim();
   }
 
-  getMergedContent(speakerFilter?: 'interviewer' | 'candidate'): string {
-    let relevantSegments = this.segments
-
-    if (speakerFilter) {
-      relevantSegments = this.segments.filter(s => s.speaker === speakerFilter)
-    }
-
-    return relevantSegments
-      .map(s => s.content)
-      .join(' ')
-      .trim()
+  clear() {
+    this.segments = [];
+    this.duplicateCache.clear();
+    this.lastMergeTime = 0;
   }
 
-  getRecentSegments(maxAge: number = 30000): BufferedSegment[] {
-    const cutoff = Date.now() - maxAge
-    return this.segments.filter(s => s.processedAt >= cutoff)
-  }
-
-  getSegmentsByType(speaker: 'interviewer' | 'candidate'): BufferedSegment[] {
-    return this.segments.filter(s => s.speaker === speaker)
-  }
-
-  clear(): void {
-    this.segments = []
-    this.lastCleanup = Date.now()
-  }
-
-  private performMaintenance(): void {
-
-    const now = Date.now()
-
-    // Only cleanup every 10 seconds
-    if (now - this.lastCleanup < 10000) return
-
-    // Remove segments beyond max size
-    if (this.segments.length > this.config.maxSize) {
-      this.segments = this.segments.slice(-this.config.maxSize)
-    }
-
-    // Remove very old segments (older than 5 minutes)
-    const oldCutoff = now - 300000
-    this.segments = this.segments.filter(s => s.processedAt >= oldCutoff)
-    const softCutoff = Date.now() - 120000; // 2 min cutoff
-    this.segments = this.segments.filter(s => s.processedAt > softCutoff);
-
-    this.lastCleanup = now
-  }
-
-  getStats(): {
-    totalSegments: number
-    interviewerSegments: number
-    candidateSegments: number
-    mergedSegments: number
-    oldestSegment: number | null
-    newestSegment: number | null
-  } {
+  getStats() {
+    const now = Date.now();
+    const recentSegments = this.segments.filter(s => now - s.timestamp < 60000);
+    
     return {
       totalSegments: this.segments.length,
+      recentSegments: recentSegments.length,
       interviewerSegments: this.segments.filter(s => s.speaker === 'interviewer').length,
       candidateSegments: this.segments.filter(s => s.speaker === 'candidate').length,
-      mergedSegments: this.segments.filter(s => s.merged).length,
-      oldestSegment: this.segments.length > 0 ? this.segments[0].processedAt : null,
-      newestSegment: this.segments.length > 0 ? this.segments[this.segments.length - 1].processedAt : null,
+      cacheSize: this.duplicateCache.size,
+      avgConfidence: recentSegments.reduce((sum, s) => sum + s.confidence, 0) / (recentSegments.length || 1)
+    };
+  }
+
+  // Private methods
+  private normalizeContent(content: string): string {
+    return content.toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  private performSmartMerge() {
+    const now = Date.now();
+    if (now - this.lastMergeTime < this.config.mergeWindowMs) return;
+    
+    // Merge consecutive segments from same speaker
+    let i = this.segments.length - 2;
+    while (i >= 0) {
+      const current = this.segments[i];
+      const next = this.segments[i + 1];
+      
+      if (current.speaker === next.speaker && 
+          next.timestamp - current.timestamp < this.config.mergeWindowMs) {
+        
+        // Merge segments
+        current.content = `${current.content} ${next.content}`.trim();
+        current.confidence = Math.max(current.confidence, next.confidence);
+        current.volume = Math.max(current.volume, next.volume);
+        
+        // Remove merged segment
+        this.segments.splice(i + 1, 1);
+      }
+      i--;
+    }
+    
+    this.lastMergeTime = now;
+  }
+
+  private maintainBufferSize() {
+    if (this.segments.length > this.config.maxSegments) {
+      const removed = this.segments.splice(0, this.segments.length - this.config.maxSegments);
+      
+      // Clean up cache for removed segments
+      removed.forEach(segment => {
+        const contentKey = `${segment.speaker}:${this.normalizeContent(segment.content)}`;
+        this.duplicateCache.delete(contentKey);
+      });
+    }
+
+    // Also clean duplicate cache if it gets too large
+    if (this.duplicateCache.size > 200) {
+      this.duplicateCache.clear();
     }
   }
 }
