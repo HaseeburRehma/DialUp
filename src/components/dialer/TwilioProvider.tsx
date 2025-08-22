@@ -200,6 +200,32 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     return () => evtSource.close()
   }, [])
 
+  // inside TwilioProvider
+
+  // Helper to refresh token and update device
+  async function refreshTwilioToken() {
+    try {
+      log("🔄 Refreshing Twilio token...", "info")
+      const newToken = await fetchToken()
+      if (newToken && device) {
+        await device.updateToken(newToken)
+        log("✅ Twilio token refreshed", "info")
+      } else {
+        log("❌ Failed to refresh Twilio token", "error")
+      }
+    } catch (err: any) {
+      log(`❌ Token refresh error: ${err.message}`, "error")
+    }
+  }
+
+  // Auto-refresh every 50 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshTwilioToken()
+    }, 50 * 60 * 1000) // 50 mins
+    return () => clearInterval(interval)
+  }, [device])
+
   // Initialize Twilio Device
   useEffect(() => {
     let mounted = true

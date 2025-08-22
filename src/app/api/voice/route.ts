@@ -2,9 +2,17 @@
 import { NextResponse } from "next/server";
 import twilio from "twilio";
 
+export async function GET() {
+  const vr = new twilio.twiml.VoiceResponse();
+  vr.say("✅ Twilio voice endpoint is alive");
+  return new NextResponse(vr.toString(), {
+    status: 200,
+    headers: { "Content-Type": "text/xml" },
+  });
+}
+
 export async function POST(req: Request) {
   try {
-    // Grab form params Twilio sends (like "To", "From", etc.)
     const formData = await req.formData();
     const to = formData.get("To") as string | null;
     const from = formData.get("From") as string | null;
