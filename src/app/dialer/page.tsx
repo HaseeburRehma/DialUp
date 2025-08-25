@@ -30,6 +30,7 @@ export default function DialerPage() {
                 <h1 className="text-4xl font-bold text-white mb-2">Custom WebRTC Dialer</h1>
                 <p className="text-white/70">Make calls using your registered phone number</p>
               </div>
+              <SIPServerSetup />
 
               {/* Overlay modal for ringing calls */}
               <IncomingCallModalSIP />

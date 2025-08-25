@@ -1,7 +1,7 @@
 // src/components/dialer/SIPConfigContext.tsx
 'use client'
 
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
 
 export interface SIPConfig {
   domain: string
@@ -23,6 +23,20 @@ export const useSIPConfig = () => useContext(SIPConfigContext)
 
 export const SIPConfigProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [config, setConfig] = useState<SIPConfig | null>(null)
+
+  useEffect(() => {
+  const loadConfig = async () => {
+    const res = await fetch("/api/sip/config");
+    if (res.ok) {
+      const cfg = await res.json();
+      if (cfg.domain && cfg.websocketUrl && cfg.username && cfg.password) {
+        setConfig(cfg);
+      }
+    }
+  };
+  loadConfig();
+}, []);
+
   return (
     <SIPConfigContext.Provider value={{ config, setConfig }}>
       {children}

@@ -1,67 +1,79 @@
-// src/app/api/sip/config/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "server/config/authOptions.js";
+import { connect } from '../../../../../server/utils/db.js';
 
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from 'server/config/authOptions.js'
-
-// In a real implementation, you'd store this in a database
-let sipConfigs: Record<string, any> = {}
+import SIPConfig from "../../../../../server/models/SIPConfig.js";
 
 export async function GET() {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
-    const userConfig = sipConfigs[session.user.id] || {}
-    
-    return NextResponse.json({
-      domain: userConfig.domain || '',
-      websocketUrl: userConfig.websocketUrl || '',
-      username: userConfig.username || '',
-      displayName: userConfig.displayName || session.user.name || ''
-    })
-  } catch (error: any) {
-    console.error('Get SIP config error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+        await connect();
+
+        const userConfig = await SIPConfig.findOne({ user: session.user.id }).select("-password");
+
+
+        if (!userConfig) {
+            return NextResponse.json(
+                {
+                    domain: "",
+                    websocketUrl: "",
+                    username: "",
+                    displayName: session.user.name || "",
+                },
+                { status: 200 }
+            );
+        }
+
+        return NextResponse.json(userConfig, { status: 200 });
+    } catch (error: any) {
+        console.error("Get SIP config error:", error);
+        return NextResponse.json(
+            { error: "Internal server error" },
+            { status: 500 }
+        );
+    }
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
-    const { domain, websocketUrl, username, password, displayName } = await req.json()
-    
-    if (!domain || !websocketUrl || !username || !password) {
-      return NextResponse.json(
-        { error: 'All fields are required' },
-        { status: 400 }
-      )
-    }
+        const { domain, websocketUrl, username, password, displayName } =
+            await req.json();
 
-    // Store configuration (in production, use proper database with encryption)
-    sipConfigs[session.user.id] = {
-      domain,
-      websocketUrl,
-      username,
-      password, // Should be encrypted in production
-      displayName
-    }
+        if (!domain || !websocketUrl || !username || !password) {
+            return NextResponse.json(
+                { error: "All fields are required" },
+                { status: 400 }
+            );
+        }
 
-    return NextResponse.json({ message: 'SIP configuration saved successfully' })
-  } catch (error: any) {
-    console.error('Save SIP config error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+        await connect();
+
+        // Upsert SIPConfig for this user
+        await SIPConfig.findOneAndUpdate(
+            { user: session.user.id },
+            { domain, websocketUrl, username, password, displayName },
+            { upsert: true, new: true, runValidators: true }
+        );
+
+        return NextResponse.json(
+            { message: "SIP configuration saved successfully" },
+            { status: 200 }
+        );
+    } catch (error: any) {
+        console.error("Save SIP config error:", error);
+        return NextResponse.json(
+            { error: "Internal server error" },
+            { status: 500 }
+        );
+    }
 }

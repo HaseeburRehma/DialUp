@@ -34,6 +34,12 @@ export function SIPServerSetup() {
 
     const handleConnect = async () => {
         setIsConnecting(true)
+        // Save in backend
+        await fetch("/api/sip/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(localConfig),
+        });
 
         // Save into context
         setConfig(localConfig)
