@@ -1,3 +1,5 @@
+// src/app/api/user/profile/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { connect } from '../../../../../server/utils/db'

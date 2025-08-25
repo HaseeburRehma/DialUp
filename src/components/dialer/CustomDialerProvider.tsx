@@ -194,12 +194,14 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                 // WebRTC configuration
                 const { URI } = require('sip.js')
                 const configuration = {
-                    uri: UserAgent.makeURI(`sip:${phone}@your-sip-domain.com`)!,
+                    uri: UserAgent.makeURI(
+                        `sip:${phone}@${process.env.NEXT_PUBLIC_SIP_DOMAIN}`
+                    )!,
                     transportOptions: {
-                        server: process.env.NEXT_PUBLIC_SIP_WEBSOCKET_URL || 'wss://sip.your-domain.com',
+                        server: process.env.NEXT_PUBLIC_SIP_WEBSOCKET_URL!,
                     },
                     authorizationUsername: phone.replace(/\D/g, ''),
-                    authorizationPassword: process.env.NEXT_PUBLIC_SIP_PASSWORD || 'your-sip-password',
+                    authorizationPassword: process.env.NEXT_PUBLIC_SIP_PASSWORD!,
                     displayName: phone,
                     sessionDescriptionHandlerFactoryOptions: {
                         constraints: { audio: true, video: false },
@@ -207,12 +209,13 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                             rtcConfiguration: {
                                 iceServers: [
                                     { urls: 'stun:stun.l.google.com:19302' },
-                                    { urls: 'stun:stun1.l.google.com:19302' }
-                                ]
-                            }
-                        }
-                    }
-                };
+                                    { urls: 'stun:stun1.l.google.com:19302' },
+                                ],
+                            },
+                        },
+                    },
+                }
+
 
 
                 // Create User Agent
@@ -405,7 +408,9 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
 
             log(`📞 Initiating call to ${cleanNumber}`, "info");
 
-            const targetURI = UserAgent.makeURI(`sip:${cleanNumber}@your-sip-domain.com`);
+            const targetURI = UserAgent.makeURI(
+                `sip:${cleanNumber}@${process.env.NEXT_PUBLIC_SIP_DOMAIN}`
+            )
             if (!targetURI) throw new Error("Invalid target URI");
 
             const inviter = new Inviter(ua, targetURI, {

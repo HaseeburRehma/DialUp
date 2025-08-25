@@ -1,3 +1,5 @@
+# railway.toml
+
 [build]
 # Use Docker build instead of custom build script
 builder = "dockerfile"
