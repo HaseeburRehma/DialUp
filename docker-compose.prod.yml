@@ -1,10 +1,25 @@
+# docker-compose.prod.yml
 version: "3.9"
 
 services:
   app:
+    build: .
     command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
     ports:
-      - "3000:3000"
-      - "4000:4000"
+      - "3000:3000"  # Next.js
+      - "4000:4000"  # Whisper backend
     environment:
       NODE_ENV: production
+    depends_on:
+      - asterisk
+
+  asterisk:
+    image: andrius/asterisk:18
+    restart: unless-stopped
+    ports:
+      - "5060:5060/udp"       # SIP signaling
+      - "5060:5060/tcp"
+      - "8089:8089"           # WebSocket for SIP.js
+      - "10000-20000:10000-20000/udp" # RTP media
+    volumes:
+      - ./asterisk/config:/etc/asterisk
