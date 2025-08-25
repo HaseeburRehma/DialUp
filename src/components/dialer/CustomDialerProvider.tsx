@@ -130,6 +130,7 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
     const mediaRecorder = useRef<MediaRecorder | null>(null)
     const recognitionRef = useRef<any>(null)
     const { config: runtimeConfig } = useSIPConfig();
+    const currentCallDirection = useRef<'inbound' | 'outbound' | null>(null);
 
     // Initialize ringtone
     useEffect(() => {
@@ -275,9 +276,45 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                         log("✅ Successfully registered with SIP server", "info");
                     },
                     onInvite: (invitation: Invitation) => {
-                        // ... existing invite handling ...
+                        log(`📥 Incoming call from ${invitation.remoteIdentity?.displayName || invitation.remoteIdentity?.uri}`, 'info')
+
+                        const connectionWrapper: CustomConnection = {
+                            accept: () => {
+                                invitation.accept();
+                                currentSession.current = invitation;
+                                setupCallEvents(invitation);
+                                currentCallDirection.current = 'inbound';
+
+                            },
+                            reject: () => invitation.reject(),
+                            disconnect: () => invitation.dispose(),
+                            parameters: {
+                                From: invitation.remoteIdentity.uri.toString(),
+                                CallerName: invitation.remoteIdentity.displayName || "Unknown Caller"
+
+                            },
+                            mute: (muted: boolean) => {
+                                const pc = (invitation.sessionDescriptionHandler as any)?.peerConnection;
+                                if (pc) {
+                                    pc.getSenders().forEach((sender: RTCRtpSender) => {
+                                        if (sender.track && sender.track.kind === "audio") {
+                                            sender.track.enabled = !muted;
+                                        }
+                                    });
+                                }
+                            },
+                            sendDigits: (digits: string) => {
+                                const sdh = (invitation.sessionDescriptionHandler as any);
+                                if (sdh && typeof sdh.sendDtmf === 'function') {
+                                    sdh.sendDtmf(digits);
+                                } else {
+                                    log('DTMF not supported on this session', 'warning');
+                                }
+                            }
+                        }
+
                     },
-                };
+                }
 
                 if (mounted) {
                     setUA(userAgent);
@@ -314,6 +351,7 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                 setCallSeconds(0)
                 currentCallStartTime.current = new Date()
                 timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
+                currentCallDirection.current = 'outbound';
 
                 // Monitor connection quality
                 const pc = (session.sessionDescriptionHandler as any)?.peerConnection
@@ -348,14 +386,17 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
         const callRecord: CallRecord = {
             id: Date.now().toString(),
             number: session.remoteIdentity?.uri?.toString() || 'Unknown',
-            direction: incomingConnection ? 'inbound' : 'outbound',
+            direction: currentCallDirection.current || 'outbound',
+
             duration,
             status: 'completed',
             timestamp: currentCallStartTime.current || new Date(),
             notes: callNotes,
             transcription: liveTranscription,
-        }
 
+
+        }
+        currentCallDirection.current = null
         try {
             await fetch('/api/calls', {
                 method: 'POST',
