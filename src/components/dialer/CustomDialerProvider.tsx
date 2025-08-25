@@ -196,10 +196,12 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                 const configuration = {
                     uri: UserAgent.makeURI(
                         `sip:${phone}@${process.env.NEXT_PUBLIC_SIP_DOMAIN}`
+
                     )!,
                     transportOptions: {
                         server: process.env.NEXT_PUBLIC_SIP_WEBSOCKET_URL!,
                     },
+
                     authorizationUsername: phone.replace(/\D/g, ''),
                     authorizationPassword: process.env.NEXT_PUBLIC_SIP_PASSWORD!,
                     displayName: phone,
@@ -215,7 +217,18 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                         },
                     },
                 }
-
+                // 🔍 Debug logs for SIP config
+                console.group('🔧 SIP Configuration')
+                console.log('URI:', configuration.uri.toString())
+                console.log('WebSocket Server:', configuration.transportOptions.server)
+                console.log('Auth Username:', configuration.authorizationUsername)
+                console.log(
+                    'Auth Password:',
+                    configuration.authorizationPassword ? '*** (set)' : '❌ MISSING'
+                )
+                console.log('Display Name:', configuration.displayName)
+                console.log('ICE Servers:', configuration.sessionDescriptionHandlerFactoryOptions?.peerConnectionOptions?.rtcConfiguration?.iceServers)
+                console.groupEnd()
 
 
                 // Create User Agent

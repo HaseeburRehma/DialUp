@@ -1,3 +1,4 @@
+// src/app/notes/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'

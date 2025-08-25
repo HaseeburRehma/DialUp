@@ -1,3 +1,4 @@
+// src/components/layout/dashboard-layout.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -32,6 +33,7 @@ function useSession() {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: session, status } = useSession()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   if (status === 'loading') {
     return (
@@ -68,13 +70,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="absolute bottom-0 -left-40 w-96 h-96 bg-pink-300/20 rounded-full blur-[120px]"></div>
       </div>
 
-      <Header />
+      <Header onMenuClick={() => setSidebarOpen(true)} />
       <div className="flex flex-1 pt-20 relative z-10">
-        <Sidebar />
-        <main className="flex-1 p-8 ml-72 transition-all duration-300">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
+        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />  {/* ← control here */}
+        <main className="flex-1 md:p-8 md:ml-72 transition-all duration-300">
+          <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
     </div>

@@ -38,7 +38,7 @@ import Link from "next/link"
 
 // (Removed mock signOut function to resolve import conflict)
 
-export function Header() {
+export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const { data: session } = useSession()
   const pathname = usePathname() ?? ''
 
@@ -68,9 +68,17 @@ export function Header() {
     return (
       <header className="fixed top-0 left-0 right-0 z-50 bg-white/10 backdrop-blur-md border-b border-white/20">
         <div className="flex items-center justify-between px-8 py-4">
+
           {/* Logo Section */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
+              {/* Mobile menu button */}
+              <button
+                className="md:hidden mr-2 p-2 rounded-lg bg-white/20 hover:bg-white/30 transition"
+                onClick={onMenuClick}
+              >
+                <Menu className="h-5 w-5 text-white" />
+              </button>
               <div className="relative group">
                 <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl rotate-3 group-hover:rotate-6 transition-transform duration-300"></div>
                 <Mic2 className="absolute inset-0 h-10 w-10 text-white p-2" />
@@ -253,7 +261,7 @@ export function Header() {
 
           {/* Right side actions */}
           <div className="flex items-center space-x-2">
-           {/*  <ThemeToggle /> */}
+            {/*  <ThemeToggle /> */}
 
             {/* GitHub button 
             <Button variant="ghost" size="sm" className="hidden sm:flex" asChild>
