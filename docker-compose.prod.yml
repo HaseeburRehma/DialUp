@@ -1,4 +1,4 @@
-# docker-compose.prod.yml
+# Docker Compose Production Configuration
 version: "3.9"
 
 services:
@@ -12,6 +12,11 @@ services:
       NODE_ENV: production
     depends_on:
       - asterisk
+    deploy:
+      resources:
+        limits:
+          memory: 512M     # cap app RAM
+          cpus: "0.25"     # cap CPU
 
   asterisk:
     image: andrius/asterisk:18
@@ -23,3 +28,8 @@ services:
       - "10000-20000:10000-20000/udp" # RTP media
     volumes:
       - ./asterisk/config:/etc/asterisk
+    deploy:
+      resources:
+        limits:
+          memory: 256M     # Asterisk is light, cap it lower
+          cpus: "0.20"     # use less CPU

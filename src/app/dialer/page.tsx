@@ -12,6 +12,8 @@ import { IncomingCallModal } from '@/components/dialer/incoming-call-modal'
 import VapiWidget from '@/components/dialer/VapiWidget'
 import { CustomDialerProvider } from '@/components/dialer/CustomDialerProvider'
 import { WebRTCCallInterface } from '@/components/dialer/WebRTCCallInterface'
+import { IncomingCallModalSIP } from '@/components/dialer/IncomingCallModalSIP'
+
 export default function DialerPage() {
   return (
     <DashboardLayout>
@@ -27,27 +29,22 @@ export default function DialerPage() {
             </div>
 
             {/* Overlay modal for ringing calls */}
-            <IncomingCallModal />
+            <IncomingCallModalSIP />
 
             {/* Main interface */}
             <WebRTCCallInterface />
 
-            {/* Analytics dashboard */}
-            <CallAnalytics />
-
-            {/* Call history list */}
-            <CallHistory />
+        
           </div>
         </div>
       </CustomDialerProvider>
 
 
-      
+
       <TwilioProvider>
         <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
           {/* Overlay modal for ringing calls */}
-          <IncomingCallModal />
-
+        
           {/* Main interface */}
           <CallInterface />
           {/* 👉 Vapi Widget */}
