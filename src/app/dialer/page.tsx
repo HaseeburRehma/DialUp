@@ -13,42 +13,45 @@ import VapiWidget from '@/components/dialer/VapiWidget'
 import { CustomDialerProvider } from '@/components/dialer/CustomDialerProvider'
 import { WebRTCCallInterface } from '@/components/dialer/WebRTCCallInterface'
 import { IncomingCallModalSIP } from '@/components/dialer/IncomingCallModalSIP'
+import { SIPServerSetup } from '@/components/dialer/SIPServerSetup'
+import { SIPConfigProvider } from '@/components/dialer/SIPConfigContext'
 
 export default function DialerPage() {
   return (
     <DashboardLayout>
+      <SIPConfigProvider>
 
-       <CustomDialerProvider>
-        
-       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900">
-          <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="text-4xl font-bold text-white mb-2">Custom WebRTC Dialer</h1>
-              <p className="text-white/70">Make calls using your registered phone number</p>
+        <CustomDialerProvider>
+
+          <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-grey-900">
+            <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <h1 className="text-4xl font-bold text-white mb-2">Custom WebRTC Dialer</h1>
+                <p className="text-white/70">Make calls using your registered phone number</p>
+              </div>
+
+              {/* Overlay modal for ringing calls */}
+              <IncomingCallModalSIP />
+
+              {/* Main interface */}
+              <WebRTCCallInterface />
+
+
             </div>
-
-            {/* Overlay modal for ringing calls */}
-            <IncomingCallModalSIP />
-
-            {/* Main interface */}
-            <WebRTCCallInterface />
-
-        
           </div>
-        </div>
-      </CustomDialerProvider>
-
+        </CustomDialerProvider>
+      </SIPConfigProvider>
 
 
       <TwilioProvider>
         <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
           {/* Overlay modal for ringing calls */}
-        
+
           {/* Main interface */}
           <CallInterface />
           {/* 👉 Vapi Widget */}
-          
+
 
           {/* Analytics dashboard */}
           <CallAnalytics />

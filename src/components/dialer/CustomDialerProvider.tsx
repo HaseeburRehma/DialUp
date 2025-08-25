@@ -4,6 +4,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { UserAgent, Registerer, Inviter, Invitation, Session, SessionState, URI } from "sip.js";
+import { useSIPConfig } from './SIPConfigContext';
 
 interface CallRecord {
     id: string
@@ -191,27 +192,34 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                     return
                 }
 
+
                 // WebRTC configuration
                 const { URI } = require('sip.js')
+
+                const { config: runtimeConfig } = useSIPConfig()
+
+                // inside initializeUA
+                const sipDomain = runtimeConfig?.domain || process.env.NEXT_PUBLIC_SIP_DOMAIN!
+                const sipWebSocket = runtimeConfig?.websocketUrl || process.env.NEXT_PUBLIC_SIP_WEBSOCKET_URL!
+                const sipUsername = runtimeConfig?.username || phone.replace(/\D/g, '')
+                const sipPassword = runtimeConfig?.password || process.env.NEXT_PUBLIC_SIP_PASSWORD!
+                const sipDisplayName = runtimeConfig?.displayName || phone
+
                 const configuration = {
-                    uri: UserAgent.makeURI(
-                        `sip:${phone}@${process.env.NEXT_PUBLIC_SIP_DOMAIN}`
-
-                    )!,
+                    uri: UserAgent.makeURI(`sip:${phone}@${sipDomain}`)!,
                     transportOptions: {
-                        server: process.env.NEXT_PUBLIC_SIP_WEBSOCKET_URL!,
+                        server: sipWebSocket,
                     },
-
-                    authorizationUsername: phone.replace(/\D/g, ''),
-                    authorizationPassword: process.env.NEXT_PUBLIC_SIP_PASSWORD!,
-                    displayName: phone,
+                    authorizationUsername: sipUsername,
+                    authorizationPassword: sipPassword,
+                    displayName: sipDisplayName,
                     sessionDescriptionHandlerFactoryOptions: {
                         constraints: { audio: true, video: false },
                         peerConnectionOptions: {
                             rtcConfiguration: {
                                 iceServers: [
-                                    { urls: 'stun:stun.l.google.com:19302' },
-                                    { urls: 'stun:stun1.l.google.com:19302' },
+                                    { urls: "stun:stun.l.google.com:19302" },
+                                    { urls: "stun:stun1.l.google.com:19302" },
                                 ],
                             },
                         },
