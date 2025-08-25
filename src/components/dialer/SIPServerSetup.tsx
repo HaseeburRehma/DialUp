@@ -91,7 +91,7 @@ export function SIPServerSetup() {
                                 id="domain"
                                 placeholder="sip.yourdomain.com"
                                 value={localConfig.domain}
-                                onChange={(e) => setConfig({ ...localConfig, domain: e.target.value })}
+                                onChange={(e) => setLocalConfig({ ...localConfig, domain: e.target.value })}
                                 className="bg-white/10 border-white/20 text-white"
                             />
                         </div>
@@ -102,7 +102,7 @@ export function SIPServerSetup() {
                                 id="websocket"
                                 placeholder="wss://sip.yourdomain.com:443/ws"
                                 value={localConfig.websocketUrl}
-                                onChange={(e) => setConfig({ ...localConfig, websocketUrl: e.target.value })}
+                                onChange={(e) => setLocalConfig({ ...localConfig, websocketUrl: e.target.value })}
                                 className="bg-white/10 border-white/20 text-white"
                             />
                         </div>
@@ -113,7 +113,7 @@ export function SIPServerSetup() {
                                 id="username"
                                 placeholder="Your SIP username"
                                 value={localConfig.username}
-                                onChange={(e) => setConfig({ ...localConfig, username: e.target.value })}
+                                onChange={(e) => setLocalConfig({ ...localConfig, username: e.target.value })}
                                 className="bg-white/10 border-white/20 text-white"
                             />
                         </div>
@@ -125,7 +125,7 @@ export function SIPServerSetup() {
                                 type="password"
                                 placeholder="Your SIP password"
                                 value={localConfig.password}
-                                onChange={(e) => setConfig({ ...localConfig, password: e.target.value })}
+                                onChange={(e) => setLocalConfig({ ...localConfig, password: e.target.value })}
                                 className="bg-white/10 border-white/20 text-white"
                             />
                         </div>
@@ -181,7 +181,7 @@ export function SIPServerSetup() {
                             <div
                                 key={provider.name}
                                 className="p-4 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-                                onClick={() => setConfig({
+                                onClick={() => setLocalConfig({
                                     ...localConfig,
                                     domain: provider.domain,
                                     websocketUrl: provider.websocket
