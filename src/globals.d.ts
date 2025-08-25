@@ -36,3 +36,9 @@ interface Window {
   webkitSpeechRecognition: { new (): SpeechRecognition };
   SpeechRecognition: { new (): SpeechRecognition };
 }
+export {}
+
+declare global {
+  // Augment globalThis with your property
+  var __OMNIDIM_LAST_EVENT__: any
+}

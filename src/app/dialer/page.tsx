@@ -9,6 +9,7 @@ import { CallInterface } from '@/components/dialer/call-interface'
 import { CallAnalytics } from '@/components/dialer/call-analytics'
 import { CallHistory } from '@/components/dialer/call-history'
 import { IncomingCallModal } from '@/components/dialer/incoming-call-modal'
+import VapiWidget from '@/components/dialer/VapiWidget'
 
 export default function DialerPage() {
   return (
@@ -20,6 +21,8 @@ export default function DialerPage() {
 
           {/* Main interface */}
           <CallInterface />
+          {/* 👉 Vapi Widget */}
+          
 
           {/* Analytics dashboard */}
           <CallAnalytics />
@@ -27,6 +30,7 @@ export default function DialerPage() {
           {/* Call history list */}
           <CallHistory />
         </div>
+        <VapiWidget />
       </TwilioProvider>
     </DashboardLayout>
   )
