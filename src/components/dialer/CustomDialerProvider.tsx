@@ -182,10 +182,11 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
     // Initialize WebRTC User Agent
     useEffect(() => {
         let mounted = true;
+        let userAgent: UserAgent | null = null;
+        let registerer: Registerer | null = null;
 
         const initializeUA = async () => {
             try {
-                // Guard: require SIP config
                 if (!runtimeConfig) {
                     log("⚠️ Waiting for SIP configuration before initializing UA", "warning");
                     return;
@@ -193,75 +194,53 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
 
                 log("🔄 Initializing Custom WebRTC Dialer...", "info");
 
-                // Optionally fetch phone (if you're keeping that flow)
+                // 1) Get user phone (optional, but you use it)
                 const phone = await fetchUserPhone();
                 if (!phone || !mounted) {
                     log("❌ No phone number found for user", "error");
                     return;
                 }
 
-                // --- WebRTC configuration ---
-                const { URI } = require("sip.js");
+                // 2) Resolve config
+                const sipDomain = process.env.NEXT_PUBLIC_SIP_DOMAIN!;
+                const sipWebSocket = process.env.NEXT_PUBLIC_SIP_WEBSOCKET_URL!;
+                const sipUsername = process.env.NEXT_PUBLIC_SIP_USERNAME || "1001";
+                const sipPassword = process.env.NEXT_PUBLIC_SIP_PASSWORD || "supersecret";
+                const sipDisplay = runtimeConfig?.displayName || phone;
 
-                const sipDomain =
-                    runtimeConfig?.domain || process.env.NEXT_PUBLIC_SIP_DOMAIN!;
-                const sipWebSocket =
-                    runtimeConfig?.websocketUrl ||
-                    process.env.NEXT_PUBLIC_SIP_WEBSOCKET_URL!;
-                const sipUsername =
-                    runtimeConfig?.username || phone.replace(/\D/g, "");
-                const sipPassword =
-                    runtimeConfig?.password || process.env.NEXT_PUBLIC_SIP_PASSWORD!;
-                const sipDisplayName =
-                    runtimeConfig?.displayName || phone;
-
-                // Guard: prevent init if mandatory values are missing
                 if (!sipDomain || !sipWebSocket || !sipUsername || !sipPassword) {
                     log("❌ Missing required SIP configuration values", "error");
                     return;
                 }
 
-                const configuration = {
-                    uri: UserAgent.makeURI(`sip:${phone}@${sipDomain}`)!,
-                    transportOptions: {
-                        server: sipWebSocket,
-                    },
-                    authorizationUsername: sipUsername,
-                    authorizationPassword: sipPassword,
-                    displayName: sipDisplayName,
-                    sessionDescriptionHandlerFactoryOptions: {
-                        constraints: { audio: true, video: false },
-                        peerConnectionOptions: {
-                            rtcConfiguration: {
-                                iceServers: [
-                                    { urls: "stun:stun.l.google.com:19302" },
-                                    { urls: "stun:stun1.l.google.com:19302" },
-                                ],
-                            },
-                        },
-                    },
-                };
+                // Use the endpoint user in the URI (1001), not the E.164 number
+               const configuration = {
+  uri: UserAgent.makeURI(`sip:${sipUsername}@${sipDomain}`)!,
+  transportOptions: { server: sipWebSocket },
+  authorizationUsername: sipUsername,
+  authorizationPassword: sipPassword,
+  displayName: sipUsername,
+  fromUser: sipUsername,
+  sessionDescriptionHandlerFactoryOptions: {
+    constraints: { audio: true, video: false },
+    peerConnectionOptions: {
+      rtcConfiguration: {
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      },
+    },
+  },
+};
 
-                // Debug logs
+
                 console.group("🔧 SIP Configuration");
                 console.log("URI:", configuration.uri.toString());
                 console.log("WebSocket Server:", configuration.transportOptions.server);
                 console.log("Auth Username:", configuration.authorizationUsername);
-                console.log(
-                    "Auth Password:",
-                    configuration.authorizationPassword ? "*** (set)" : "❌ MISSING"
-                );
+                console.log("Auth Password:", configuration.authorizationPassword ? "*** (set)" : "❌ MISSING");
                 console.log("Display Name:", configuration.displayName);
-                console.log(
-                    "ICE Servers:",
-                    configuration.sessionDescriptionHandlerFactoryOptions?.peerConnectionOptions?.rtcConfiguration?.iceServers
-                );
                 console.groupEnd();
 
-                // Create and start UA
-                const userAgent = new UserAgent(configuration);
-                const registerer = new Registerer(userAgent);
-                await registerer.register();
+                userAgent = new UserAgent(configuration);
 
                 userAgent.delegate = {
                     onConnect: () => {
@@ -272,56 +251,59 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                         log("📴 Disconnected from SIP server", "warning");
                         setIsReady(false);
                     },
-                    onRegister: () => {
-                        log("✅ Successfully registered with SIP server", "info");
-                    },
                     onInvite: (invitation: Invitation) => {
-                        log(`📥 Incoming call from ${invitation.remoteIdentity?.displayName || invitation.remoteIdentity?.uri}`, 'info')
+                        log(`📥 Incoming call from ${invitation.remoteIdentity?.displayName || invitation.remoteIdentity?.uri}`, "info");
 
+                        // Build and publish the incoming connection
                         const connectionWrapper: CustomConnection = {
                             accept: () => {
                                 invitation.accept();
                                 currentSession.current = invitation;
                                 setupCallEvents(invitation);
-                                currentCallDirection.current = 'inbound';
-
+                                currentCallDirection.current = "inbound";
+                                setIsRinging(false);
+                                stopRingtone();
                             },
                             reject: () => invitation.reject(),
                             disconnect: () => invitation.dispose(),
                             parameters: {
                                 From: invitation.remoteIdentity.uri.toString(),
-                                CallerName: invitation.remoteIdentity.displayName || "Unknown Caller"
-
+                                CallerName: invitation.remoteIdentity.displayName || "Unknown Caller",
                             },
                             mute: (muted: boolean) => {
                                 const pc = (invitation.sessionDescriptionHandler as any)?.peerConnection;
                                 if (pc) {
                                     pc.getSenders().forEach((sender: RTCRtpSender) => {
-                                        if (sender.track && sender.track.kind === "audio") {
-                                            sender.track.enabled = !muted;
-                                        }
+                                        if (sender.track && sender.track.kind === "audio") sender.track.enabled = !muted;
                                     });
                                 }
                             },
                             sendDigits: (digits: string) => {
                                 const sdh = (invitation.sessionDescriptionHandler as any);
-                                if (sdh && typeof sdh.sendDtmf === 'function') {
-                                    sdh.sendDtmf(digits);
-                                } else {
-                                    log('DTMF not supported on this session', 'warning');
-                                }
-                            }
-                        }
+                                if (sdh && typeof sdh.sendDtmf === "function") sdh.sendDtmf(digits);
+                                else log("DTMF not supported on this session", "warning");
+                            },
+                        };
 
+                        // ring + publish to state
+                        setIncomingConnection(connectionWrapper);
+                        setIsRinging(true);
+                        playRingtone();
                     },
-                }
+                };
 
-                if (mounted) {
-                    setUA(userAgent);
-                    userAgent.start().catch((error: any) => {
-                        log(`❌ Failed to start UA: ${error.message}`, "error");
-                    });
-                }
+                // 3) Start transport first
+                await userAgent.start();
+
+                // 4) Register (and track state)
+                registerer = new Registerer(userAgent);
+                registerer.stateChange.addListener((state) => {
+                    log(`🪪 Registerer state: ${state}`, "info");
+                });
+                await registerer.register();
+
+                if (!mounted) return;
+                setUA(userAgent);
             } catch (error: any) {
                 log(`💥 Fatal error initializing dialer: ${error.message}`, "error");
             }
@@ -333,12 +315,17 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
             mounted = false;
             if (timerRef.current) clearInterval(timerRef.current);
             stopRingtone();
-            if (ua) {
-                ua.stop();
-            }
+
+            // Properly unregister & stop
+            (async () => {
+                try { await registerer?.unregister(); } catch { }
+                try { await userAgent?.stop(); } catch { }
+            })();
+
             log("🧹 Cleanup: Dialer destroyed", "info");
         };
-    }, [runtimeConfig]); // <- rerun when config changes
+    }, [runtimeConfig]);
+
 
 
     const setupCallEvents = (session: Session) => {

@@ -26,6 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY server ./server
 
+
+
+
 # Install Python deps (Torch first, then app deps)
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --prefer-binary torch==2.5.1 && \
