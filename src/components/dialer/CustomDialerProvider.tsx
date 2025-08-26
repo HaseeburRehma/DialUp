@@ -202,10 +202,11 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                 }
 
                 // 2) Resolve config
-                const sipDomain = process.env.NEXT_PUBLIC_SIP_DOMAIN!;
-                const sipWebSocket = process.env.NEXT_PUBLIC_SIP_WEBSOCKET_URL!;
-                const sipUsername = process.env.NEXT_PUBLIC_SIP_USERNAME || "1001";
-                const sipPassword = process.env.NEXT_PUBLIC_SIP_PASSWORD || "supersecret";
+                const sipDomain = runtimeConfig?.domain || process.env.NEXT_PUBLIC_SIP_DOMAIN!;
+                const sipWebSocket = runtimeConfig?.websocketUrl || process.env.NEXT_PUBLIC_SIP_WEBSOCKET_URL!;
+                // IMPORTANT: match your Asterisk endpoint credentials (1001 / supersecret)
+                const sipUsername = runtimeConfig?.username || "1001";     // <- aligns with pjsip.conf
+                const sipPassword = runtimeConfig?.password || "supersecret";
                 const sipDisplay = runtimeConfig?.displayName || phone;
 
                 if (!sipDomain || !sipWebSocket || !sipUsername || !sipPassword) {
@@ -214,23 +215,28 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                 }
 
                 // Use the endpoint user in the URI (1001), not the E.164 number
-               const configuration = {
-  uri: UserAgent.makeURI(`sip:${sipUsername}@${sipDomain}`)!,
-  transportOptions: { server: sipWebSocket },
-  authorizationUsername: sipUsername,
-  authorizationPassword: sipPassword,
-  displayName: sipUsername,
-  fromUser: sipUsername,
-  sessionDescriptionHandlerFactoryOptions: {
-    constraints: { audio: true, video: false },
-    peerConnectionOptions: {
-      rtcConfiguration: {
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      },
-    },
-  },
-};
-
+                const configuration = {
+                    uri: UserAgent.makeURI(`sip:${sipUsername}@${sipDomain}`)!,
+                    transportOptions: { server: sipWebSocket },
+                    authorizationUsername: sipUsername,
+                    authorizationPassword: sipPassword,
+                    displayName: sipDisplay,
+                    fromUser: sipUsername, // helps align From with endpoint name
+                    sessionDescriptionHandlerFactoryOptions: {
+                        constraints: { audio: true, video: false },
+                        peerConnectionOptions: {
+                            rtcConfiguration: {
+                                iceServers: [
+                                    { urls: "stun:stun.l.google.com:19302" },
+                                  
+                                    { urls: "turn:turn.yourdomain.tld:3478", username: "user", credential: "pass" }
+                                    // TODO: add a TURN server for reliability
+                                    // { urls: "turn:turn.yourdomain.com:3478", username: "...", credential: "..." }
+                                ],
+                            },
+                        },
+                    },
+                };
 
                 console.group("🔧 SIP Configuration");
                 console.log("URI:", configuration.uri.toString());
