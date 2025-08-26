@@ -8,8 +8,8 @@ services:
       - "4000:4000"
     environment:
       NODE_ENV: development
-      NEXT_PUBLIC_SIP_DOMAIN: sip.yourdomain.tld
-      NEXT_PUBLIC_SIP_WEBSOCKET_URL: wss://sip.yourdomain.tld/ws
+      NEXT_PUBLIC_SIP_DOMAIN: voiceai-production-01d6.up.railway.app
+      NEXT_PUBLIC_SIP_WEBSOCKET_URL: voiceai-production-01d6.up.railway.app
       NEXT_PUBLIC_SIP_USERNAME: "1001"
       NEXT_PUBLIC_SIP_PASSWORD: "supersecret"
     volumes:
@@ -27,7 +27,7 @@ services:
       - asterisk
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./certs:/etc/letsencrypt/live/sip.yourdomain.tld:ro
+      - ./certs:/etc/letsencrypt/live/voiceai-production-01d6.up.railway.app:ro
 
   asterisk:
     image: andrius/asterisk:18
