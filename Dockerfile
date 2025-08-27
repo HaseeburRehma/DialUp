@@ -9,9 +9,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Base runtime deps (no compilers)
+# Base runtime deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ca-certificates ffmpeg portaudio19-dev supervisor netcat-openbsd \
+    asterisk asterisk-dev \
+    nginx certbot \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ============================
@@ -19,15 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ============================
 FROM pythonbase AS python-deps
 
-# Build tools for Python deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY server ./server
-
-
-
 
 # Install Python deps (Torch first, then app deps)
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -37,16 +35,14 @@ RUN pip install --no-cache-dir --upgrade pip && \
         -r server/requirement.txt \
         -r server/WhisperLive/requirements/client.txt \
         -r server/WhisperLive/requirements/server.txt
-    
+
 # ============================
 # 3. Node Build Stage
 # ============================
 FROM node:20.17.0-slim AS node-build
 WORKDIR /app
 
-# Install all deps (including dev) for build
 COPY package.json package-lock.json* ./
-# Ensure PostCSS + Autoprefixer are installed in prod
 RUN npm install autoprefixer postcss && npm ci
 
 COPY . .
@@ -65,23 +61,27 @@ ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-# ✅ Copy package files first
-COPY --from=node-build /app/package.json /app/package-lock.json* /app/
-WORKDIR /app
-
-# ✅ Install ONLY production dependencies to ensure all runtime deps are present
-RUN npm ci --only=production --prefer-offline
-
-# ✅ Copy the rest of the built app
+# ✅ Copy app files
 COPY --from=node-build /app /app
 
 # Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Ports (docs only; Railway ignores)
-EXPOSE 3000 4000
+# Asterisk config
+COPY asterisk/config /etc/asterisk
 
-# Health check
+# Nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Certificates (mount real certs in prod, or use self-signed for dev)
+# VOLUME ["/etc/letsencrypt"]
+
+WORKDIR /app
+
+# Ports (docs only; Railway ignores but Compose uses them)
+EXPOSE 3000 4000 8089 5060/udp 10000-20000/udp
+
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:3000/health && curl -f http://localhost:4000/health || exit 1
 
