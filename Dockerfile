@@ -68,7 +68,8 @@ COPY --from=node-build /app /app
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Asterisk config
-COPY asterisk/config /etc/asterisk
+COPY etc/asterisk/config /etc/asterisk
+
 
 # Nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
