@@ -67,12 +67,23 @@ COPY --from=node-build /app /app
 # Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Generate self-signed certs (for dev/prod fallback)
+RUN mkdir -p /etc/asterisk/keys && \
+    openssl req -x509 -nodes -newkey rsa:2048 \
+      -keyout /etc/asterisk/keys/privkey.pem \
+      -out /etc/asterisk/keys/fullchain.pem \
+      -days 365 \
+      -subj "/CN=sip.voiceai.xyz" && \
+    mkdir -p /etc/letsencrypt/live/sip.voiceai.xyz && \
+    cp /etc/asterisk/keys/fullchain.pem /etc/letsencrypt/live/sip.voiceai.xyz/fullchain.pem && \
+    cp /etc/asterisk/keys/privkey.pem /etc/letsencrypt/live/sip.voiceai.xyz/privkey.pem
+
 # Asterisk config
 COPY etc/asterisk/config /etc/asterisk
 
-
 # Nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 
 # Certificates (mount real certs in prod, or use self-signed for dev)
 # VOLUME ["/etc/letsencrypt"]
