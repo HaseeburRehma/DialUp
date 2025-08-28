@@ -1,6 +1,8 @@
-'use client';
+// src/components/ui/toaster.tsx
 
-import { useToast } from '@/hooks/use-toast';
+'use client'
+
+import { useToast } from '@/hooks/use-toast'
 import {
   ToastProvider,
   Toast,
@@ -8,17 +10,21 @@ import {
   ToastDescription,
   ToastClose,
   ToastViewport,
-} from '@/components/ui/toast';
+} from '@/components/ui/toast'
+import { motion } from 'framer-motion'
 
 export function Toaster() {
-  const { toasts } = useToast();
+  const { toasts } = useToast()
 
   return (
-    // ✅ Wrap everything inside a Fragment *but* pass it as a single component
     <ToastProvider swipeDirection="right">
-      <div>
-        {toasts.map(({ id, title, description, action, ...props }) => (
-          <Toast key={id} {...props}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        {toasts.map(({ id, title, description, action, variant, ...props }) => (
+          <Toast key={id} variant={variant} {...props}>
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && <ToastDescription>{description}</ToastDescription>}
@@ -28,7 +34,7 @@ export function Toaster() {
           </Toast>
         ))}
         <ToastViewport />
-      </div>
+      </motion.div>
     </ToastProvider>
-  );
+  )
 }

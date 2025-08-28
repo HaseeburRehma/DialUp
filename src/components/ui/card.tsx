@@ -1,18 +1,27 @@
+
+// src/components/ui/card.tsx
+
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
 
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
-      className
-    )}
-    {...props}
-  />
+  <motion.div
+    whileHover={{ scale: 1.02, boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)' }}
+    transition={{ duration: 0.3 }}
+  >
+    <div
+      ref={ref}
+      className={cn(
+        "rounded-xl border-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm text-card-foreground shadow-md transition-all duration-300",
+        className
+      )}
+      {...props}
+    />
+  </motion.div>
 ))
 Card.displayName = "Card"
 
@@ -20,7 +29,11 @@ const CardHeader = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
+  <div
+    ref={ref}
+    className={cn("flex flex-col space-y-2 p-6", className)}
+    {...props}
+  />
 ))
 CardHeader.displayName = "CardHeader"
 
@@ -31,7 +44,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-2xl font-semibold leading-none tracking-tight",
+      "text-2xl font-bold leading-none tracking-tight bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent",
       className
     )}
     {...props}

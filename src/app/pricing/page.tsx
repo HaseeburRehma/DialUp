@@ -1,3 +1,5 @@
+
+// src/app/pricing/page.tsx
 'use client'
 
 import { useState } from 'react'
@@ -26,6 +28,10 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { motion } from 'framer-motion'
+import { Canvas } from '@react-three/fiber'
+import { MeshDistortMaterial, OrbitControls, Sphere } from '@react-three/drei'
+import { VoiceAIVisual } from '@/components/3d/VoiceVisual'
 
 export default function PricingPage() {
   const { data: session } = useSession()
@@ -60,7 +66,7 @@ export default function PricingPage() {
       price: { monthly: 19, yearly: 190 },
       description: 'For professionals and power users',
       icon: Zap,
-      color: 'from-green-500 to-green-600',
+      color: 'from-green-500 to-blue-500',
       popular: true,
       features: [
         '500 minutes of transcription/month',
@@ -86,7 +92,7 @@ export default function PricingPage() {
       price: { monthly: 49, yearly: 490 },
       description: 'Perfect for teams and organizations',
       icon: Users,
-      color: 'from-green-500 to-pink-600',
+      color: 'from-blue-500 to-purple-600',
       popular: false,
       features: [
         '2000 minutes of transcription/month',
@@ -199,34 +205,59 @@ export default function PricingPage() {
   ]
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
       <Header />
 
-      <main className="flex-1 pt-16">
+      <main className="flex-1">
         {/* Hero Section */}
-        <section className="bg-gradient-to-b from-green-50/50 to-white dark:from-green-950/20 dark:to-background">
-          <div className="container mx-auto px-4 py-20">
+        <section className="relative overflow-hidden py-16 md:py-24">
+          <div className="absolute inset-0 bg-grid-white/[0.03] bg-[size:50px_50px] [mask-image:radial-gradient(black_10%,transparent_80%)]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 via-blue-500/20 to-purple-500/20" />
+
+          {/* Floating Elements */}
+          <motion.div
+            className="absolute top-10 left-20 w-24 h-24 bg-gradient-to-r from-green-400 to-blue-400 rounded-full opacity-20 blur-2xl"
+            animate={{ y: [0, -20, 0], scale: [1, 1.1, 1] }}
+            transition={{ repeat: Infinity, duration: 4 }}
+          />
+          <motion.div
+            className="absolute bottom-20 right-20 w-32 h-32 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-15 blur-3xl"
+            animate={{ y: [0, 20, 0], scale: [1, 1.15, 1] }}
+            transition={{ repeat: Infinity, duration: 5, delay: 1 }}
+          />
+
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="text-center max-w-3xl mx-auto">
-              <Badge variant="secondary" className="mb-4 bg-gradient-to-r from-green-500/10 to-green-500/10 text-green-700 dark:text-green-300">
-                <Sparkles className="w-3 h-3 mr-1" />
-                Choose Your Plan
-              </Badge>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+              >
+                <Badge variant="secondary" className="mb-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm text-primary">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Choose Your Plan
+                </Badge>
+                <h1 className="text-4xl md:text-6xl font-extrabold mb-6 bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                  Simple, Transparent Pricing
+                </h1>
+                <p className="text-lg sm:text-xl text-muted-foreground mb-8">
+                  Start free, upgrade when you need more. All plans include our core AI-powered features with no hidden fees.
+                </p>
+              </motion.div>
 
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-green-600 to-green-600 bg-clip-text text-transparent">
-                Simple, Transparent Pricing
-              </h1>
+              {/* 3D Visual */}
 
-              <p className="text-xl text-muted-foreground mb-8">
-                Start free, upgrade when you need more. All plans include our core features with no hidden fees.
-              </p>
-
+              <VoiceAIVisual />
               {/* Billing Toggle */}
-              <div className="inline-flex items-center bg-muted p-1 rounded-full">
+              <motion.div
+                className="inline-flex items-center bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-1 rounded-full mt-8"
+                whileHover={{ scale: 1.05 }}
+              >
                 <Button
                   variant={billingCycle === 'monthly' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setBillingCycle('monthly')}
-                  className="rounded-full"
+                  className="rounded-full bg-gradient-to-r from-green-500 to-blue-500 text-white hover:from-green-600 hover:to-blue-600"
                 >
                   Monthly
                 </Button>
@@ -234,34 +265,36 @@ export default function PricingPage() {
                   variant={billingCycle === 'yearly' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setBillingCycle('yearly')}
-                  className="rounded-full"
+                  className="rounded-full bg-gradient-to-r from-green-500 to-blue-500 text-white hover:from-green-600 hover:to-blue-600"
                 >
                   Yearly
-                  <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700">
+                  <Badge variant="secondary" className="ml-2 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
                     Save 20%
                   </Badge>
                 </Button>
-              </div>
+              </motion.div>
             </div>
           </div>
         </section>
 
         {/* Pricing Cards */}
-        <section className="py-20">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {plans.map((plan, index) => (
+        <section className="container mx-auto px-4 py-16 md:py-24">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            {plans.map((plan, index) => (
+              <motion.div
+                key={plan.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.2 }}
+              >
                 <Card
-                  key={plan.name}
                   className={cn(
-                    'relative overflow-hidden transition-all duration-300 hover:scale-105',
-                    plan.popular
-                      ? 'ring-2 ring-green-500 shadow-2xl scale-105'
-                      : 'hover:shadow-xl'
+                    'relative overflow-hidden border-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm transition-all duration-300 hover:shadow-xl',
+                    plan.popular && 'ring-2 ring-green-500 shadow-2xl scale-105'
                   )}
                 >
                   {plan.popular && (
-                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-green-500 to-green-600 text-white text-center py-2 text-sm font-medium">
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-green-500 to-blue-500 text-white text-center py-2 text-sm font-medium">
                       <Star className="w-4 h-4 inline mr-1" />
                       Most Popular
                     </div>
@@ -271,15 +304,18 @@ export default function PricingPage() {
                     'text-center pb-4',
                     plan.popular ? 'pt-12' : 'pt-6'
                   )}>
-                    <div className={cn(
-                      'w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br',
-                      plan.color
-                    )}>
+                    <motion.div
+                      className={cn(
+                        'w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 bg-gradient-to-br',
+                        plan.color
+                      )}
+                      whileHover={{ scale: 1.1 }}
+                    >
                       <plan.icon className="w-8 h-8 text-white" />
-                    </div>
+                    </motion.div>
 
                     <CardTitle className="text-2xl font-bold">{plan.displayName}</CardTitle>
-                    <CardDescription className="text-sm">{plan.description}</CardDescription>
+                    <CardDescription className="text-sm text-muted-foreground">{plan.description}</CardDescription>
 
                     <div className="pt-4">
                       {typeof plan.price[billingCycle] === 'number' ? (
@@ -291,11 +327,10 @@ export default function PricingPage() {
                             /{billingCycle === 'monthly' ? 'month' : 'year'}
                           </span>
                           {billingCycle === 'yearly' && Number(plan.price.monthly) > 0 && (
-                            <div className="text-sm text-green-600 mt-1">
+                            <div className="text-sm text-green-600 dark:text-green-400 mt-1">
                               Save ${Number(plan.price.monthly) * 12 - Number(plan.price.yearly)} per year
                             </div>
                           )}
-
                         </div>
                       ) : (
                         <div className="text-2xl font-bold text-muted-foreground">
@@ -306,24 +341,21 @@ export default function PricingPage() {
                   </CardHeader>
 
                   <CardContent className="space-y-4">
-                    {/* Button pinned to bottom */}
-                    <div className="p-6 border-t mt-auto">
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                       <Button
                         className={cn(
-                          'w-full transition-all duration-200',
-                          plan.popular
-                            ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
-                            : 'border border-input hover:bg-accent'
+                          'w-full bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-300',
+                          plan.popular ? '' : 'border border-input bg-transparent text-foreground hover:bg-accent'
                         )}
                         variant={plan.popular ? 'default' : 'outline'}
                         asChild
                       >
                         <Link href={session ? '/notes' : '/auth/signup'}>
                           {plan.name === 'enterprise' ? 'Contact Sales' : 'Get Started'}
-                          <ArrowRight className="w-4 h-4 ml-2" />
+                          <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                         </Link>
                       </Button>
-                    </div>
+                    </motion.div>
 
                     <Separator />
 
@@ -336,7 +368,6 @@ export default function PricingPage() {
                       ))}
                     </ul>
 
-                    {/* Usage Limits */}
                     <div className="mt-6 pt-4 border-t">
                       <h4 className="font-medium text-sm mb-3">Usage Limits</h4>
                       <div className="space-y-2 text-xs text-muted-foreground">
@@ -358,86 +389,131 @@ export default function PricingPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+              </motion.div>
+            ))}
           </div>
         </section>
 
         {/* Additional Features */}
-        <section className="py-20 bg-muted/30">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+        <section className="relative py-16 md:py-24 bg-gradient-to-br from-green-50/50 to-blue-50/50 dark:from-green-950/30 dark:to-blue-950/30">
+          <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:60px_60px]" />
+          <div className="container mx-auto px-4 relative z-10">
+            <motion.div
+              className="text-center mb-12 md:mb-16"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
                 Everything You Need
               </h2>
-              <p className="text-xl text-muted-foreground">
+              <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
                 Powerful features to transform your voice into actionable insights
               </p>
-            </div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {additionalFeatures.map((feature, index) => (
-                <div key={index} className="flex items-start space-x-4 p-6 bg-background rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                <motion.div
+                  key={index}
+                  className="flex items-start space-x-4 p-6 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.2 }}
+                >
+                  <motion.div
+                    className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0"
+                    whileHover={{ scale: 1.1 }}
+                  >
                     <feature.icon className="w-6 h-6 text-white" />
-                  </div>
+                  </motion.div>
                   <div>
-                    <h3 className="font-semibold mb-2">{feature.title}</h3>
+                    <h3 className="font-semibold mb-2 text-lg">{feature.title}</h3>
                     <p className="text-muted-foreground text-sm">{feature.description}</p>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </div>
           </div>
         </section>
 
         {/* FAQ Section */}
-        <section className="py-20">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Frequently Asked Questions
-              </h2>
-              <p className="text-xl text-muted-foreground">
-                Everything you need to know about our pricing and plans
-              </p>
-            </div>
+        <section className="container mx-auto px-4 py-16 md:py-24">
+          <motion.div
+            className="text-center mb-12 md:mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <h2 className="text-3xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
+              Everything you need to know about our pricing and plans
+            </p>
+          </motion.div>
 
-            <div className="max-w-3xl mx-auto grid gap-6">
-              {faqs.map((faq, index) => (
-                <Card key={index} className="hover:shadow-md transition-shadow">
+          <div className="max-w-3xl mx-auto grid gap-6">
+            {faqs.map((faq, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.2 }}
+              >
+                <Card className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-0 hover:shadow-md transition-shadow duration-300">
                   <CardContent className="p-6">
-                    <h3 className="font-semibold mb-3">{faq.question}</h3>
+                    <h3 className="font-semibold mb-3 text-lg">{faq.question}</h3>
                     <p className="text-muted-foreground">{faq.answer}</p>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+              </motion.div>
+            ))}
           </div>
         </section>
 
         {/* CTA Section */}
-        <section className="py-20 bg-gradient-to-r from-green-500 to-green-600">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-              Ready to Transform Your Voice Notes?
-            </h2>
-            <p className="text-xl text-green-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of professionals who use Vhisper to capture, transcribe, and enhance their ideas.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="bg-white text-green-600 hover:bg-gray-100" asChild>
-                <Link href={session ? '/notes' : '/auth/signup'}>
-                  Start Free Trial
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10" asChild>
-                <Link href="/contact">
-                  Contact Sales
-                </Link>
-              </Button>
-            </div>
+        <section className="relative bg-gradient-to-r from-green-600 to-blue-600 py-16 md:py-24">
+          <div className="absolute inset-0 bg-grid-white/[0.1] bg-[size:60px_60px]" />
+          <div className="container mx-auto px-4 text-center relative z-10">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+                Ready to Transform Your Voice Notes?
+              </h2>
+              <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">
+                Join thousands of professionals who use Vhisper to capture, transcribe, and enhance their ideas.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    size="lg"
+                    className="group bg-white text-primary hover:bg-gray-100 shadow-lg hover:shadow-xl transition-all duration-300"
+                    asChild
+                  >
+                    <Link href={session ? '/notes' : '/auth/signup'}>
+                      <Users className="w-5 h-5 mr-2 group-hover:animate-pulse" />
+                      Start Free Trial
+                    </Link>
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-white text-white hover:bg-white/10"
+                    asChild
+                  >
+                    <Link href="/contact">
+                      Contact Sales
+                    </Link>
+                  </Button>
+                </motion.div>
+              </div>
+            </motion.div>
           </div>
         </section>
       </main>
