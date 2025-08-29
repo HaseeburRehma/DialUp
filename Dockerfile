@@ -71,10 +71,10 @@ RUN mkdir -p /etc/asterisk/keys && \
       -keyout /etc/asterisk/keys/privkey.pem \
       -out /etc/asterisk/keys/fullchain.pem \
       -days 365 \
-      -subj "/CN=sip.voiceai.xyz" && \
-    mkdir -p /etc/letsencrypt/live/sip.voiceai.xyz && \
-    cp /etc/asterisk/keys/fullchain.pem /etc/letsencrypt/live/sip.voiceai.xyz/fullchain.pem && \
-    cp /etc/asterisk/keys/privkey.pem /etc/letsencrypt/live/sip.voiceai.xyz/privkey.pem
+      -subj "/CN=voiceai.wordpressstagingsite.com" && \
+    mkdir -p /etc/letsencrypt/live/voiceai.wordpressstagingsite.com && \
+    cp /etc/asterisk/keys/fullchain.pem /etc/letsencrypt/live/voiceai.wordpressstagingsite.com/fullchain.pem && \
+    cp /etc/asterisk/keys/privkey.pem /etc/letsencrypt/live/voiceai.wordpressstagingsite.com/privkey.pem
 
 # Nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
