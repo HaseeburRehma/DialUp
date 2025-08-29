@@ -7,7 +7,7 @@ services:
       - "3000:3000"
       - "4000:4000"
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       NEXT_PUBLIC_SIP_DOMAIN: voiceai.wordpressstagingsite.com
       NEXT_PUBLIC_SIP_WEBSOCKET_URL: wss://voiceai.wordpressstagingsite.com/ws
       NEXT_PUBLIC_SIP_USERNAME: "1001"
@@ -16,7 +16,7 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      - asterisk            # <-- keep only this
+      - asterisk
 
   nginx:
     image: nginx:1.25
@@ -35,12 +35,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./asterisk/config:/etc/asterisk
-      - ./asterisk/config/keys:/etc/asterisk/keys:ro   # fullchain.pem + privkey.pem live here
     ports:
       - "5060:5060/udp"
       - "5060:5060/tcp"
-      - "8089:8089" 
+      - "8089:8089"    # <-- plain WS, nginx will TLS terminate
       - "10000-20000:10000-20000/udp"
     environment:
       - TZ=UTC
-
