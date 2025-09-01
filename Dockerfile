@@ -27,7 +27,7 @@ COPY server ./server
 # ✅ Install prebuilt PyTorch CPU wheel (fast install)
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir --prefer-binary \
-        torch==2.5.1+cpu -f https://download.pytorch.org/whl/torch_stable.html && \
+        torch==2.5.1 -f https://download.pytorch.org/whl/torch_stable.html && \
     pip install --no-cache-dir --prefer-binary openai-whisper && \
     pip install --no-cache-dir --prefer-binary \
         -r server/requirement.txt \
