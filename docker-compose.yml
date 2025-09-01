@@ -1,22 +1,24 @@
 # docker-compose.yml
 
+version: "3.9"
+
 services:
   app:
     build: .
+    command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
     ports:
-      - "3000:3000"
-      - "4000:4000"
+      - "3000:3000"  # Next.js
+      - "4000:4000"  # Whisper backend
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_SIP_DOMAIN: voiceai.wordpressstagingsite.com
       NEXT_PUBLIC_SIP_WEBSOCKET_URL: wss://voiceai.wordpressstagingsite.com/ws
       NEXT_PUBLIC_SIP_USERNAME: "1001"
       NEXT_PUBLIC_SIP_PASSWORD: "supersecret"
-    volumes:
-      - .:/app
-      - /app/node_modules
     depends_on:
       - asterisk
+    networks:
+      - voipnet
 
   nginx:
     image: nginx:1.25
@@ -28,17 +30,25 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certs:/etc/letsencrypt/live/voiceai.wordpressstagingsite.com:ro
+    networks:
+      - voipnet
 
   asterisk:
-    image: andrius/asterisk:18
+    image: dougbtv/asterisk:latest 
     container_name: asterisk
     restart: unless-stopped
     volumes:
       - ./asterisk/config:/etc/asterisk
     ports:
-      - "5060:5060/udp"
+      - "5060:5060/udp"          # SIP
       - "5060:5060/tcp"
-      - "8089:8089"    # <-- plain WS, nginx will TLS terminate
-      - "10000-20000:10000-20000/udp"
+      - "8089:8089"              # WS (internal only, nginx terminates TLS)
+      - "10000-20000:10000-20000/udp" # RTP
     environment:
       - TZ=UTC
+    networks:
+      - voipnet
+
+networks:
+  voipnet:
+    driver: bridge
