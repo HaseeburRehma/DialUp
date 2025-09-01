@@ -78,6 +78,10 @@ RUN mkdir -p /etc/asterisk/keys && \
     cp /etc/asterisk/keys/fullchain.pem /etc/letsencrypt/live/voiceai.wordpressstagingsite.com/fullchain.pem && \
     cp /etc/asterisk/keys/privkey.pem /etc/letsencrypt/live/voiceai.wordpressstagingsite.com/privkey.pem
 
+
+
+RUN mkdir -p /var/log/asterisk
+
 # Nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
