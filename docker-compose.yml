@@ -17,6 +17,7 @@ services:
       - voipnet
 
   asterisk:
+    build: ./etc/asterisk
     image: ghcr.io/haseeb-se/asterisk:20
     container_name: asterisk
     restart: unless-stopped
