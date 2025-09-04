@@ -17,7 +17,7 @@ services:
       - voipnet
 
   asterisk:
-    image: ghcr.io/asterisk/asterisk:20
+    image: ghcr.io/haseeb-se/asterisk:20
     container_name: asterisk
     restart: unless-stopped
     volumes:
