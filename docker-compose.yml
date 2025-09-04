@@ -17,7 +17,7 @@ services:
       - voipnet
 
   asterisk:
-    image: dougbtv/asterisk:18
+    image: dougbtv/asterisk:20
     container_name: asterisk
     restart: unless-stopped
     volumes:
