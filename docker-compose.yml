@@ -21,7 +21,7 @@ services:
     container_name: asterisk
     restart: unless-stopped
     volumes:
-      - ./asterisk/config:/etc/asterisk
+      - ./etc/asterisk/config:/etc/asterisk
     ports:
       - "5060:5060/udp"         # SIP signaling
       - "5060:5060/tcp"
