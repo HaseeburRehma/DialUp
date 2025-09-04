@@ -26,7 +26,8 @@ COPY server ./server
 
 # ✅ Install PyTorch CPU-only wheel (no CUDA, ~200MB instead of 3–8GB)
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir torch==2.5.1  https://download.pytorch.org/whl/cpu/torch_stable.html && \
+    pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
+        --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir --prefer-binary openai-whisper && \
     pip install --no-cache-dir --prefer-binary \
         -r server/requirement.txt \
