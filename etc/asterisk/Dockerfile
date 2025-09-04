@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 
 # Download and compile Asterisk
 WORKDIR /usr/src
-RUN wget http://downloads.asterisk.org/pub/telephony/asterisk/asterisk-${ASTERISK_VERSION}.tar.gz \
+RUN wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz \
     && tar xfz asterisk-${ASTERISK_VERSION}.tar.gz \
     && cd asterisk-${ASTERISK_VERSION} \
     && ./configure --with-jansson-bundled \
@@ -27,6 +27,9 @@ RUN wget http://downloads.asterisk.org/pub/telephony/asterisk/asterisk-${ASTERIS
 # Create asterisk user
 RUN useradd -m ${ASTERISK_USER} \
     && chown -R ${ASTERISK_USER}:${ASTERISK_USER} /var/lib/asterisk /etc/asterisk /var/log/asterisk /var/spool/asterisk /usr/lib/asterisk
+
+RUN mkdir -p /var/run/asterisk && \
+    chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk /var/lib/asterisk /etc/asterisk
 
 # Copy your configs
 COPY config/ /etc/asterisk/
