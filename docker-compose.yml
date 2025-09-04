@@ -5,8 +5,8 @@ services:
     build: .
     command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
     ports:
-      - "3000:3000"  # Next.js + Express
-      - "4000:4000"  # Whisper backend
+      - "3000:3000"
+      - "4000:4000"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_SIP_DOMAIN: voiceai.wordpressstagingsite.com
@@ -17,21 +17,20 @@ services:
       - voipnet
 
   asterisk:
-  image: dougbtv/asterisk:latest
-  container_name: asterisk
-  restart: unless-stopped
-  volumes:
-    - ./asterisk/config:/etc/asterisk
-  ports:
-    - "5060:5060/udp"       # SIP signaling
-    - "5060:5060/tcp"
-    - "8089:8089"           # WS (plain, Nginx terminates TLS)
-    - "10000-10200:10000-10200/udp"   # RTP media (200 ports)
-  environment:
-    - TZ=UTC
-  networks:
-    - voipnet
-
+    image: dougbtv/asterisk:latest
+    container_name: asterisk
+    restart: unless-stopped
+    volumes:
+      - ./asterisk/config:/etc/asterisk
+    ports:
+      - "5060:5060/udp"         # SIP signaling
+      - "5060:5060/tcp"
+      - "8089:8089"             # WS (plain, Nginx terminates TLS)
+      - "10000-10200:10000-10200/udp"   # RTP media (200 ports only!)
+    environment:
+      - TZ=UTC
+    networks:
+      - voipnet
 
 networks:
   voipnet:
