@@ -228,7 +228,7 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
                             rtcConfiguration: {
                                 iceServers: [
                                     { urls: "stun:stun.l.google.com:19302" },
-                                  
+
                                     { urls: "turn:turn.yourdomain.tld:3478", username: "user", credential: "pass" }
                                     // TODO: add a TURN server for reliability
                                     // { urls: "turn:turn.yourdomain.com:3478", username: "...", credential: "..." }
@@ -432,9 +432,8 @@ export const CustomDialerProvider: React.FC<React.PropsWithChildren> = ({ childr
 
             log(`📞 Initiating call to ${cleanNumber}`, "info");
 
-            const targetURI = UserAgent.makeURI(
-                `sip:${cleanNumber}@${process.env.NEXT_PUBLIC_SIP_DOMAIN}`
-            )
+            const sipDomain = runtimeConfig?.domain || process.env.NEXT_PUBLIC_SIP_DOMAIN!;
+            const targetURI = UserAgent.makeURI(`sip:${cleanNumber}@${sipDomain}`);
             if (!targetURI) throw new Error("Invalid target URI");
 
             const inviter = new Inviter(ua, targetURI, {

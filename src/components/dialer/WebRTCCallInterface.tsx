@@ -26,6 +26,7 @@ function normalizeInput(input: string, defaultCountry: string = 'US'): string {
   if (defaultCountry === 'UK' && num.startsWith('0')) return '+44' + num.replace(/^0+/, '')
   if (defaultCountry === 'PK' && num.startsWith('0')) return '+92' + num.replace(/^0+/, '')
   return COUNTRY_CODES[defaultCountry] + num
+  
 }
 
 export function WebRTCCallInterface() {
