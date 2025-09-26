@@ -185,7 +185,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       setIsRecording(true)
       log('🔴 Auto-started recording on call connect', 'info')
     }
-    
+
     if (!isTranscribing) {
       setIsTranscribing(true)
       log('📝 Auto-started transcription on call connect', 'info')
@@ -199,13 +199,13 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       setIsRecording(false)
       log('⏹️ Auto-stopped recording on call end', 'info')
     }
-    
+
     if (isTranscribing) {
       setIsTranscribing(false)
       log('📝 Auto-stopped transcription on call end', 'info')
       await stopTranscriptionService()
     }
-    
+
     // Send email with transcript if available
     if (liveTranscription) {
       await sendAutomaticEmails()
@@ -216,7 +216,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     // Simulate real-time transcription updates
     const updateTranscription = () => {
       if (!isTranscribing) return
-      
+
       // In a real implementation, this would connect to your transcription service
       // For now, we'll simulate periodic updates
       transcriptionTimeoutRef.current = setTimeout(() => {
@@ -237,7 +237,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         }
       }, Math.random() * 5000 + 3000) // Random interval between 3-8 seconds
     }
-    
+
     updateTranscription()
   }
 
@@ -385,14 +385,9 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         log('🔄 Starting Twilio Device initialization...', 'info')
 
         // Wait for Twilio SDK to load
-        let attempts = 0
-        while (!window.Twilio?.Device && attempts < 30) {
-          await new Promise(resolve => setTimeout(resolve, 100))
-          attempts++
-        }
+        if (!Device) {
+          log("❌ Twilio Voice SDK not available", "error")
 
-        if (!window.Twilio?.Device) {
-          log("❌ Twilio SDK failed to load after 3 seconds", "error")
           return
         }
 
@@ -410,6 +405,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         try {
           dev = new Device(token, {
             codecPreferences: ["opus", "pcmu"] as any,
+            edge: "roaming",
             logLevel: 5,
           })
           log('✅ Device object created', 'info')
@@ -421,6 +417,13 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         if (!mounted) return
 
         // 3. Set up event listeners BEFORE registering
+
+        dev.on("registered", () => {
+          if (!mounted) return console.log("✅ Device REGISTERED")
+          log("✅ Device REGISTERED", "info")
+          setIsReady(true) // 👈 use registered, not just ready })
+
+        })
         dev.on("ready", () => {
           if (!mounted) return
           console.log("✅ Device READY")
@@ -599,35 +602,28 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   }, []) // Empty dependency array
 
   // Actions
+  // Actions
   const startCall = async (phoneNumber: string) => {
     if (!device || !isReady) {
       log("❌ Device not ready for calls", "error")
       return
     }
 
-    // Clean and validate phone number
-    let cleanNumber = phoneNumber.replace(/\D/g, "")
-    if (!cleanNumber) {
-      log("❌ Invalid phone number", "error")
+    // ✅ Expect already normalized input from UI
+    let cleanNumber = phoneNumber.trim()
+
+    // ✅ Ensure starts with +
+    if (!cleanNumber.startsWith("+")) {
+      log("❌ Invalid number, must include country code", "error")
       return
     }
 
-    // Add country code if missing
-    if (!phoneNumber.startsWith("+")) {
-      cleanNumber = `+${cleanNumber}`
-    } else {
-      cleanNumber = phoneNumber
-    }
-
     console.log("📞 Attempting call to:", cleanNumber)
-    log(`📞 Calling ${cleanNumber}...`, 'info')
+    log(`📞 Calling ${cleanNumber}...`, "info")
 
     try {
-      const call = await device.connect({
-        params: { To: cleanNumber }
-      })
+      const call = await device.connect({ params: { To: cleanNumber } })
 
-      // Set up call-specific event handlers
       call.on("accept", () => {
         console.log("📲 Call accepted")
         log("📲 Call accepted", "info")
@@ -651,6 +647,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       setIsCalling(false)
     }
   }
+
 
   const hangUp = () => {
     if (currentConnection) {
@@ -748,7 +745,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   const toggleTranscription = () => {
     const newTranscribing = !isTranscribing
     setIsTranscribing(newTranscribing)
-    
+
     if (newTranscribing) {
       log('📝 Live transcription started', 'info')
       startTranscriptionService()

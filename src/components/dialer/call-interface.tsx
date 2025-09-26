@@ -12,20 +12,31 @@ import { ModernDialpad } from './modern-dialpad'
 import { RecordingWaveform } from './recording-waveform'
 import { CallTranscription } from './call-transcription'
 import { useToast } from '@/hooks/use-toast'
+import 'react-phone-number-input/style.css'
+import PhoneInput from 'react-phone-number-input'
 
 // ✅ Local number normalization helper
-function normalizeInput(input: string, defaultCountry: string = 'US'): string {
-  const COUNTRY_CODES: Record<string, string> = {
-    US: '+1', PK: '+92', UK: '+44', IN: '+91', CA: '+1', AU: '+61'
+const COUNTRY_CODES: Record<string, string> = {
+  US: '+1', PK: '+92', UK: '+44', IN: '+91',
+  CA: '+1', AU: '+61', BD: '+880', AE: '+971',
+  DE: '+49', FR: '+33', SA: '+966', NG: '+234',
+  ZA: '+27', PH: '+63', CN: '+86', JP: '+81',
+}
+
+/** ✅ Normalize phone number */
+function normalizeInput(input: string, country: string = 'US'): string {
+  let num = input.replace(/\D/g, '') // strip non-digits
+
+  if (input.startsWith('+')) return input // already valid
+
+  // Special handling for countries with leading 0
+  if ((country === 'UK' || country === 'PK' || country === 'IN') && num.startsWith('0')) {
+    num = num.replace(/^0+/, '')
   }
 
-  let num = input.replace(/\D/g, '')
-  if (input.startsWith('+')) return input
-  if (defaultCountry === 'US' && num.length === 10) return '+1' + num
-  if (defaultCountry === 'UK' && num.startsWith('0')) return '+44' + num.replace(/^0+/, '')
-  if (defaultCountry === 'PK' && num.startsWith('0')) return '+92' + num.replace(/^0+/, '')
-  return COUNTRY_CODES[defaultCountry] + num
+  return (COUNTRY_CODES[country] || '+1') + num
 }
+
 
 export function CallInterface() {
   const {
@@ -38,12 +49,17 @@ export function CallInterface() {
   } = useDialer()
 
   const { toast } = useToast()
-  const [phoneNumber, setPhoneNumber] = useState('')
+
   const [transferNumber, setTransferNumber] = useState('')
   const [showDTMF, setShowDTMF] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
   const [emailRecipient, setEmailRecipient] = useState('')
   const [isSendingEmail, setIsSendingEmail] = useState(false)
+
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [countryCode, setCountryCode] = useState('US') // default country
+
+
 
   const formatTime = (seconds: number) =>
     `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`
@@ -64,7 +80,7 @@ export function CallInterface() {
   }
 
   const handleCall = async () => {
-    const normalizedNumber = normalizeInput(phoneNumber)
+    const normalizedNumber = normalizeInput(phoneNumber, countryCode)
     await startCall(normalizedNumber)
   }
 
@@ -121,8 +137,8 @@ export function CallInterface() {
               <div className="flex items-center space-x-4">
                 <Badge
                   variant={isReady ? "default" : "secondary"}
-                  className={isReady 
-                    ? 'bg-green-500/20 text-green-300 border-green-500/30 px-4 py-1' 
+                  className={isReady
+                    ? 'bg-green-500/20 text-green-300 border-green-500/30 px-4 py-1'
                     : 'bg-gray-500/20 text-gray-300 px-4 py-1'
                   }
                 >
@@ -144,34 +160,48 @@ export function CallInterface() {
                   <span className="text-white font-mono text-xl font-semibold">{formatTime(callSeconds)}</span>
                 </div>
               )}
-            </div>
 
+
+            </div>
+            <select
+              value={countryCode}
+              onChange={(e) => setCountryCode(e.target.value)}
+              className="border p-2 rounded bg-slate-800 text-white mb-3"
+            >
+              {Object.entries(COUNTRY_CODES).map(([code, prefix]) => (
+                <option key={code} value={code}>
+                  {prefix} ({code})
+                </option>
+              ))}
+            </select>
             {/* --- Phone Input --- */}
             <div className="space-y-4">
-              <Input
-                type="tel"
-                placeholder="+1 (555) 123-4567"
+              <PhoneInput
+                placeholder="Enter phone number"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                disabled={isCalling}
-                className="text-center text-2xl h-16 bg-slate-800/50 border-slate-600 text-white placeholder-slate-400 font-mono"
+                onChange={(value) => setPhoneNumber(value || "")}
+                defaultCountry="US"
+                international
+                countryCallingCodeEditable={false}
+                className="text-center text-2xl h-16 bg-slate-800/50 border border-slate-600 text-white placeholder-slate-400 font-mono rounded-lg px-4"
               />
+
 
               {/* --- Call Button --- */}
               <div className="flex justify-center">
                 {!isCalling ? (
                   <Button
                     onClick={handleCall}
-                    disabled={!isReady || !phoneNumber.trim()}
+                    disabled={!isReady || !phoneNumber}
                     size="lg"
                     className="w-20 h-20 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-2xl transform hover:scale-105 transition-all"
                   >
                     <Phone className="h-8 w-8" />
                   </Button>
                 ) : (
-                  <Button 
+                  <Button
                     onClick={hangUp}
-                    size="lg" 
+                    size="lg"
                     className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-2xl transform hover:scale-105 transition-all"
                   >
                     <PhoneOff className="h-8 w-8" />
@@ -183,7 +213,7 @@ export function CallInterface() {
         </Card>
 
         {/* --- Modern Dialpad --- */}
-        <ModernDialpad 
+        <ModernDialpad
           onPress={handleDialpadPress}
           disabled={false}
           showDTMF={isCalling}
@@ -191,7 +221,7 @@ export function CallInterface() {
 
         {/* --- Recording Waveform --- */}
         {(isRecording || isTranscribing) && (
-          <RecordingWaveform 
+          <RecordingWaveform
             isRecording={isRecording}
             isTranscribing={isTranscribing}
             callSeconds={callSeconds}
@@ -205,52 +235,52 @@ export function CallInterface() {
           <Card className="bg-slate-900 border-slate-700 shadow-xl">
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Call Controls</h3>
-              
+
               {/* --- Primary Controls --- */}
               <div className="grid grid-cols-2 gap-3 mb-6">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={toggleMute}
-                  className={`h-14 ${isMuted 
-                    ? 'bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30' 
+                  className={`h-14 ${isMuted
+                    ? 'bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30'
                     : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                  }`}
+                    }`}
                 >
                   {isMuted ? <MicOff className="h-5 w-5 mb-1" /> : <Mic className="h-5 w-5 mb-1" />}
                   <span className="text-xs">{isMuted ? 'Unmute' : 'Mute'}</span>
                 </Button>
 
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={toggleSpeaker}
-                  className={`h-14 ${isSpeakerOn 
-                    ? 'bg-blue-500/20 border-blue-500/30 text-blue-300 hover:bg-blue-500/30' 
+                  className={`h-14 ${isSpeakerOn
+                    ? 'bg-blue-500/20 border-blue-500/30 text-blue-300 hover:bg-blue-500/30'
                     : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                  }`}
+                    }`}
                 >
                   {isSpeakerOn ? <Speaker className="h-5 w-5 mb-1" /> : <SpeakerX className="h-5 w-5 mb-1" />}
                   <span className="text-xs">{isSpeakerOn ? 'Speaker' : 'Handset'}</span>
                 </Button>
 
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={toggleHold}
-                  className={`h-14 ${isOnHold 
-                    ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30' 
+                  className={`h-14 ${isOnHold
+                    ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30'
                     : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                  }`}
+                    }`}
                 >
                   {isOnHold ? <Play className="h-5 w-5 mb-1" /> : <Pause className="h-5 w-5 mb-1" />}
                   <span className="text-xs">{isOnHold ? 'Resume' : 'Hold'}</span>
                 </Button>
 
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={toggleRecording}
-                  className={`h-14 ${isRecording 
-                    ? 'bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30' 
+                  className={`h-14 ${isRecording
+                    ? 'bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30'
                     : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                  }`}
+                    }`}
                 >
                   {isRecording ? <Square className="h-5 w-5 mb-1" /> : <Circle className="h-5 w-5 mb-1" />}
                   <span className="text-xs">{isRecording ? 'Stop Rec' : 'Record'}</span>
@@ -290,8 +320,8 @@ export function CallInterface() {
 
               {/* --- Additional Controls --- */}
               <div className="mt-6 space-y-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setShowDTMF(!showDTMF)}
                   className="w-full bg-slate-800 border-slate-600 text-white hover:bg-slate-700"
                 >
@@ -299,13 +329,13 @@ export function CallInterface() {
                   DTMF Pad
                 </Button>
 
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={toggleTranscription}
-                  className={`w-full ${isTranscribing 
-                    ? 'bg-blue-500/20 border-blue-500/30 text-blue-300' 
+                  className={`w-full ${isTranscribing
+                    ? 'bg-blue-500/20 border-blue-500/30 text-blue-300'
                     : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                  }`}
+                    }`}
                 >
                   <MessageSquare className="h-4 w-4 mr-2" />
                   {isTranscribing ? 'Stop Transcript' : 'Start Transcript'}
@@ -325,7 +355,7 @@ export function CallInterface() {
               placeholder="Add notes about this call..."
               className="w-full h-32 bg-slate-800 border border-slate-600 rounded-lg p-3 text-white placeholder-slate-400 resize-none"
             />
-            
+
             {/* --- Email Section --- */}
             {liveTranscription && (
               <div className="mt-4 pt-4 border-t border-slate-600">
@@ -337,7 +367,7 @@ export function CallInterface() {
                     onChange={(e) => setEmailRecipient(e.target.value)}
                     className="flex-1 bg-slate-800 border-slate-600 text-white placeholder-slate-400"
                   />
-                  <Button 
+                  <Button
                     onClick={sendEmailTranscript}
                     disabled={!emailRecipient || !liveTranscription || isSendingEmail}
                     size="sm"
@@ -358,7 +388,7 @@ export function CallInterface() {
 
       {/* --- Transcription Panel --- */}
       <div className="space-y-6">
-        <CallTranscription 
+        <CallTranscription
           isTranscribing={isTranscribing}
           transcript={liveTranscription}
           callDuration={formatTime(callSeconds)}
@@ -379,11 +409,10 @@ export function CallInterface() {
                       {entry.type === 'error' && <AlertCircle className="h-3 w-3 text-red-400 mt-0.5 flex-shrink-0" />}
                       {entry.type === 'warning' && <AlertCircle className="h-3 w-3 text-yellow-400 mt-0.5 flex-shrink-0" />}
                       {entry.type === 'info' && <Info className="h-3 w-3 text-blue-400 mt-0.5 flex-shrink-0" />}
-                      <span className={`${
-                        entry.type === 'error' ? 'text-red-400' :
+                      <span className={`${entry.type === 'error' ? 'text-red-400' :
                         entry.type === 'warning' ? 'text-yellow-400' :
-                        'text-slate-300'
-                      } leading-tight`}>
+                          'text-slate-300'
+                        } leading-tight`}>
                         {entry.message}
                       </span>
                     </div>
