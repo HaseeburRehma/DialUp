@@ -229,7 +229,7 @@ export function useOptimizedWhisperLive(
 
     // ✅ FIXED: Always use the Express proxy endpoint
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const wsUrl = `${protocol}://${window.location.host}/ws`
+    const wsUrl = process.env.NEXT_PUBLIC_WHISPER_WS!
 
     console.log("[OptimizedWhisperLive] Connecting to WebSocket:", wsUrl);
 

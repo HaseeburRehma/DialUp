@@ -1,5 +1,4 @@
-
-// src/app/api/twilio-token/route.ts
+// src/app/api/test-token/route.ts
 import { NextResponse } from "next/server";
 import twilio from "twilio";
 
@@ -16,21 +15,19 @@ export async function GET() {
 
   const token = new AccessToken(
     TWILIO_ACCOUNT_SID!,
-    TWILIO_API_KEY_SID!,     // ✅ match env name
-    TWILIO_API_KEY_SECRET!,  // ✅ match env name
-    { identity: "web_dialer_user" }
+    TWILIO_API_KEY_SID!,
+    TWILIO_API_KEY_SECRET!,
+    { identity: "test_client" }
   );
 
-  token.addGrant(
-    new VoiceGrant({
-      outgoingApplicationSid: TWILIO_TWIML_APP_SID!, // ✅ correct var
-      incomingAllow: true,
-    })
-  );
+  token.addGrant(new VoiceGrant({
+    outgoingApplicationSid: TWILIO_TWIML_APP_SID!,
+    incomingAllow: true,
+  }));
 
   return NextResponse.json({
     token: token.toJwt(),
-    identity: "web_dialer_user",
+    identity: "test_client",
   });
 }
 

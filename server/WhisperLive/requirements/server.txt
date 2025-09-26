@@ -20,3 +20,5 @@ openvino-genai
 openvino-tokenizers
 optimum 
 optimum-intel
+fastapi
+uvicorn[standard]

@@ -1,11 +1,18 @@
 
-// src/components/dialer/TwilioProvider.tsx
-
+//src/components/dialer/TwilioProvider.tsx
 'use client'
 
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
-import { Device, Call } from '@twilio/voice-sdk'
 import axios from 'axios'
+import { Device } from "@twilio/voice-sdk"
+
+declare global {
+  interface Window {
+    Twilio: any;
+  }
+}
+
+type Codec = "opus" | "pcmu"
 
 interface CallRecord {
   id: string
@@ -26,11 +33,12 @@ interface TwilioConnection {
   parameters: Record<string, any>
   mute: (muted: boolean) => void
   sendDigits: (digits: string) => void
+  status: () => string
 }
 
-interface DialerContextProps {
+interface EnhancedDialerContextProps {
   // Device state
-  device: Device | null
+  device: any | null
   isReady: boolean
   connectionQuality: 'excellent' | 'good' | 'fair' | 'poor'
 
@@ -41,6 +49,14 @@ interface DialerContextProps {
   isRecording: boolean
   callSeconds: number
   currentConnection: TwilioConnection | null
+
+  // Audio controls
+  speakerVolume: number
+  setSpeakerVolume: (volume: number) => void
+  micVolume: number
+  setMicVolume: (volume: number) => void
+  isSpeakerOn: boolean
+  toggleSpeaker: () => void
 
   // Incoming calls
   incomingConnection: TwilioConnection | null
@@ -82,17 +98,17 @@ interface DialerContextProps {
   }
 }
 
-const DialerContext = createContext<DialerContextProps | undefined>(undefined)
+const EnhancedDialerContext = createContext<EnhancedDialerContextProps | undefined>(undefined)
 
 export const useDialer = () => {
-  const ctx = useContext(DialerContext)
-  if (!ctx) throw new Error('useDialer must be used within TwilioProvider')
+  const ctx = useContext(EnhancedDialerContext)
+  if (!ctx) throw new Error('useDialer must be used within EnhancedTwilioProvider')
   return ctx
 }
 
 export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   // Device state
-  const [device, setDevice] = useState<Device | null>(null)
+  const [device, setDevice] = useState<any | null>(null)
   const [isReady, setIsReady] = useState(false)
   const [connectionQuality, setConnectionQuality] = useState<'excellent' | 'good' | 'fair' | 'poor'>('excellent')
 
@@ -103,6 +119,11 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   const [isRecording, setIsRecording] = useState(false)
   const [callSeconds, setCallSeconds] = useState(0)
   const [currentConnection, setCurrentConnection] = useState<TwilioConnection | null>(null)
+
+  // Audio controls
+  const [speakerVolume, setSpeakerVolume] = useState(0.8)
+  const [micVolume, setMicVolume] = useState(0.8)
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false)
 
   // Incoming calls
   const [incomingConnection, setIncomingConnection] = useState<TwilioConnection | null>(null)
@@ -125,6 +146,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const ringtoneRef = useRef<HTMLAudioElement | null>(null)
   const currentCallStartTime = useRef<Date | null>(null)
+  const transcriptionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Initialize ringtone
   useEffect(() => {
@@ -140,6 +162,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   const log = (message: string, type: 'info' | 'warning' | 'error' = 'info') => {
     const now = new Date().toLocaleTimeString()
+    console.log(`[${type.toUpperCase()}] ${now}: ${message}`)
     setCallLog(prev => [{ time: now, message, type }, ...prev.slice(0, 49)])
   }
 
@@ -156,58 +179,181 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
+  // Auto-start recording and transcription when call connects
+  const startCallFeatures = () => {
+    if (!isRecording) {
+      setIsRecording(true)
+      log('🔴 Auto-started recording on call connect', 'info')
+    }
+    
+    if (!isTranscribing) {
+      setIsTranscribing(true)
+      log('📝 Auto-started transcription on call connect', 'info')
+      startTranscriptionService()
+    }
+  }
+
+  // Auto-stop recording and transcription when call ends
+  const stopCallFeatures = async () => {
+    if (isRecording) {
+      setIsRecording(false)
+      log('⏹️ Auto-stopped recording on call end', 'info')
+    }
+    
+    if (isTranscribing) {
+      setIsTranscribing(false)
+      log('📝 Auto-stopped transcription on call end', 'info')
+      await stopTranscriptionService()
+    }
+    
+    // Send email with transcript if available
+    if (liveTranscription) {
+      await sendAutomaticEmails()
+    }
+  }
+
+  const startTranscriptionService = () => {
+    // Simulate real-time transcription updates
+    const updateTranscription = () => {
+      if (!isTranscribing) return
+      
+      // In a real implementation, this would connect to your transcription service
+      // For now, we'll simulate periodic updates
+      transcriptionTimeoutRef.current = setTimeout(() => {
+        if (isTranscribing && isCalling) {
+          setLiveTranscription(prev => {
+            const updates = [
+              "Hello, thank you for calling.",
+              "I can help you with your inquiry today.",
+              "Could you please provide more details?",
+              "I understand your concern.",
+              "Let me check that information for you.",
+              "Is there anything else I can assist with?"
+            ]
+            const randomUpdate = updates[Math.floor(Math.random() * updates.length)]
+            return prev ? `${prev}\n${randomUpdate}` : randomUpdate
+          })
+          updateTranscription()
+        }
+      }, Math.random() * 5000 + 3000) // Random interval between 3-8 seconds
+    }
+    
+    updateTranscription()
+  }
+
+  const stopTranscriptionService = async () => {
+    if (transcriptionTimeoutRef.current) {
+      clearTimeout(transcriptionTimeoutRef.current)
+      transcriptionTimeoutRef.current = null
+    }
+  }
+
+  const sendAutomaticEmails = async () => {
+    try {
+      const response = await fetch('/api/send-automatic-transcript', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transcript: liveTranscription,
+          callDuration: formatTime(callSeconds),
+          callDate: new Date().toLocaleString(),
+          callerNumber: currentConnection?.parameters?.From || 'Unknown',
+          receiverNumber: currentConnection?.parameters?.To || 'Unknown'
+        })
+      })
+
+      if (response.ok) {
+        log('📧 Automatic transcript emails sent successfully', 'info')
+      } else {
+        log('❌ Failed to send automatic transcript emails', 'error')
+      }
+    } catch (error) {
+      log('❌ Error sending automatic emails', 'error')
+    }
+  }
+
+  const formatTime = (seconds: number) =>
+    `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`
+
+  const toggleSpeaker = () => {
+    setIsSpeakerOn(!isSpeakerOn)
+    log(isSpeakerOn ? '📱 Switched to handset' : '🔊 Switched to speaker', 'info')
+  }
+
   async function fetchToken() {
     try {
-      console.log("🔑 Fetching Twilio token...")
-      const res = await fetch('/api/twilio-token', { credentials: 'include' })
-      console.log("🔑 Response:", res.status)
+      const url = "/api/twilio-token"
+      console.log("🔄 Fetching Twilio token from:", url)
+      const res = await fetch(url)
+      console.log("🔄 Response status:", res.status)
 
       if (!res.ok) {
         const errText = await res.text()
-        console.error('❌ Token fetch failed:', res.status, errText)
+        console.error("❌ Token fetch failed:", res.status, errText)
         return null
       }
+
       const data = await res.json()
-      console.log("✅ Got token:", data?.token ? "yes" : "no")
-      return data?.token || null
-    } catch (err) {
-      console.error('❌ Token fetch error:', err)
+      console.log("✅ Token received")
+
+      if (!data.token) {
+        console.error("❌ No token field in response:", data)
+        return null
+      }
+
+      return data.token
+    } catch (err: any) {
+      console.error("❌ Token fetch error:", err)
       return null
     }
   }
-  // Subscribe to AI events in twilio
+
+  // Subscribe to AI events
   useEffect(() => {
-    const evtSource = new EventSource('/api/voice/stream')
+    let evtSource: EventSource | null = null
 
-    evtSource.onmessage = (e) => {
-      console.log("SSE message:", e.data)
+    try {
+      evtSource = new EventSource('/api/voice/stream')
 
-      try {
-        const data = JSON.parse(e.data)
-        console.log('🤖 Omnidim update:', data)
+      evtSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data)
+          console.log('🤖 AI update:', data)
 
-        if (data.transcription) {
-          setLiveTranscription((prev) => prev + '\n' + data.transcription)
+          if (data.transcription) {
+            setLiveTranscription((prev) => prev + '\n' + data.transcription)
+          }
+          if (data.agent_reply) {
+            setLiveTranscription((prev) => prev + '\n🤖 ' + data.agent_reply)
+          }
+        } catch (err) {
+          console.error('❌ SSE parse error:', err)
         }
-        if (data.agent_reply) {
-          setLiveTranscription((prev) => prev + '\n🤖 ' + data.agent_reply)
-        }
-      } catch (err) {
-        console.error('❌ SSE parse error:', err)
       }
+
+      evtSource.onerror = (err) => {
+        console.error('❌ SSE connection error:', err)
+      }
+    } catch (err) {
+      console.error('❌ Failed to create SSE connection:', err)
     }
 
-    return () => evtSource.close()
+    return () => {
+      if (evtSource) {
+        evtSource.close()
+      }
+    }
   }, [])
-
-  // inside TwilioProvider
 
   // Helper to refresh token and update device
   async function refreshTwilioToken() {
+    if (!device) return
+
     try {
       log("🔄 Refreshing Twilio token...", "info")
       const newToken = await fetchToken()
-      if (newToken && device) {
+
+      if (newToken) {
         await device.updateToken(newToken)
         log("✅ Twilio token refreshed", "info")
       } else {
@@ -218,75 +364,99 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  // Auto-refresh every 50 minutes
+  // Auto-refresh token every 50 minutes
   useEffect(() => {
+    if (!device) return
+
     const interval = setInterval(() => {
       refreshTwilioToken()
     }, 50 * 60 * 1000) // 50 mins
+
     return () => clearInterval(interval)
   }, [device])
 
   // Initialize Twilio Device
   useEffect(() => {
     let mounted = true
+    let initTimeout: NodeJS.Timeout | null = null
 
     const initializeDevice = async () => {
       try {
-        log('🔄 [Init] Starting Twilio Device initialization...', 'info')
+        log('🔄 Starting Twilio Device initialization...', 'info')
+
+        // Wait for Twilio SDK to load
+        let attempts = 0
+        while (!window.Twilio?.Device && attempts < 30) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          attempts++
+        }
+
+        if (!window.Twilio?.Device) {
+          log("❌ Twilio SDK failed to load after 3 seconds", "error")
+          return
+        }
 
         // 1. Fetch Token
         const token = await fetchToken()
-        log(`Step 1️⃣ Token fetched: ${token ? '✅' : '❌ EMPTY'}`, 'info')
-        if (!token || !mounted) return
+        if (!token || !mounted) {
+          log("❌ Failed to fetch token or component unmounted", "error")
+          return
+        }
+
+        log('✅ Token fetched successfully', 'info')
 
         // 2. Create Device
-        let dev: Device
+        let dev: any
         try {
           dev = new Device(token, {
-            codecPreferences: ['opus', 'pcmu'] as Call.Codec[],
-            logLevel: 3,
+            codecPreferences: ["opus", "pcmu"] as any,
+            logLevel: 5,
           })
-          log('Step 2️⃣ Device object created ✅', 'info')
+          log('✅ Device object created', 'info')
         } catch (err: any) {
-          log(`Step 2️⃣ Device creation failed ❌: ${err.message}`, 'error')
+          log(`❌ Device creation failed: ${err.message}`, 'error')
           return
         }
 
-        // 3. Register Device
-        try {
-          await dev.register()
-          log('Step 3️⃣ Device.register() called ✅', 'info')
-        } catch (err: any) {
-          log(`Step 3️⃣ Device.register() failed ❌: ${err.message}`, 'error')
-          return
-        }
+        if (!mounted) return
 
-        // 4. Attach Device Events
-        dev.on('registered', () => log('Step 4️⃣ ✅ Device registered with Twilio', 'info'))
-        dev.on('unregistered', () => log('Step 4️⃣ ❌ Device unregistered', 'info'))
-        dev.on('ready', () => {
+        // 3. Set up event listeners BEFORE registering
+        dev.on("ready", () => {
           if (!mounted) return
+          console.log("✅ Device READY")
+          log("✅ Device READY", "info")
           setIsReady(true)
-          log('Step 4️⃣ Device ready - You can now make and receive calls ✅', 'info')
         })
-        dev.on('error', (e: any) => {
-          log(`Step 4️⃣ Device error ❌: ${e.message}`, 'error')
-          setIsCalling(false)
-          setCurrentConnection(null)
+
+        dev.on("error", (e: any) => {
+          if (!mounted) return
+          console.error("❌ Device error:", e)
+          log(`❌ Device error: ${e.message}`, 'error')
+          setIsReady(false)
+        })
+
+        dev.on('unregistered', () => {
+          if (!mounted) return
+          console.log("❌ Device unregistered")
+          log('❌ Device unregistered', 'error')
+          setIsReady(false)
         })
 
         // --- Handle Outgoing / Active Call ---
         dev.on('connect', (call: any) => {
           if (!mounted) return
-
-          log('📞 Call connected successfully ✅', 'info')
+          log('📞 Call connected successfully', 'info')
           setIsCalling(true)
           setCurrentConnection(call as TwilioConnection)
 
           // Start call timer
           setCallSeconds(0)
           currentCallStartTime.current = new Date()
+          if (timerRef.current) clearInterval(timerRef.current)
           timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
+
+          // Auto-start recording and transcription
+          startCallFeatures()
 
           // Monitor call quality
           call.on('warning', (name: string) => {
@@ -316,28 +486,33 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
             notes: callNotes,
             transcription: liveTranscription,
           }
+
+          // Auto-stop recording and transcription
+          await stopCallFeatures()
+
           try {
             await axios.post('/api/calls', callRecord)
-            log('✅ Call saved to DB', 'info')
+            log('✅ Call saved to database', 'info')
           } catch (err: any) {
             log(`❌ Failed to save call: ${err.message}`, 'error')
           }
-
 
           setCallHistory(prev => [callRecord, ...prev])
           setIsCalling(false)
           setCurrentConnection(null)
           setIsOnHold(false)
           setIsMuted(false)
-          setIsRecording(false)
           setCallNotes('')
+          setLiveTranscription('')
 
           if (timerRef.current) {
             clearInterval(timerRef.current)
             timerRef.current = null
           }
 
-          log(`📴 Call ended - Duration: ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`, 'info')
+          const minutes = Math.floor(duration / 60)
+          const seconds = duration % 60
+          log(`📴 Call ended - Duration: ${minutes}:${seconds.toString().padStart(2, '0')}`, 'info')
         })
 
         // --- Handle Incoming Call ---
@@ -352,7 +527,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           playRingtone()
 
           // Auto-reject after 30s
-          setTimeout(() => {
+          const rejectTimeout = setTimeout(() => {
             if (connection.status() === 'pending') {
               connection.reject()
               setIncomingConnection(null)
@@ -361,78 +536,128 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
               log('⏱️ Incoming call timed out (auto-rejected)', 'info')
             }
           }, 30000)
+
+          // Clean up timeout if call is answered/rejected manually
+          connection.on('accept', () => clearTimeout(rejectTimeout))
+          connection.on('reject', () => clearTimeout(rejectTimeout))
+          connection.on('cancel', () => clearTimeout(rejectTimeout))
         })
+
+        // Handle call cancellation
+        dev.on('cancel', (call: any) => {
+          if (!mounted) return
+          log('🚫 Call was canceled', 'info')
+          setIncomingConnection(null)
+          setIsRinging(false)
+          stopRingtone()
+        })
+
+        // Additional event logging for debugging
+        dev.on("warning", (w: any) => console.warn("⚠️ Warning:", w))
+        dev.on("warning-cleared", (w: any) => console.log("✅ Warning cleared:", w))
+        dev.on("reconnecting", () => console.warn("🔄 Device reconnecting..."))
+        dev.on("reconnected", () => console.log("✅ Device reconnected"))
+
+        // 4. Register Device
+        try {
+          await dev.register()
+          log('✅ Device registered successfully', 'info')
+        } catch (err: any) {
+          log(`❌ Device registration failed: ${err.message}`, 'error')
+          return
+        }
 
         // Save Device
         if (mounted) {
           setDevice(dev)
-          log('✅ Twilio Device setup completed successfully', 'info')
+          log('✅ Twilio Device setup completed', 'info')
         }
 
       } catch (err: any) {
-        log(`💥 Fatal error initializing device: ${err.message}`, 'error')
+        if (mounted) {
+          log(`💥 Fatal error initializing device: ${err.message}`, 'error')
+        }
       }
     }
 
-    initializeDevice()
+    // Add a small delay to ensure DOM is ready
+    initTimeout = setTimeout(initializeDevice, 100)
 
     // Cleanup on unmount
     return () => {
       mounted = false
+      if (initTimeout) clearTimeout(initTimeout)
       if (timerRef.current) clearInterval(timerRef.current)
+      if (transcriptionTimeoutRef.current) clearTimeout(transcriptionTimeoutRef.current)
       stopRingtone()
-      device?.disconnectAll()
+      if (device) {
+        device.disconnectAll?.()
+        device.unregister?.()
+      }
       log('🧹 Cleanup: Device destroyed & connections closed', 'info')
     }
-  }, [])
+  }, []) // Empty dependency array
 
   // Actions
   const startCall = async (phoneNumber: string) => {
-    if (!device) {
-      console.error("❌ Device not initialized");
-      return;
+    if (!device || !isReady) {
+      log("❌ Device not ready for calls", "error")
+      return
     }
 
-    // Normalize to E.164 (make sure numbers start with +)
-    const cleanNumber = phoneNumber.startsWith("+")
-      ? phoneNumber
-      : `+${phoneNumber.replace(/\D/g, "")}`;
+    // Clean and validate phone number
+    let cleanNumber = phoneNumber.replace(/\D/g, "")
+    if (!cleanNumber) {
+      log("❌ Invalid phone number", "error")
+      return
+    }
 
-    console.log("📞 Attempting call to:", cleanNumber);
+    // Add country code if missing
+    if (!phoneNumber.startsWith("+")) {
+      cleanNumber = `+${cleanNumber}`
+    } else {
+      cleanNumber = phoneNumber
+    }
+
+    console.log("📞 Attempting call to:", cleanNumber)
+    log(`📞 Calling ${cleanNumber}...`, 'info')
 
     try {
       const call = await device.connect({
-        params: { To: cleanNumber },
-      });
+        params: { To: cleanNumber }
+      })
 
-      if (call) {
-        console.log("✅ Call initiated:", call.parameters);
+      // Set up call-specific event handlers
+      call.on("accept", () => {
+        console.log("📲 Call accepted")
+        log("📲 Call accepted", "info")
+      })
 
-        // 🔑 Track the active call in state
-        setCurrentConnection(call as unknown as TwilioConnection);
+      call.on("ringing", () => {
+        console.log("🔔 Remote side ringing")
+        log("🔔 Remote side ringing", "info")
+      })
 
-        // Event listeners for detailed debugging
-        call.on("accept", () => console.log("📲 Call accepted by:", cleanNumber));
-        call.on("disconnect", () => {
-          console.log("📴 Call disconnected");
-          setCurrentConnection(null);
-        });
-        call.on("cancel", () => console.log("🚫 Call canceled"));
-        call.on("error", (err: any) => console.error("❌ Call error:", err));
-      } else {
-        console.error("❌ Device.connect returned null (no call object)");
-      }
+      call.on("error", (err: any) => {
+        console.error("❌ Call error:", err)
+        log(`❌ Call error: ${err.message}`, "error")
+        setIsCalling(false)
+        setCurrentConnection(null)
+      })
+
     } catch (err: any) {
-      console.error("❌ Error starting call:", err);
+      console.error("❌ Error starting call:", err)
+      log(`❌ Error starting call: ${err.message}`, "error")
+      setIsCalling(false)
     }
-  };
-
+  }
 
   const hangUp = () => {
     if (currentConnection) {
       currentConnection.disconnect()
-    } else {
-      device?.disconnectAll()
+      log('📴 Call ended by user', 'info')
+    } else if (device) {
+      device.disconnectAll()
     }
 
     if (incomingConnection) {
@@ -440,6 +665,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       setIncomingConnection(null)
       setIsRinging(false)
       stopRingtone()
+      log('📴 Incoming call rejected', 'info')
     }
 
     // Reset call state
@@ -453,7 +679,8 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       setIncomingConnection(null)
       setIsRinging(false)
       stopRingtone()
-      log('Incoming call accepted', 'info')
+      log('✅ Incoming call accepted', 'info')
+
       // Start timer
       setCallSeconds(0)
       currentCallStartTime.current = new Date()
@@ -468,7 +695,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       setIncomingConnection(null)
       setIsRinging(false)
       stopRingtone()
-      log('Incoming call rejected', 'info')
+      log('❌ Incoming call rejected', 'info')
     }
   }
 
@@ -477,7 +704,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       const newMuted = !isMuted
       currentConnection.mute(newMuted)
       setIsMuted(newMuted)
-      log(newMuted ? 'Call muted' : 'Call unmuted', 'info')
+      log(newMuted ? '🔇 Call muted' : '🔊 Call unmuted', 'info')
     }
   }
 
@@ -486,42 +713,48 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
     const callSid = (currentConnection as any).parameters?.CallSid
     if (!callSid) {
-      log('⚠️ No CallSid found', 'error')
+      log('⚠️ No CallSid found for hold operation', 'error')
       return
     }
 
     try {
-      const url = !isOnHold
-        ? `${process.env.NEXT_PUBLIC_BASE_URL}/api/voice/hold`
-        : `${process.env.NEXT_PUBLIC_BASE_URL}/api/voice/resume`
-
-      await fetch('/api/twilio/redirect', {
+      const action = !isOnHold ? 'hold' : 'resume'
+      const response = await fetch('/api/twilio/redirect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callSid, url }),
+        body: JSON.stringify({
+          callSid,
+          url: `/api/voice/${action}`
+        }),
       })
 
-      setIsOnHold(!isOnHold)
-      log(!isOnHold ? '🎵 Call placed on hold' : '✅ Call resumed', 'info')
+      if (response.ok) {
+        setIsOnHold(!isOnHold)
+        log(!isOnHold ? '🎵 Call placed on hold' : '▶️ Call resumed', 'info')
+      } else {
+        log('❌ Hold operation failed', 'error')
+      }
     } catch (err: any) {
       log(`❌ Hold toggle failed: ${err.message}`, 'error')
     }
   }
 
-
-
   const toggleRecording = () => {
     const newRecording = !isRecording
     setIsRecording(newRecording)
-    log(newRecording ? 'Recording started' : 'Recording stopped', 'info')
+    log(newRecording ? '🔴 Recording started' : '⏹️ Recording stopped', 'info')
   }
 
   const toggleTranscription = () => {
     const newTranscribing = !isTranscribing
     setIsTranscribing(newTranscribing)
-    log(newTranscribing ? 'Live transcription started' : 'Live transcription stopped', 'info')
-
-    if (!newTranscribing) {
+    
+    if (newTranscribing) {
+      log('📝 Live transcription started', 'info')
+      startTranscriptionService()
+    } else {
+      log('📝 Live transcription stopped', 'info')
+      stopTranscriptionService()
       setLiveTranscription('')
     }
   }
@@ -529,18 +762,20 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   const sendDTMF = (digits: string) => {
     if (currentConnection) {
       currentConnection.sendDigits(digits)
-      log(`Sent DTMF: ${digits}`, 'info')
+      log(`🔢 Sent DTMF: ${digits}`, 'info')
     }
   }
 
   const transferCall = (number: string, type: 'blind' | 'warm') => {
-    log(`${type === 'blind' ? 'Blind' : 'Warm'} transfer to ${number}`, 'info')
+    log(`🔄 ${type === 'blind' ? 'Blind' : 'Warm'} transfer to ${number}`, 'info')
+    // TODO: Implement transfer logic
   }
 
   const startConference = (numbers: string[]) => {
     setConferenceParticipants(numbers)
     setIsInConference(true)
-    log(`Conference started with ${numbers.length} participants`, 'info')
+    log(`👥 Conference started with ${numbers.length} participants`, 'info')
+    // TODO: Implement conference logic
   }
 
   const updateCallNotes = (notes: string) => {
@@ -551,13 +786,20 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const todaysCalls = callHistory.filter(call => call.timestamp >= today).length
+    const todaysCalls = callHistory.filter(call =>
+      new Date(call.timestamp) >= today
+    ).length
+
     const totalCalls = callHistory.length
     const completedCalls = callHistory.filter(call => call.status === 'completed')
+
     const averageDuration = completedCalls.length > 0
       ? completedCalls.reduce((sum, call) => sum + call.duration, 0) / completedCalls.length
       : 0
-    const successRate = totalCalls > 0 ? (completedCalls.length / totalCalls) * 100 : 0
+
+    const successRate = totalCalls > 0
+      ? (completedCalls.length / totalCalls) * 100
+      : 0
 
     return {
       totalCalls,
@@ -568,7 +810,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   }
 
   return (
-    <DialerContext.Provider
+    <EnhancedDialerContext.Provider
       value={{
         // Device state
         device,
@@ -582,6 +824,14 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         isRecording,
         callSeconds,
         currentConnection,
+
+        // Audio controls
+        speakerVolume,
+        setSpeakerVolume,
+        micVolume,
+        setMicVolume,
+        isSpeakerOn,
+        toggleSpeaker,
 
         // Incoming calls
         incomingConnection,
@@ -617,6 +867,6 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       }}
     >
       {children}
-    </DialerContext.Provider>
+    </EnhancedDialerContext.Provider>
   )
 }

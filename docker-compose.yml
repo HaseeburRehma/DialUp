@@ -5,33 +5,65 @@ services:
     build: .
     command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
     ports:
-      - "3000:3000"
-      - "4000:4000"
+      - "3000:3000"   # Next.js
+    env_file:
+      - .env
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_SIP_DOMAIN: voiceai.wordpressstagingsite.com
-      NEXT_PUBLIC_SIP_WEBSOCKET_URL: wss://voiceai.wordpressstagingsite.com/ws
-      NEXT_PUBLIC_SIP_USERNAME: "1001"
-      NEXT_PUBLIC_SIP_PASSWORD: "supersecret"
+    depends_on:
+      whisper:
+        condition: service_healthy
+      asterisk:
+        condition: service_started
+    networks:
+      - voipnet
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./next.config.js:/app/next.config.js
+
+  whisper:
+    build:
+      context: .
+    command: python3 -u server/WhisperLive/run_server.py --port 4000 --backend faster_whisper
+    container_name: whisper
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+      - "4001:4001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
     networks:
       - voipnet
 
   asterisk:
-    build: ./etc/asterisk
-    image: ghcr.io/haseeb-se/asterisk:20
+    build:
+      context: ./docker/asterisk   # still extend with our SRTP libs
+    image: custom-asterisk
     container_name: asterisk
     restart: unless-stopped
     volumes:
       - ./etc/asterisk/config:/etc/asterisk
     ports:
-      - "5060:5060/udp"         # SIP signaling
+      - "5060:5060/udp"
       - "5060:5060/tcp"
-      - "8089:8089"             # WS (plain, Nginx terminates TLS)
-      - "10000-10200:10000-10200/udp"   # RTP media (200 ports only!)
+      - "8089:8089"
+      - "10000-10200:10000-10200/udp"
     environment:
       - TZ=UTC
     networks:
       - voipnet
+
+    healthcheck:
+      test: ["CMD-SHELL", "asterisk -rx 'core show version' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
 networks:
   voipnet:

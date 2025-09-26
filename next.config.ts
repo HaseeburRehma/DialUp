@@ -11,9 +11,10 @@ const nextConfig: NextConfig = {
         'your-site.netlify.app'
       ],
     },
-    serverComponentsExternalPackages: ['fluent-ffmpeg'],
 
+    
   },
+  serverExternalPackages: ['fluent-ffmpeg'],
   output: 'standalone',
 
   async rewrites() {
@@ -21,7 +22,7 @@ const nextConfig: NextConfig = {
       return [
         {
           source: '/api/auth/:path*',
-          destination: 'https://voiceai-production-01d6.up.railway.app/api/auth/:path*'
+          destination: 'https://voiceai.wordpressstagingsite.com/api/auth/:path*'
         }
       ]
     }

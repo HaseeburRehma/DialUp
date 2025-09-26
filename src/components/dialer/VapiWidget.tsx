@@ -19,8 +19,7 @@ declare global {
 export default function VapiWidget() {
   useEffect(() => {
     const script = document.createElement("script")
-    script.src =
-      "https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js"
+    script.src = "https://unpkg.com/@vapi-ai/client-sdk-react/dist/embed/widget.umd.js"
     script.async = true
     script.type = "text/javascript"
     document.body.appendChild(script)

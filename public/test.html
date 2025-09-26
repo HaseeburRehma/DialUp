@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Twilio Device Test</title>
+  <!-- ✅ Use self-hosted SDK from public/js -->
+  <script src="/js/twilio.min.js"></script>
+</head>
+<body>
+  <h1>Twilio Device Test</h1>
+  <button id="init">Init Device</button>
+  <button id="call">Call +12184993380</button>
+  <pre id="log"></pre>
+
+<script>
+  const log = (msg, type="info") => {
+    const pre = document.getElementById("log");
+    const color = type==="error" ? "red" : "black";
+    pre.innerHTML += `<span style="color:${color}">${msg}</span>\n`;
+    console.log(msg);
+  };
+
+  let device;
+
+  document.getElementById("init").onclick = async () => {
+    try {
+      log("Fetching token...");
+      const res = await fetch("/api/test-token");
+      log("Response status: " + res.status);
+      const data = await res.json();
+      log("Got token: " + (data.token ? "✅" : "❌"), data.token ? "info" : "error");
+
+      console.log("Twilio global:", window.Twilio);
+
+      if (!window.Twilio || !Twilio.Device) {
+        throw new Error("Twilio SDK not loaded");
+      }
+
+      device = new Twilio.Device(data.token, {
+        logLevel: 3,
+        codecPreferences: ["opus", "pcmu"],
+      });
+
+      device.on("registered", () => log("📡 Device registered ✅"));
+      device.on("ready", () => log("✅ Device ready"));
+      device.on("error", (e) => log("❌ Device error: " + e.message, "error"));
+      device.on("incoming", (conn) =>
+        log("Incoming call: " + JSON.stringify(conn.parameters))
+      );
+
+      await device.register();
+      window.testDevice = device;
+    } catch (err) {
+      log("❌ Failed init: " + err.message, "error");
+    }
+  };
+
+  document.getElementById("call").onclick = () => {
+    if (!device) return log("❌ Device not initialized", "error");
+    log("Calling +12184993380...");
+    const conn = device.connect({ params: { To: "+12184993380" } });
+    conn.on("accept", () => log("📞 Call accepted"));
+    conn.on("disconnect", () => log("📴 Call disconnected"));
+    conn.on("error", (e) => log("❌ Call error: " + e.message, "error"));
+  };
+</script>
+</body>
+</html>

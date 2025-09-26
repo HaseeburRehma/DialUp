@@ -1,5 +1,15 @@
 import argparse
 import os
+from fastapi import FastAPI
+import uvicorn
+from threading import Thread
+
+from whisper_live.server import TranscriptionServer
+
+app = FastAPI()
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -52,9 +62,11 @@ if __name__ == "__main__":
     if "OMP_NUM_THREADS" not in os.environ:
         os.environ["OMP_NUM_THREADS"] = str(args.omp_num_threads)
 
-    from whisper_live.server import TranscriptionServer
-    server = TranscriptionServer()
-    server.run(
+    
+    def start_ws():
+
+       server = TranscriptionServer()
+       server.run(
         "0.0.0.0",
         port=args.port,
         backend=args.backend,
@@ -67,3 +79,8 @@ if __name__ == "__main__":
         max_connection_time=args.max_connection_time,
         cache_path=args.cache_path
     )
+    Thread(target=start_ws, daemon=True).start()
+
+    # start FastAPI health server on same port (different path)
+    uvicorn.run(app, host="0.0.0.0", port=args.port+1)
+

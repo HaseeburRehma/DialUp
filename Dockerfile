@@ -46,8 +46,22 @@ RUN npm install autoprefixer postcss && npm ci
 COPY . .
 RUN npm run build
 
+
+# Expose ports (Railway ignores but good docs)
+EXPOSE 3000 4000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:3000/health && curl -f http://localhost:4000/health || exit 1
+
+# Start supervisor (runs Whisper + Express)
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+
+
+
 # ============================
-# 4. Final Runtime
+# 5. Final Runtime
 # ============================
 FROM pythonbase AS runtime
 
