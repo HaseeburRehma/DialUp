@@ -1,24 +1,15 @@
-PyAudio
-av
-scipy
-websocket-client
-
 faster-whisper==1.1.0
 websockets
 onnxruntime==1.17.0
 numba
 kaldialign
 soundfile
-scipy
-av
 jiwer
 evaluate
 numpy<2
 tokenizers==0.20.3
 transformers[torch]
 sentencepiece
-
-# openvino
 librosa
 openvino
 openvino-genai
