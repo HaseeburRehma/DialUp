@@ -18,18 +18,4 @@ services:
           memory: 512M     # cap app RAM
           cpus: "0.25"     # cap CPU
 
-  asterisk:
-    image: andrius/asterisk:18
-    restart: unless-stopped
-    ports:
-      - "5060:5060/udp"       # SIP signaling
-      - "5060:5060/tcp"
-      - "8089:8089"           # WebSocket for SIP.js
-      - "10000-20000:10000-20000/udp" # RTP media
-    volumes:
-      - ./asterisk/config:/etc/asterisk
-    deploy:
-      resources:
-        limits:
-          memory: 256M     # Asterisk is light, cap it lower
-          cpus: "0.20"     # use less CPU
+  

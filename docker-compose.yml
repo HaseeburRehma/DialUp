@@ -6,6 +6,7 @@ services:
     command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
     ports:
       - "3000:3000"   # Next.js
+      - "4000:4000"   # Whisper backend proxied through app
     env_file:
       - .env
     environment:
@@ -13,8 +14,6 @@ services:
     depends_on:
       whisper:
         condition: service_healthy
-      asterisk:
-        condition: service_started
     networks:
       - voipnet
     volumes:
@@ -39,9 +38,6 @@ services:
       start_period: 60s
     networks:
       - voipnet
-
-#
- 
 
 networks:
   voipnet:
