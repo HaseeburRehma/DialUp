@@ -40,3 +40,9 @@ services:
     networks:
       - voipnet
 
+#
+ 
+
+networks:
+  voipnet:
+    driver: bridge
