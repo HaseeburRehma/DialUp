@@ -1,21 +1,27 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useDialer } from './TwilioProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
-import { Phone, PhoneOff, Mic, MicOff, Pause, Play, Square, Circle, Users, ArrowRightLeft, Hash, MessageSquare, Volume2, VolumeX, Signal, Wifi, AlertCircle, Info, Speaker, Speaker as SpeakerX, Send, Mail } from 'lucide-react'
-import { ModernDialpad } from './modern-dialpad'
-import { RecordingWaveform } from './recording-waveform'
+import {
+  Phone, PhoneOff, Mic, MicOff, Pause, Play,
+  Square, Circle, MessageSquare, Volume2, VolumeX,
+  Signal, Wifi, AlertCircle, Info, Send
+} from 'lucide-react'
 import { CallTranscription } from './call-transcription'
 import { useToast } from '@/hooks/use-toast'
-import 'react-phone-number-input/style.css'
 import PhoneInput from 'react-phone-number-input'
+import 'react-phone-number-input/style.css'
 
-// ✅ Local number normalization helper
+import { WhisperLiveRecorder, WhisperLiveHandle } from '../notes/whisper-live-recorder'
+import { useRef } from 'react'
+import type { Segment } from '@/types/transcription'
+
+
 const COUNTRY_CODES: Record<string, string> = {
   US: '+1', PK: '+92', UK: '+44', IN: '+91',
   CA: '+1', AU: '+61', BD: '+880', AE: '+971',
@@ -23,42 +29,54 @@ const COUNTRY_CODES: Record<string, string> = {
   ZA: '+27', PH: '+63', CN: '+86', JP: '+81',
 }
 
-/** ✅ Normalize phone number */
 function normalizeInput(input: string, country: string = 'US'): string {
-  let num = input.replace(/\D/g, '') // strip non-digits
-
-  if (input.startsWith('+')) return input // already valid
-
-  // Special handling for countries with leading 0
+  let num = input.replace(/\D/g, '')
+  if (input.startsWith('+')) return input
   if ((country === 'UK' || country === 'PK' || country === 'IN') && num.startsWith('0')) {
     num = num.replace(/^0+/, '')
   }
-
   return (COUNTRY_CODES[country] || '+1') + num
 }
 
 
+
+
+
 export function CallInterface() {
   const {
-    isReady, isCalling, isOnHold, isMuted, isRecording, isTranscribing,
-    callSeconds, connectionQuality, liveTranscription, callNotes, callLog,
-    startCall, hangUp, toggleMute, toggleHold, toggleRecording,
-    toggleTranscription, sendDTMF, updateCallNotes, transferCall,
-    currentConnection, speakerVolume, setSpeakerVolume, micVolume, setMicVolume,
-    isSpeakerOn, toggleSpeaker
+    isReady, isCalling, isOnHold, isMuted,
+    isRecording, isTranscribing,
+    callSeconds, connectionQuality,
+    liveTranscription, callNotes, callLog,
+    startCall, hangUp, toggleMute, toggleHold,
+    lastRecording,
+    speakerVolume, setSpeakerVolume, micVolume, setMicVolume,
+    isSpeakerOn, toggleSpeaker,
+    toggleRecording, toggleTranscription
   } = useDialer()
 
   const { toast } = useToast()
+  const { updateCallNotes, currentConnection, setLiveTranscription, userProfile } = useDialer()
 
-  const [transferNumber, setTransferNumber] = useState('')
-  const [showDTMF, setShowDTMF] = useState(false)
-  const [showTransfer, setShowTransfer] = useState(false)
-  const [emailRecipient, setEmailRecipient] = useState('')
-  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const whisperRef = useRef<WhisperLiveHandle>(null)
+  const handleSegments = async (segments: Segment[]) => {
+    const text = segments.map(s => s.text).join(" ")
+    updateCallNotes(text)
+    setLiveTranscription((prev: string) => prev + "\n" + text)  // ✅ correct
+  }
 
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [countryCode, setCountryCode] = useState('US') // default country
+  const [countryCode, setCountryCode] = useState('US')
+  const [callerEmail, setCallerEmail] = useState('')
+  const [receiverEmail, setReceiverEmail] = useState('')
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
 
+  useEffect(() => {
+    if (userProfile) {
+      setCallerEmail(userProfile.email)       // auto-assign
+      setReceiverEmail(userProfile.email)     // default receiver = logged-in user
+    }
+  }, [userProfile])
 
 
   const formatTime = (seconds: number) =>
@@ -71,358 +89,239 @@ export function CallInterface() {
     poor: 'text-red-400'
   }[quality] || 'text-gray-400')
 
-  const handleDialpadPress = (digit: string) => {
-    if (isCalling) {
-      sendDTMF(digit)
-    } else {
-      setPhoneNumber(prev => prev + digit)
-    }
-  }
-
   const handleCall = async () => {
-    const normalizedNumber = normalizeInput(phoneNumber, countryCode)
-    await startCall(normalizedNumber)
-  }
-
-  const sendEmailTranscript = async () => {
-    if (!liveTranscription || !emailRecipient) {
+    if (!callerEmail || !receiverEmail) {
       toast({
-        title: 'Missing Information',
-        description: 'Please provide email and ensure transcription is available',
+        title: 'Missing Email',
+        description: 'Please provide both caller and receiver emails',
         variant: 'destructive'
       })
       return
     }
-
-    setIsSendingEmail(true)
-    try {
-      const response = await fetch('/api/send-call-transcript', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipientEmail: emailRecipient,
-          callerNumber: phoneNumber,
-          transcript: liveTranscription,
-          callDuration: formatTime(callSeconds),
-          callDate: new Date().toLocaleString()
-        })
-      })
-
-      if (!response.ok) throw new Error('Failed to send email')
-
-      toast({
-        title: 'Email Sent',
-        description: 'Call transcript has been sent successfully'
-      })
-      setEmailRecipient('')
-    } catch (error) {
-      toast({
-        title: 'Email Failed',
-        description: 'Failed to send call transcript',
-        variant: 'destructive'
-      })
-    } finally {
-      setIsSendingEmail(false)
-    }
+    const normalizedNumber = normalizeInput(phoneNumber, countryCode)
+    await startCall(normalizedNumber)
   }
 
+  useEffect(() => {
+    if (!isCalling && liveTranscription && callerEmail && receiverEmail) {
+      const sendCallSummary = async () => {
+        setIsSendingEmail(true)
+        try {
+          const response = await fetch('/api/send-automatic-transcript', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transcript: liveTranscription,
+              callDuration: formatTime(callSeconds),
+              callDate: new Date().toLocaleString(),
+              callerNumber: currentConnection?.parameters?.From || "Unknown",
+              receiverNumber: currentConnection?.parameters?.To || "Unknown",
+              callerEmail: currentConnection?.parameters?.CallerEmail || "Unknown",
+              receiverEmail: currentConnection?.parameters?.ReceiverEmail || "Unknown"
+            })
+          })
+          if (!response.ok) throw new Error('Failed to send email')
+          toast({ title: 'Email Sent', description: 'Call summary sent to both parties' })
+        } catch {
+          toast({ title: 'Email Failed', description: 'Failed to send call summary email', variant: 'destructive' })
+        } finally {
+          setIsSendingEmail(false)
+        }
+      }
+      sendCallSummary()
+    }
+  }, [isCalling, liveTranscription, callSeconds, phoneNumber, callerEmail, receiverEmail, currentConnection, toast])
+
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
-      {/* --- Main Dialer Panel --- */}
-      <div className="xl:col-span-2 space-y-6">
-        {/* --- Status Header --- */}
-        <Card className="bg-gradient-to-r from-slate-900 to-slate-800 border-slate-700 shadow-2xl">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <Badge
-                  variant={isReady ? "default" : "secondary"}
-                  className={isReady
-                    ? 'bg-green-500/20 text-green-300 border-green-500/30 px-4 py-1'
-                    : 'bg-gray-500/20 text-gray-300 px-4 py-1'
-                  }
-                >
-                  <Wifi className="h-3 w-3 mr-2" />
-                  {isReady ? 'Connected' : 'Connecting...'}
+    <div className="flex flex-col gap-4 max-w-5xl mx-auto px-4 py-6 md:px-6 lg:px-8">
+      <Card className="bg-gradient-to-br from-slate-900 to-slate-800 border-slate-700 shadow-xl rounded-2xl">
+        <CardContent className="p-4 sm:p-6">
+          {/* Status Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Badge
+                variant={isReady ? "default" : "secondary"}
+                className={isReady
+                  ? 'bg-green-500/20 text-green-300 border-green-500/30 px-3 py-1'
+                  : 'bg-gray-500/20 text-gray-300 px-3 py-1'}
+              >
+                <Wifi className="h-3 w-3 mr-2" />
+                {isReady ? 'Connected' : 'Connecting...'}
+              </Badge>
+              {isReady && (
+                <Badge variant="outline" className="border-slate-600 text-slate-300 px-3 py-1">
+                  <Signal className={`h-3 w-3 mr-2 ${getQualityColor(connectionQuality)}`} />
+                  {connectionQuality}
                 </Badge>
-
-                {isReady && (
-                  <Badge variant="outline" className="border-slate-600 text-slate-300 px-4 py-1">
-                    <Signal className={`h-3 w-3 mr-2 ${getQualityColor(connectionQuality)}`} />
-                    {connectionQuality}
-                  </Badge>
-                )}
-              </div>
-
-              {isCalling && (
-                <div className="flex items-center space-x-3 bg-red-500/10 px-4 py-2 rounded-full border border-red-500/30">
-                  <Circle className="h-3 w-3 text-red-400 fill-current animate-pulse" />
-                  <span className="text-white font-mono text-xl font-semibold">{formatTime(callSeconds)}</span>
-                </div>
               )}
-
-
             </div>
-            <select
-              value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value)}
-              className="border p-2 rounded bg-slate-800 text-white mb-3"
-            >
-              {Object.entries(COUNTRY_CODES).map(([code, prefix]) => (
-                <option key={code} value={code}>
-                  {prefix} ({code})
-                </option>
-              ))}
-            </select>
-            {/* --- Phone Input --- */}
-            <div className="space-y-4">
-              <PhoneInput
-                placeholder="Enter phone number"
-                value={phoneNumber}
-                onChange={(value) => setPhoneNumber(value || "")}
-                defaultCountry="US"
-                international
-                countryCallingCodeEditable={false}
-                className="text-center text-2xl h-16 bg-slate-800/50 border border-slate-600 text-white placeholder-slate-400 font-mono rounded-lg px-4"
-              />
-
-
-              {/* --- Call Button --- */}
-              <div className="flex justify-center">
-                {!isCalling ? (
-                  <Button
-                    onClick={handleCall}
-                    disabled={!isReady || !phoneNumber}
-                    size="lg"
-                    className="w-20 h-20 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-2xl transform hover:scale-105 transition-all"
-                  >
-                    <Phone className="h-8 w-8" />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={hangUp}
-                    size="lg"
-                    className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-2xl transform hover:scale-105 transition-all"
-                  >
-                    <PhoneOff className="h-8 w-8" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* --- Modern Dialpad --- */}
-        <ModernDialpad
-          onPress={handleDialpadPress}
-          disabled={false}
-          showDTMF={isCalling}
-        />
-
-        {/* --- Recording Waveform --- */}
-        {(isRecording || isTranscribing) && (
-          <RecordingWaveform
-            isRecording={isRecording}
-            isTranscribing={isTranscribing}
-            callSeconds={callSeconds}
-          />
-        )}
-      </div>
-
-      {/* --- Call Controls Panel --- */}
-      <div className="space-y-6">
-        {isCalling && (
-          <Card className="bg-slate-900 border-slate-700 shadow-xl">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Call Controls</h3>
-
-              {/* --- Primary Controls --- */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <Button
-                  variant="outline"
-                  onClick={toggleMute}
-                  className={`h-14 ${isMuted
-                    ? 'bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30'
-                    : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                    }`}
-                >
-                  {isMuted ? <MicOff className="h-5 w-5 mb-1" /> : <Mic className="h-5 w-5 mb-1" />}
-                  <span className="text-xs">{isMuted ? 'Unmute' : 'Mute'}</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={toggleSpeaker}
-                  className={`h-14 ${isSpeakerOn
-                    ? 'bg-blue-500/20 border-blue-500/30 text-blue-300 hover:bg-blue-500/30'
-                    : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                    }`}
-                >
-                  {isSpeakerOn ? <Speaker className="h-5 w-5 mb-1" /> : <SpeakerX className="h-5 w-5 mb-1" />}
-                  <span className="text-xs">{isSpeakerOn ? 'Speaker' : 'Handset'}</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={toggleHold}
-                  className={`h-14 ${isOnHold
-                    ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30'
-                    : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                    }`}
-                >
-                  {isOnHold ? <Play className="h-5 w-5 mb-1" /> : <Pause className="h-5 w-5 mb-1" />}
-                  <span className="text-xs">{isOnHold ? 'Resume' : 'Hold'}</span>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={toggleRecording}
-                  className={`h-14 ${isRecording
-                    ? 'bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30'
-                    : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                    }`}
-                >
-                  {isRecording ? <Square className="h-5 w-5 mb-1" /> : <Circle className="h-5 w-5 mb-1" />}
-                  <span className="text-xs">{isRecording ? 'Stop Rec' : 'Record'}</span>
-                </Button>
-              </div>
-
-              {/* --- Volume Controls --- */}
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-300">Speaker Volume</span>
-                    <span className="text-xs text-slate-400">{Math.round(speakerVolume * 100)}%</span>
-                  </div>
-                  <Slider
-                    value={[speakerVolume]}
-                    onValueChange={(value: number[]) => setSpeakerVolume(value[0])}
-                    max={1}
-                    step={0.1}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-300">Microphone</span>
-                    <span className="text-xs text-slate-400">{Math.round(micVolume * 100)}%</span>
-                  </div>
-                  <Slider
-                    value={[micVolume]}
-                    onValueChange={(value: number[]) => setMicVolume(value[0])}
-                    max={1}
-                    step={0.1}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-
-              {/* --- Additional Controls --- */}
-              <div className="mt-6 space-y-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDTMF(!showDTMF)}
-                  className="w-full bg-slate-800 border-slate-600 text-white hover:bg-slate-700"
-                >
-                  <Hash className="h-4 w-4 mr-2" />
-                  DTMF Pad
-                </Button>
-
-                <Button
-                  variant="outline"
-                  onClick={toggleTranscription}
-                  className={`w-full ${isTranscribing
-                    ? 'bg-blue-500/20 border-blue-500/30 text-blue-300'
-                    : 'bg-slate-800 border-slate-600 text-white hover:bg-slate-700'
-                    }`}
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  {isTranscribing ? 'Stop Transcript' : 'Start Transcript'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* --- Call Notes --- */}
-        <Card className="bg-slate-900 border-slate-700">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Call Notes</h3>
-            <textarea
-              value={callNotes}
-              onChange={(e) => updateCallNotes(e.target.value)}
-              placeholder="Add notes about this call..."
-              className="w-full h-32 bg-slate-800 border border-slate-600 rounded-lg p-3 text-white placeholder-slate-400 resize-none"
-            />
-
-            {/* --- Email Section --- */}
-            {liveTranscription && (
-              <div className="mt-4 pt-4 border-t border-slate-600">
-                <div className="flex space-x-2">
-                  <Input
-                    type="email"
-                    placeholder="Email transcript to..."
-                    value={emailRecipient}
-                    onChange={(e) => setEmailRecipient(e.target.value)}
-                    className="flex-1 bg-slate-800 border-slate-600 text-white placeholder-slate-400"
-                  />
-                  <Button
-                    onClick={sendEmailTranscript}
-                    disabled={!emailRecipient || !liveTranscription || isSendingEmail}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {isSendingEmail ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+            {isCalling && (
+              <div className="flex items-center space-x-2 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/30">
+                <Circle className="h-2 w-2 text-red-400 fill-current animate-pulse" />
+                <span className="text-white font-mono text-sm">{formatTime(callSeconds)}</span>
               </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      {/* --- Transcription Panel --- */}
-      <div className="space-y-6">
-        <CallTranscription
-          isTranscribing={isTranscribing}
-          transcript={liveTranscription}
-          callDuration={formatTime(callSeconds)}
-        />
+          {/* Phone + Emails */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <PhoneInput
+              placeholder="Enter phone number"
+              value={phoneNumber}
+              onChange={(value) => setPhoneNumber(value || "")}
+              onCountryChange={(country) => setCountryCode(country || 'US')}
+              defaultCountry="US"
+              international
+              countryCallingCodeEditable={false}
+              className="text-center h-12 bg-slate-800/50 border border-slate-600 text-black placeholder-slate-400 rounded-lg px-3"
+            />
+            <Input
+              type="email"
+              placeholder="Caller Email"
+              value={callerEmail}
+              onChange={(e) => setCallerEmail(e.target.value)}
+              disabled={isCalling}
+              className="h-12 bg-slate-800/50 border-slate-600 text-white placeholder-slate-400"
+            />
+            <Input
+              type="email"
+              placeholder="Receiver Email"
+              value={receiverEmail}
+              onChange={(e) => setReceiverEmail(e.target.value)}
+              disabled={isCalling}
+              className="h-12 bg-slate-800/50 border-slate-600 text-white placeholder-slate-400"
+            />
+          </div>
 
-        {/* --- Activity Log --- */}
-        <Card className="bg-slate-900 border-slate-700">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Activity Log</h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {callLog.length === 0 ? (
-                <p className="text-slate-400 text-sm text-center py-8">No activity yet</p>
-              ) : (
-                callLog.map((entry, i) => (
-                  <div key={i} className="flex items-start space-x-2 text-sm p-2 rounded bg-slate-800/30">
-                    <span className="text-slate-500 font-mono text-xs min-w-[60px] mt-0.5">{entry.time}</span>
-                    <div className="flex items-start space-x-1">
-                      {entry.type === 'error' && <AlertCircle className="h-3 w-3 text-red-400 mt-0.5 flex-shrink-0" />}
-                      {entry.type === 'warning' && <AlertCircle className="h-3 w-3 text-yellow-400 mt-0.5 flex-shrink-0" />}
-                      {entry.type === 'info' && <Info className="h-3 w-3 text-blue-400 mt-0.5 flex-shrink-0" />}
-                      <span className={`${entry.type === 'error' ? 'text-red-400' :
-                        entry.type === 'warning' ? 'text-yellow-400' :
-                          'text-slate-300'
-                        } leading-tight`}>
-                        {entry.message}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
+          {/* Call / Hangup */}
+          <div className="flex justify-center mb-4">
+            {!isCalling ? (
+              <Button
+                onClick={handleCall}
+                disabled={!isReady || !phoneNumber || !callerEmail || !receiverEmail}
+                size="lg"
+                className="w-16 h-16 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg"
+              >
+                <Phone className="h-6 w-6" />
+              </Button>
+            ) : (
+              <Button
+                onClick={hangUp}
+                size="lg"
+                className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 text-white shadow-lg"
+              >
+                <PhoneOff className="h-6 w-6" />
+              </Button>
+            )}
+          </div>
+
+          {/* Call Controls */}
+          {isCalling && (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
+              <Button variant="outline" onClick={toggleMute}
+                className={`h-12 ${isMuted ? 'bg-red-500/20 text-red-300' : 'bg-slate-800/50 text-white'}`}>
+                {isMuted ? <MicOff className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
+                <span className="text-xs">{isMuted ? 'Unmute' : 'Mute'}</span>
+              </Button>
+
+              <Button variant="outline" onClick={toggleSpeaker}
+                className={`h-12 ${isSpeakerOn ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-800/50 text-white'}`}>
+                {isSpeakerOn ? <Volume2 className="h-4 w-4 mr-2" /> : <VolumeX className="h-4 w-4 mr-2" />}
+                <span className="text-xs">{isSpeakerOn ? 'Speaker Off' : 'Speaker On'}</span>
+              </Button>
+
+              <Button variant="outline" onClick={toggleHold}
+                className={`h-12 ${isOnHold ? 'bg-yellow-500/20 text-yellow-300' : 'bg-slate-800/50 text-white'}`}>
+                {isOnHold ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
+                <span className="text-xs">{isOnHold ? 'Resume' : 'Hold'}</span>
+              </Button>
+
+              <Button variant="outline" onClick={toggleRecording}
+                className={`h-12 ${isRecording ? 'bg-red-500/20 text-red-300' : 'bg-slate-800/50 text-white'}`}>
+                {isRecording ? <Square className="h-4 w-4 mr-2" /> : <Circle className="h-4 w-4 mr-2" />}
+                <span className="text-xs">{isRecording ? 'Stop Rec' : 'Record'}</span>
+              </Button>
+
+              <Button variant="outline" onClick={toggleTranscription}
+                className={`h-12 ${isTranscribing ? 'bg-green-500/20 text-green-300' : 'bg-slate-800/50 text-white'}`}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                <span className="text-xs">{isTranscribing ? 'Stop Txt' : 'Transcribe'}</span>
+              </Button>
             </div>
+          )}
+
+          {/* Volume */}
+          {isCalling && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              <div>
+                <div className="flex justify-between text-xs text-slate-300 mb-2">
+                  <span>Speaker</span><span>{Math.round(speakerVolume * 100)}%</span>
+                </div>
+                <Slider value={[speakerVolume]} onValueChange={(v) => setSpeakerVolume(v[0])} max={1} step={0.1} />
+              </div>
+              <div>
+                <div className="flex justify-between text-xs text-slate-300 mb-2">
+                  <span>Mic</span><span>{Math.round(micVolume * 100)}%</span>
+                </div>
+                <Slider value={[micVolume]} onValueChange={(v) => setMicVolume(v[0])} max={1} step={0.1} />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Live Transcription */}
+      {/* Live Transcription */}
+      <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+        <CardContent className="p-4 sm:p-6">
+          <h3 className="text-lg text-white mb-3">Live Transcription</h3>
+          <pre className="text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto">
+            {liveTranscription || "No transcription available"}
+          </pre>
+
+          {/* Hidden Whisper Recorder – streams call audio to Whisper */}
+          {isCalling && isTranscribing && (
+            <WhisperLiveRecorder
+              ref={whisperRef}
+              onSegments={handleSegments}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+
+      {/* Playback of Last Recording */}
+      {lastRecording && (
+        <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+          <CardContent className="p-4 sm:p-6">
+            <h3 className="text-lg text-white mb-3">Last Call Recording</h3>
+            <audio controls src={lastRecording} className="w-full" />
           </CardContent>
         </Card>
-      </div>
+      )}
+
+
+      {/* Activity Log */}
+      <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+        <CardContent className="p-4 sm:p-6">
+          <h3 className="text-lg text-white mb-3">Activity Log</h3>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {callLog.map((entry, i) => (
+              <div key={i} className="flex items-start space-x-2 text-sm p-2 rounded bg-slate-800/30">
+                <span className="text-slate-500 font-mono text-xs">{entry.time}</span>
+                <div className="flex items-start space-x-1">
+                  {entry.type === 'error' && <AlertCircle className="h-3 w-3 text-red-400" />}
+                  {entry.type === 'warning' && <AlertCircle className="h-3 w-3 text-yellow-400" />}
+                  {entry.type === 'info' && <Info className="h-3 w-3 text-blue-400" />}
+                  <span className={entry.type === 'error' ? 'text-red-400' : entry.type === 'warning' ? 'text-yellow-400' : 'text-slate-300'}>
+                    {entry.message}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

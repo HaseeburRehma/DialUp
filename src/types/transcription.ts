@@ -1,6 +1,7 @@
 export type Speaker = 'mic' | 'speaker';
 
 export interface Segment {
+  text: any;
   id: string; // Add unique ID for better deduplication
   speaker: Speaker;
   content: string;

@@ -1,3 +1,5 @@
+// src/components/dialer/incoming-call-modal.tsx
+
 import { useEffect, useState } from 'react'
 import { useDialer } from './CustomDialerProvider'
 import { Button } from '@/components/ui/button'
@@ -30,12 +32,14 @@ export function IncomingCallModal() {
 
     const callerNumber = incomingConnection?.parameters?.From ?? 'Unknown Number'
     const callerName = incomingConnection?.parameters?.CallerName ?? 'Unknown Caller'
+    const callerEmail = incomingConnection?.parameters?.CallerEmail ?? "Unknown Email"
+    const receiverEmail = incomingConnection?.parameters?.ReceiverEmail ?? "Unknown Email"
     const callerLocation =
         incomingConnection?.parameters?.FromCity ||
         incomingConnection?.parameters?.FromState ||
         incomingConnection?.parameters?.FromCountry ||
         ''
-    
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <Card className="w-full max-w-md mx-4 bg-gradient-to-br from-slate-900 to-blue-900 border-slate-700/50 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-300">

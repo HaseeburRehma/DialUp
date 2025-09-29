@@ -1,9 +1,13 @@
+// src/app/api/send-automatic-transcript/route.ts
+
 import { NextRequest, NextResponse } from "next/server"
 import nodemailer from "nodemailer"
 
 export async function POST(req: NextRequest) {
   try {
-    const { transcript, callDuration, callDate, callerNumber, receiverNumber } = await req.json()
+    const { transcript, callDuration, callDate, callerNumber, receiverNumber, callerEmail, receiverEmail } = await req.json()
+
+    const recipients = [callerEmail, receiverEmail].filter(Boolean)
 
     if (!transcript) {
       return NextResponse.json({ error: 'No transcript provided' }, { status: 400 })
@@ -98,10 +102,7 @@ export async function POST(req: NextRequest) {
 
     // Send email to both participants (if we have their emails)
     // In a real implementation, you'd want to extract emails from your user database
-    const recipients = [
-      process.env.DEFAULT_CALLER_EMAIL, // Fallback for caller
-      process.env.DEFAULT_RECEIVER_EMAIL, // Fallback for receiver
-    ].filter(Boolean)
+   
 
     if (recipients.length === 0) {
       // If no recipients configured, just log the transcript
@@ -111,9 +112,9 @@ export async function POST(req: NextRequest) {
         callDuration,
         transcriptPreview: transcript.substring(0, 100) + '...'
       })
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Transcript processed but no email recipients configured' 
+      return NextResponse.json({
+        success: true,
+        message: 'Transcript processed but no email recipients configured'
       })
     }
 
@@ -126,17 +127,17 @@ export async function POST(req: NextRequest) {
 
     await transporter.sendMail(mailOptions)
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: `Automatic transcript sent to ${recipients.length} recipient(s)`,
       recipients: recipients.length
     })
 
   } catch (error: any) {
     console.error('Error sending automatic transcript:', error)
-    return NextResponse.json({ 
-      error: 'Failed to send automatic transcript', 
-      details: error.message 
+    return NextResponse.json({
+      error: 'Failed to send automatic transcript',
+      details: error.message
     }, { status: 500 })
   }
 }

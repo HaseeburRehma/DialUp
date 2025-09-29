@@ -1,3 +1,6 @@
+
+// src/components/notes/whisper-live-recorder.tsx
+
 'use client'
 
 import React, { useEffect, useImperativeHandle, forwardRef, useRef, useCallback, useMemo } from 'react';

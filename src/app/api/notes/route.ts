@@ -1,4 +1,4 @@
-// src/app/api/notes/[id]/route.ts
+// src/app/api/notes/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';

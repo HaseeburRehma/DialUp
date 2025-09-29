@@ -25,7 +25,7 @@ if (process.env.NODE_ENV !== "production") {
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT) || 3000;
-const whisperPort = process.env.WHISPER_PORT || 4000;
+const whisperPort = process.env.WHISPER_PORT || 4001;
 
 async function start() {
   try {
@@ -90,7 +90,7 @@ async function start() {
     }
 
     // WebSocket proxy
-/*    console.log(`🎤 Setting up WebSocket proxy to Whisper backend on port ${whisperPort}`);
+   console.log(`🎤 Setting up WebSocket proxy to Whisper backend on port ${whisperPort}`);
     const wsProxy = createProxyMiddleware({
       target: `http://127.0.0.1:${whisperPort}`,
       changeOrigin: true,
@@ -102,7 +102,7 @@ async function start() {
       },
     });
     app.use("/ws", wsProxy);
-*/
+
     // Health check
     app.get("/health", (_req, res) => {
       res.json({

@@ -1,3 +1,4 @@
+# server/WhisperLive/run_client.py
 from pathlib import Path
 import sys
 from whisper_live.client import TranscriptionClient

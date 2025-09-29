@@ -41,6 +41,11 @@ dev.sqlite
 dev.sqlite-journal
 
 
+# Ignore any virtualenv folders
+server/venv/
+server/.venv/
+server/WhisperLive/venv/
+server/WhisperLive/.venv/
 
 # (you may also want to ignore other .exe/.dll under site-packages)
 .next/

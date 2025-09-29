@@ -23,9 +23,16 @@ export async function POST(req: Request) {
 
     if (To && /^\+?\d+$/.test(To)) {
       // PSTN call (normal phone number)
-      const callerId = process.env.TWILIO_CALLER_ID || "+447437985716"; // fallback
-      const dial = twiml.dial({ callerId });
-      dial.number(To);
+      const CallerEmail = formData.get("CallerEmail") as string | null
+      const CallerNumber = formData.get("CallerNumber") as string | null
+
+
+      const callerId = CallerNumber || process.env.TWILIO_CALLER_ID || "+10000000000"
+
+      const dial = twiml.dial({ callerId })
+      dial.number(To)
+
+      console.log(`📤 Outgoing: From ${CallerNumber} (${CallerEmail}) To ${To}`)
     } else if (To) {
       // Client-to-client call
       const dial = twiml.dial();

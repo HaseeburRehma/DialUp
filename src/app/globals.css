@@ -83,3 +83,7 @@
 .bg-gradient-primary {
   background: linear-gradient(90deg, #10b981, #3b82f6);
 }
+
+.PhoneInputCountrySelect{
+  color: black;
+}
