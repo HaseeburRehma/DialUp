@@ -43,13 +43,18 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
     const whisperliveSettings = transcription.whisperlive;
 
     const config = useMemo<WhisperLiveConfig>(() => {
-      const base = whisperliveSettings.serverUrl?.replace(/\/$/, '') ||
-        process.env.NEXT_PUBLIC_WS_BASE || "ws://localhost";
+      // Normalize base from settings or env
+      const base = (whisperliveSettings.serverUrl?.replace(/\/$/, '')
+        || process.env.NEXT_PUBLIC_WS_BASE
+        || "ws://localhost");
+
       const port = Number(whisperliveSettings.port || process.env.WHISPER_PORT || 4001);
 
+      // Always final URL = base + port + /ws
+      const fullUrl = `${base}:${port}/ws`;
 
       return {
-        serverUrl: `${base}:${port}/ws`,   // 👈 Construct full URL with port and /ws
+        serverUrl: fullUrl,
         port,
         language: transcription.language,
         translate: whisperliveSettings.translate,
@@ -60,7 +65,6 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
         maxClients: whisperliveSettings.maxClients,
         maxConnectionTime: whisperliveSettings.maxConnectionTime,
         audioSources: transcription.audioSources,
-
         enabled: whisperliveSettings.enabled ?? false,
         backend: whisperliveSettings.backend ?? 'faster_whisper',
         useVAD: whisperliveSettings.useVAD ?? false,
@@ -77,8 +81,8 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
           audioSources: cfg.audioSources ?? { microphone: true, systemAudio: false },
 
           whisperlive: {
-            serverUrl: cfg.serverUrl,
-            port: cfg.port,
+            serverUrl: cfg.serverUrl?.replace(/\/$/, ''), // keep only base
+            port: Number(cfg.port) || 4001,
             language: cfg.language,
             model: cfg.model as 'tiny' | 'small' | 'base' | 'medium' | 'large',
             vad: cfg.vad,
