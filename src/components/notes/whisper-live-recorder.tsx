@@ -42,36 +42,29 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
     const { transcription } = settings;
     const whisperliveSettings = transcription.whisperlive;
 
-    const config = useMemo<WhisperLiveConfig>(() => {
-      // Normalize base from settings or env
-      const base = (whisperliveSettings.serverUrl?.replace(/\/$/, '')
-        || process.env.NEXT_PUBLIC_WS_BASE
-        || "ws://localhost");
+    const config = useMemo<WhisperLiveConfig>(() => ({
+      serverUrl: whisperliveSettings.serverUrl,
+      port: whisperliveSettings.port,
+      language: transcription.language,
+      translate: whisperliveSettings.translate,
+      model: transcription.transcriptionModel,
+      vad: whisperliveSettings.vad,
+      saveRecording: whisperliveSettings.saveRecording,
+      outputFilename: whisperliveSettings.outputFilename,
+      maxClients: whisperliveSettings.maxClients,
+      maxConnectionTime: whisperliveSettings.maxConnectionTime,
+      audioSources: transcription.audioSources,
 
-      const port = Number(whisperliveSettings.port || process.env.WHISPER_PORT || 4001);
-
-      // Always final URL = base + port + /ws
-      const fullUrl = `${base}:${port}/ws`;
-
-      return {
-        serverUrl: fullUrl,
-        port,
-        language: transcription.language,
-        translate: whisperliveSettings.translate,
-        model: transcription.transcriptionModel,
-        vad: whisperliveSettings.vad,
-        saveRecording: whisperliveSettings.saveRecording,
-        outputFilename: whisperliveSettings.outputFilename,
-        maxClients: whisperliveSettings.maxClients,
-        maxConnectionTime: whisperliveSettings.maxConnectionTime,
-        audioSources: transcription.audioSources,
-        enabled: whisperliveSettings.enabled ?? false,
-        backend: whisperliveSettings.backend ?? 'faster_whisper',
-        useVAD: whisperliveSettings.useVAD ?? false,
-        lang: whisperliveSettings.lang ?? transcription.language ?? 'en',
-      };
-    }, [transcription.language, transcription.audioSources, whisperliveSettings]);
-
+      // ✅ Add these missing fields:
+      enabled: whisperliveSettings.enabled ?? false,
+      backend: whisperliveSettings.backend ?? 'faster_whisper',
+      useVAD: whisperliveSettings.useVAD ?? false,
+      lang: whisperliveSettings.lang ?? transcription.language ?? 'en',
+    }), [
+      transcription.language,
+      transcription.audioSources,
+      whisperliveSettings,
+    ]);
 
     const onSettingsChange = (cfg: WhisperLiveConfig) => {
       setSettings({
@@ -81,8 +74,8 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
           audioSources: cfg.audioSources ?? { microphone: true, systemAudio: false },
 
           whisperlive: {
-            serverUrl: cfg.serverUrl?.replace(/\/$/, ''), // keep only base
-            port: Number(cfg.port) || 4001,
+            serverUrl: cfg.serverUrl,
+            port: cfg.port,
             language: cfg.language,
             model: cfg.model as 'tiny' | 'small' | 'base' | 'medium' | 'large',
             vad: cfg.vad,

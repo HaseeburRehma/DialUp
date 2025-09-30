@@ -156,18 +156,18 @@ export function useOptimizedWhisperLive(
   const isDuplicate = useCallback((text: string): boolean => {
     const normalized = normalizeText(text)
     if (normalized.length < 3) return true // Ignore very short texts
-    
+
     if (transcriptHistoryRef.current.has(normalized)) {
       return true
     }
-    
+
     // Check for substring matches in recent history
     for (const historical of transcriptHistoryRef.current) {
       if (historical.includes(normalized) || normalized.includes(historical)) {
         return true
       }
     }
-    
+
     return false
   }, [normalizeText])
 
@@ -175,7 +175,7 @@ export function useOptimizedWhisperLive(
     const normalized = normalizeText(text)
     if (normalized.length >= 3) {
       transcriptHistoryRef.current.add(normalized)
-      
+
       // Keep history manageable (last 50 items)
       if (transcriptHistoryRef.current.size > 50) {
         const entries = Array.from(transcriptHistoryRef.current)
@@ -229,11 +229,18 @@ export function useOptimizedWhisperLive(
 
     // ✅ FIXED: Always use the Express proxy endpoint
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const wsUrl = process.env.NEXT_PUBLIC_WHISPER_WS!
+    const base =
+      process.env.NEXT_PUBLIC_WS_BASE ||
+      `${protocol}://${window.location.host}`
 
-    console.log("[OptimizedWhisperLive] Connecting to WebSocket:", wsUrl);
+    const wsUrl =
+      process.env.NEXT_PUBLIC_WHISPER_WS ||
+      `${base}/whisper`
 
-    const ws = new WebSocket(wsUrl);
+    console.log('[OptimizedWhisperLive] Connecting to WebSocket:', wsUrl)
+
+    const ws = new WebSocket(wsUrl)
+
     ws.binaryType = 'arraybuffer'
     wsRef.current = ws
     lastSegmentIndexRef.current = 0
@@ -297,7 +304,7 @@ export function useOptimizedWhisperLive(
 
       try {
         const msg = JSON.parse(e.data)
-        
+
         // Skip duplicate messages
         const messageKey = JSON.stringify(msg)
         if (messageKey === lastProcessedMessageRef.current) {
@@ -324,32 +331,33 @@ export function useOptimizedWhisperLive(
           }
 
           const newSegments: Segment[] = []
-          
+
           for (const wsSeg of msg.segments) {
             if (!wsSeg.text || !wsSeg.text.trim()) continue
-            
+
             const content = wsSeg.text.trim()
             const segmentKey = normalizeText(content)
-            
+
             // Skip if we've seen this exact segment content recently
             if (segmentHistoryRef.current.has(segmentKey)) {
               continue
             }
-            
+
             // Check for duplicate content
             if (!isDuplicate(content)) {
               const segment: Segment = {
                 speaker: wsSeg.speaker === 0 ? 'mic' : 'speaker',
+                text: content,
                 content,
                 volume: rms,
                 confidence: wsSeg.confidence || 0.8,
                 id: '',
                 timestamp: 0
               }
-              
+
               newSegments.push(segment)
               addToHistory(content)
-              
+
               // Track this segment to prevent immediate duplicates
               segmentHistoryRef.current.set(segmentKey, now)
             }
@@ -389,7 +397,7 @@ export function useOptimizedWhisperLive(
           if (msg.text && msg.text.trim() && !isDuplicate(msg.text)) {
             const cleanText = msg.text.trim()
             addToHistory(cleanText)
-            
+
             setState(s => ({
               ...s,
               isTranscribing: false,
@@ -404,14 +412,14 @@ export function useOptimizedWhisperLive(
         if (msg.message && msg.message !== 'SERVER_READY' && !isDuplicate(msg.message)) {
           const cleanMessage = msg.message.trim()
           addToHistory(cleanMessage)
-          
+
           setState(s => ({
             ...s,
             isTranscribing: true,
             transcript: s.transcript ? `${s.transcript} ${cleanMessage}` : cleanMessage
           }))
         }
-        
+
       } catch (err) {
         console.warn('[OptimizedWhisperLive] Failed to parse message:', err)
       }
