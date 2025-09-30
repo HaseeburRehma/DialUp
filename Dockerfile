@@ -24,17 +24,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY server ./server
 
-# ✅ Install PyTorch CPU-only (no CUDA, ~200MB instead of 3–8GB)
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
-      --index-url https://download.pytorch.org/whl/cpu \
- && pip install --no-cache-dir --prefer-binary openai-whisper
-
-# ✅ Install your project deps (clean, no conflicts)
-RUN pip install --no-cache-dir --prefer-binary \
-      -r server/requirement.txt \
-      -r server/WhisperLive/requirements/client.txt \
-      -r server/WhisperLive/requirements/server.txt
+# ✅ Install PyTorch CPU-only wheel (no CUDA, ~200MB instead of 3–8GB)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 \
+        --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir --prefer-binary openai-whisper && \
+    pip install --no-cache-dir --prefer-binary \
+        -r server/requirement.txt \
+        -r server/WhisperLive/requirements/client.txt \
+        -r server/WhisperLive/requirements/server.txt
 
 # ============================
 # 3. Node Build Stage
@@ -48,20 +46,26 @@ RUN npm install autoprefixer postcss && npm ci
 COPY . .
 RUN npm run build
 
+
+# Expose ports (Railway ignores but good docs)
 EXPOSE 3000 4000
 
-# Healthcheck (Express + Whisper)
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health && curl -f http://localhost:4001/healthz || exit 1
+    CMD curl -f http://localhost:3000/health && curl -f http://localhost:4000/health || exit 1
 
+# Start supervisor (runs Whisper + Express)
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
+
+
 
 # ============================
 # 5. Final Runtime
 # ============================
 FROM pythonbase AS runtime
 
-# Copy Node.js build
+# Copy built Node.js + deps
 COPY --from=node-build /usr/local /usr/local
 ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
 
@@ -77,10 +81,12 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 WORKDIR /app
 
+# Expose ports (Railway ignores but good docs)
 EXPOSE 3000 4000
 
-# Healthcheck (Next.js + Whisper backend)
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health && curl -f http://localhost:4001/healthz || exit 1
+    CMD curl -f http://localhost:3000/health && curl -f http://localhost:4001/healthz || exit 1
 
+# Start supervisor (runs Whisper + Express)
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

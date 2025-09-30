@@ -228,18 +228,19 @@ export function TranscriptionSettingsModal({
                                                     id="port"
                                                     type="number"
                                                     value={local.whisperlive.port}
-                                                    onChange={e =>
-                                                        setLocal(p => ({
+                                                    onChange={(e) =>
+                                                        setLocal((p) => ({
                                                             ...p,
                                                             whisperlive: {
                                                                 ...p.whisperlive,
-                                                                port: +e.target.value
-                                                            }
+                                                                port: Number(e.target.value) || 4001,
+                                                            },
                                                         }))
                                                     }
                                                     className="mt-1"
                                                 />
                                             </div>
+
                                         </div>
 
                                         <div className="flex flex-col">

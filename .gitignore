@@ -1,4 +1,6 @@
 # Next dev/build outputs
+
+
 .output
 .data
 .nuxt
@@ -18,7 +20,17 @@ logs
 .DS_Store
 .fleet
 .idea
+# Ignore Python venv
+server/WhisperLive/venv/
 
+# Ignore caches, builds, logs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite
+*.sqlite3
 # Local env files
 .env
 .env.*
@@ -49,3 +61,5 @@ server/WhisperLive/.venv/
 
 # (you may also want to ignore other .exe/.dll under site-packages)
 .next/
+
+setup_venv.sh
