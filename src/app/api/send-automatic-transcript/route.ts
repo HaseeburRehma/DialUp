@@ -1,13 +1,28 @@
 // src/app/api/send-automatic-transcript/route.ts
+// Consolidated and improved email sender (merged logic from both routes, removed duplicate)
 
 import { NextRequest, NextResponse } from "next/server"
 import nodemailer from "nodemailer"
 
 export async function POST(req: NextRequest) {
   try {
-    const { transcript, callDuration, callDate, callerNumber, receiverNumber, callerEmail, receiverEmail } = await req.json()
+    const { 
+      transcript, 
+      callDuration, 
+      callDate, 
+      callerNumber, 
+      receiverNumber, 
+      callerEmail, 
+      receiverEmail 
+    } = await req.json()
+    
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g
+    let recipients = [callerEmail, receiverEmail].filter(Boolean)
 
-    const recipients = [callerEmail, receiverEmail].filter(Boolean)
+    if (!receiverEmail) {
+      const found = transcript.match(emailRegex)
+      if (found?.length) recipients.push(found[0])
+    }
 
     if (!transcript) {
       return NextResponse.json({ error: 'No transcript provided' }, { status: 400 })
@@ -30,7 +45,7 @@ export async function POST(req: NextRequest) {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Call Summary</title>
+          <title>Call Summary & Transcript</title>
           <style>
             body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
             .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
@@ -53,7 +68,7 @@ export async function POST(req: NextRequest) {
           <div class="container">
             <div class="header">
               <h1>📞 Call Summary</h1>
-              <p>Automatic transcript and call details</p>
+              <p>Automatic transcript, recording, and call details</p>
             </div>
             <div class="content">
               <div class="call-summary">
@@ -100,12 +115,7 @@ export async function POST(req: NextRequest) {
       </html>
     `
 
-    // Send email to both participants (if we have their emails)
-    // In a real implementation, you'd want to extract emails from your user database
-   
-
     if (recipients.length === 0) {
-      // If no recipients configured, just log the transcript
       console.log('Call transcript ready but no email recipients configured:', {
         callerNumber,
         receiverNumber,

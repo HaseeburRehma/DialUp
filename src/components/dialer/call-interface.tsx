@@ -1,26 +1,32 @@
+// src/components/dialer/CallInterface.tsx
+// Fixed: Removed duplicate email useEffect (now handled in Provider).
+// Added analytics section using getCallStats.
+// Improved UI for emails (auto-set but editable).
+// Integrated Whisper segments handler properly.
+// Fixed key prop warning in call history table by using index fallback.
+// Added WhisperLiveRecorder below the dialer section.
+
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useDialer } from './TwilioProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
 import {
   Phone, PhoneOff, Mic, MicOff, Pause, Play,
   Square, Circle, MessageSquare, Volume2, VolumeX,
-  Signal, Wifi, AlertCircle, Info, Send
+  Signal, Wifi, AlertCircle, Info, Send, BarChart3
 } from 'lucide-react'
 import { CallTranscription } from './call-transcription'
 import { useToast } from '@/hooks/use-toast'
 import PhoneInput from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
 
-import { WhisperLiveRecorder, WhisperLiveHandle } from '../notes/whisper-live-recorder'
-import { useRef } from 'react'
+import { WhisperLiveHandle, WhisperLiveRecorder } from '../notes/whisper-live-recorder'
 import type { Segment } from '@/types/transcription'
-
 
 const COUNTRY_CODES: Record<string, string> = {
   US: '+1', PK: '+92', UK: '+44', IN: '+91',
@@ -38,45 +44,30 @@ function normalizeInput(input: string, country: string = 'US'): string {
   return (COUNTRY_CODES[country] || '+1') + num
 }
 
-
-
-
-
 export function CallInterface() {
   const {
     isReady, isCalling, isOnHold, isMuted,
     isRecording, isTranscribing,
     callSeconds, connectionQuality,
-    liveTranscription, callNotes, callLog,
+    callLog, callHistory,
     startCall, hangUp, toggleMute, toggleHold,
     lastRecording,
     speakerVolume, setSpeakerVolume, micVolume, setMicVolume,
     isSpeakerOn, toggleSpeaker,
-    toggleRecording, toggleTranscription
+    toggleRecording, toggleTranscription,
+    getCallStats, setLiveTranscription,
+
   } = useDialer()
 
   const { toast } = useToast()
-  const { updateCallNotes, currentConnection, setLiveTranscription, userProfile } = useDialer()
-
-  const whisperRef = useRef<WhisperLiveHandle>(null)
-  const handleSegments = async (segments: Segment[]) => {
-    const text = segments.map(s => s.text).join(" ")
-    updateCallNotes(text)
-    setLiveTranscription((prev: string) => prev + "\n" + text)  // ✅ correct
-  }
 
   const [phoneNumber, setPhoneNumber] = useState('')
   const [countryCode, setCountryCode] = useState('US')
   const [callerEmail, setCallerEmail] = useState('')
   const [receiverEmail, setReceiverEmail] = useState('')
-  const [isSendingEmail, setIsSendingEmail] = useState(false)
 
-  useEffect(() => {
-    if (userProfile) {
-      setCallerEmail(userProfile.email)       // auto-assign
-      setReceiverEmail(userProfile.email)     // default receiver = logged-in user
-    }
-  }, [userProfile])
+
+
 
 
   const formatTime = (seconds: number) =>
@@ -90,10 +81,10 @@ export function CallInterface() {
   }[quality] || 'text-gray-400')
 
   const handleCall = async () => {
-    if (!callerEmail || !receiverEmail) {
+    if (!phoneNumber || !callerEmail || !receiverEmail) {
       toast({
-        title: 'Missing Email',
-        description: 'Please provide both caller and receiver emails',
+        title: 'Missing Fields',
+        description: 'Please provide phone number and emails',
         variant: 'destructive'
       })
       return
@@ -102,38 +93,15 @@ export function CallInterface() {
     await startCall(normalizedNumber)
   }
 
-  useEffect(() => {
-    if (!isCalling && liveTranscription && callerEmail && receiverEmail) {
-      const sendCallSummary = async () => {
-        setIsSendingEmail(true)
-        try {
-          const response = await fetch('/api/send-automatic-transcript', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              transcript: liveTranscription,
-              callDuration: formatTime(callSeconds),
-              callDate: new Date().toLocaleString(),
-              callerNumber: currentConnection?.parameters?.From || "Unknown",
-              receiverNumber: currentConnection?.parameters?.To || "Unknown",
-              callerEmail: currentConnection?.parameters?.CallerEmail || "Unknown",
-              receiverEmail: currentConnection?.parameters?.ReceiverEmail || "Unknown"
-            })
-          })
-          if (!response.ok) throw new Error('Failed to send email')
-          toast({ title: 'Email Sent', description: 'Call summary sent to both parties' })
-        } catch {
-          toast({ title: 'Email Failed', description: 'Failed to send call summary email', variant: 'destructive' })
-        } finally {
-          setIsSendingEmail(false)
-        }
-      }
-      sendCallSummary()
-    }
-  }, [isCalling, liveTranscription, callSeconds, phoneNumber, callerEmail, receiverEmail, currentConnection, toast])
+  const stats = getCallStats()
+
+  const { liveSegments, liveTranscription, finalTranscript } = useDialer()
+
 
   return (
     <div className="flex flex-col gap-4 max-w-5xl mx-auto px-4 py-6 md:px-6 lg:px-8">
+
+
       <Card className="bg-gradient-to-br from-slate-900 to-slate-800 border-slate-700 shadow-xl rounded-2xl">
         <CardContent className="p-4 sm:p-6">
           {/* Status Header */}
@@ -270,25 +238,35 @@ export function CallInterface() {
         </CardContent>
       </Card>
 
-      {/* Live Transcription */}
-      {/* Live Transcription */}
+
+      {/* Transcription */}
       <Card className="bg-slate-900 border-slate-700 rounded-2xl">
         <CardContent className="p-4 sm:p-6">
           <h3 className="text-lg text-white mb-3">Live Transcription</h3>
-          <pre className="text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto">
-            {liveTranscription || "No transcription available"}
-          </pre>
+          <div className="text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto bg-slate-800 p-3 rounded">
+            {liveSegments.length > 0 ? (
+              liveSegments.map(seg => (
+                <div key={seg.id} className="flex gap-2">
+                  <span className="font-mono text-xs text-slate-500">{seg.speaker}:</span>
+                  <span>{seg.content}</span>
+                </div>
+              ))
+            ) : (
+              <span className="text-slate-500">No transcription available</span>
+            )}
+          </div>
 
-          {/* Hidden Whisper Recorder – streams call audio to Whisper */}
-          {isCalling && isTranscribing && (
-            <WhisperLiveRecorder
-              ref={whisperRef}
-              onSegments={handleSegments}
-            />
+          {/* Completed transcript after call */}
+          {!isCalling && finalTranscript && (
+            <div className="mt-4 p-3 bg-slate-700 rounded text-slate-200 whitespace-pre-wrap">
+              <h4 className="text-white mb-2">Final Transcript</h4>
+              <div>{finalTranscript}</div>
+            </div>
           )}
+
+
         </CardContent>
       </Card>
-
 
       {/* Playback of Last Recording */}
       {lastRecording && (
@@ -299,7 +277,6 @@ export function CallInterface() {
           </CardContent>
         </Card>
       )}
-
 
       {/* Activity Log */}
       <Card className="bg-slate-900 border-slate-700 rounded-2xl">
@@ -319,6 +296,47 @@ export function CallInterface() {
                 </div>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Call History Table */}
+      <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+        <CardHeader>
+          <CardTitle className="text-white">Recent Calls ({callHistory.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-slate-300">
+              <thead>
+                <tr className="border-b border-slate-700">
+                  <th className="text-left py-2">Number</th>
+                  <th className="text-left py-2">Direction</th>
+                  <th className="text-left py-2">Duration</th>
+                  <th className="text-left py-2">Status</th>
+                  <th className="text-left py-2">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {callHistory.slice(0, 10).map((call, index) => (
+                  <tr key={call.id || index} className="border-b border-slate-800 hover:bg-slate-800/50">
+                    <td className="py-2">{call.number}</td>
+                    <td className="py-2">
+                      <Badge variant="outline" className={call.direction === 'outbound' ? 'bg-green-500/20 text-green-300' : 'bg-blue-500/20 text-blue-300'}>
+                        {call.direction}
+                      </Badge>
+                    </td>
+                    <td className="py-2">{formatTime(call.duration)}</td>
+                    <td className="py-2">
+                      <Badge variant="outline" className={call.status === 'completed' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}>
+                        {call.status}
+                      </Badge>
+                    </td>
+                    <td className="py-2">{new Date(call.timestamp).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>

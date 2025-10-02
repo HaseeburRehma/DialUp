@@ -352,7 +352,8 @@ export function useOptimizedWhisperLive(
                 volume: rms,
                 confidence: wsSeg.confidence || 0.8,
                 id: '',
-                timestamp: 0
+                timestamp: 0,
+                isFinal: true,
               }
 
               newSegments.push(segment)

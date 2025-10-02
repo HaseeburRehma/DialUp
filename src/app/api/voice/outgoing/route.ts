@@ -1,5 +1,3 @@
-// src/app/api/voice/outgoing/route.ts
-
 import { NextResponse } from "next/server";
 import twilio from "twilio";
 
@@ -21,22 +19,26 @@ export async function POST(req: Request) {
 
     const twiml = new VoiceResponse();
 
+    // Always resolve callerId first so it's in scope everywhere
+    const CallerEmail = formData.get("CallerEmail") as string | null;
+    const CallerNumber = formData.get("CallerNumber") as string | null;
+
+    const callerId =
+      process.env.TWILIO_CALLER_ID || // always prefer your Twilio number
+      (CallerNumber && process.env.ALLOW_CUSTOM_CALLER_ID === "true" ? CallerNumber : undefined);
+
     if (To && /^\+?\d+$/.test(To)) {
       // PSTN call (normal phone number)
-      const CallerEmail = formData.get("CallerEmail") as string | null
-      const CallerNumber = formData.get("CallerNumber") as string | null
+      const dial = twiml.dial({ callerId });
+      dial.number(To);
 
-
-      const callerId = CallerNumber || process.env.TWILIO_CALLER_ID || "+10000000000"
-
-      const dial = twiml.dial({ callerId })
-      dial.number(To)
-
-      console.log(`📤 Outgoing: From ${CallerNumber} (${CallerEmail}) To ${To}`)
+      console.log(`📤 Outgoing PSTN: From ${callerId} (user: ${CallerNumber}, ${CallerEmail}) To ${To}`);
     } else if (To) {
       // Client-to-client call
-      const dial = twiml.dial();
+      const dial = twiml.dial({ callerId });
       dial.client(To);
+
+      console.log(`📤 Outgoing Client Call: From ${callerId} → client:${To}`);
     } else {
       twiml.say("No destination provided");
     }
@@ -50,4 +52,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-

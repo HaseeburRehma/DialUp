@@ -56,8 +56,9 @@ export default function DialerPage() {
           {/* Analytics dashboard */}
           <CallAnalytics />
 
-          {/* Call history list */}
+          {/* Call history list 
           <CallHistory />
+          */}
         </div>
      {/*   <VapiWidget /> */}
       </TwilioProvider>

@@ -83,6 +83,7 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
             speaker: 'mic',
             volume: 1,
             timestamp: i * 2,
+            isFinal: true,   
           }))
           : []
       );

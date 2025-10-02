@@ -1,3 +1,5 @@
+// src/components/notes/notes-table.tsx
+
 'use client'
 
 import { useState } from 'react'
@@ -112,7 +114,7 @@ export function NotesTable({ notes, onEdit, onDelete }: NotesTableProps) {
 
                   {/* Expanded Row */}
                   {isExpanded && (
-                    <tr className="bg-gray-50">
+                    <tr key={`${note.id}-expanded`} className="bg-gray-50">
                       <td colSpan={8} className="px-6 py-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Full text */}

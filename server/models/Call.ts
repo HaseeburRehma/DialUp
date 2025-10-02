@@ -1,4 +1,6 @@
-// src/models/Call.ts
+// src/server/models/Call.ts
+// Updated schema to support array of recordings.
+
 import mongoose from 'mongoose'
 
 const callSchema = new mongoose.Schema({
@@ -8,7 +10,7 @@ const callSchema = new mongoose.Schema({
   duration: Number,
   status: { type: String, enum: ['completed', 'busy', 'no-answer', 'failed'], default: 'completed' },
   timestamp: { type: Date, default: Date.now },
-  recording: { type: String }, // GridFS fileId or URL
+  recordings: [{ type: String }], // Array for multiple recordings (audio + whisper)
   notes: String,
   transcription: String,
   agentReplies: [String], // store conversation
