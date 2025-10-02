@@ -188,7 +188,7 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
             {whisperState.error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded">
                 <p className="text-sm text-red-600">
-                  {whisperState.error}. Please check your server settings and ensure the WhisperLive server is running.
+                  {whisperState.error}. Please check your server settings and ensure the WhisperLive server is in running state.
                 </p>
               </div>
             )}
