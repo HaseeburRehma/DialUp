@@ -3,13 +3,14 @@ import json
 import logging
 import threading
 import time
+from unittest import result
 import torch
 import ctranslate2
 from huggingface_hub import snapshot_download
 
 from whisper_live.transcriber.transcriber_faster_whisper import WhisperModel
 from whisper_live.backend.base import ServeClientBase
-
+import numpy as np
 
 class ServeClientFasterWhisper(ServeClientBase):
     SINGLE_MODEL = None
@@ -122,6 +123,43 @@ class ServeClientFasterWhisper(ServeClientBase):
                 }
             )
         )
+    async def speech_to_text(self):
+        """
+        Main loop: receive audio frames from client, run transcription, send results back.
+        """
+        async for message in self.websocket:
+            try:
+                # --- Handle binary audio messages ---
+                if isinstance(message, (bytes, bytearray)):
+                    data = np.frombuffer(message, dtype=np.uint8)
+
+                    # First byte = speaker ID (0 = caller, 1 = receiver)
+                    speaker_id = int(data[0])
+                    audio = data[1:].view(np.float32)  # Rest of buffer is PCM float32
+
+                    # Transcribe
+                    result = self.transcribe_audio(audio)
+
+                    # Inject speaker label into each segment
+                    if result:
+                        for seg in result:
+                            seg["speaker"] = "caller" if speaker_id == 0 else "receiver"
+
+                    # Handle + forward to client
+                    self.handle_transcription_output(result, len(audio) / 16000.0)
+
+                # --- Handle text messages (JSON configs, control messages, etc.) ---
+                elif isinstance(message, str):
+                    try:
+                        msg = json.loads(message)
+                        logging.info(f"Received control msg: {msg}")
+                        # You can extend: pause, resume, change model, etc.
+                    except Exception:
+                        logging.warning(f"Non-JSON text message: {message}")
+
+            except Exception as e:
+                logging.error(f"speech_to_text error: {e}")
+
 
     def create_model(self, device):
         """
@@ -220,17 +258,23 @@ class ServeClientFasterWhisper(ServeClientBase):
 
     def handle_transcription_output(self, result, duration):
         """
-        Handle the transcription output, updating the transcript and sending data to the client.
+        Processes the transcription result and sends it to the client if there are valid segments.
 
         Args:
-            result (str): The result from whisper inference i.e. the list of segments.
-            duration (float): Duration of the transcribed audio chunk.
+            result (list): The transcription result containing segments.
+            duration (float): The duration of the audio chunk that was transcribed.
         """
-        segments = []
-        if len(result):
-            self.t_start = None
-            last_segment = self.update_segments(result, duration)
-            segments = self.prepare_segments(last_segment)
+    segments = []
 
-        if len(segments):
-            self.send_transcription_to_client(segments)
+    if len(result):
+        self.t_start = None # type: ignore
+        last_segment = self.update_segments(result, duration)
+        segments = self.prepare_segments(last_segment)
+
+    if segments:
+        # Ensure each segment carries speaker info
+        for seg in segments:
+            if "speaker" not in seg:
+                seg["speaker"] = "unknown"
+
+        self.send_transcription_to_client(segments)

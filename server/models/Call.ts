@@ -3,6 +3,7 @@
 
 import mongoose from 'mongoose'
 
+// src/server/models/Call.ts
 const callSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   number: String,
@@ -10,11 +11,20 @@ const callSchema = new mongoose.Schema({
   duration: Number,
   status: { type: String, enum: ['completed', 'busy', 'no-answer', 'failed'], default: 'completed' },
   timestamp: { type: Date, default: Date.now },
-  recordings: [{ type: String }], // Array for multiple recordings (audio + whisper)
-  notes: String,
+  recordings: [{ type: String }],
   transcription: String,
-  agentReplies: [String], // store conversation
-  metadata: Object
+  notes: String,
+  agentReplies: [String],
+  metadata: Object,
+  // 👇 new structured fields
+  callerName: String,
+  callReason: String,
+  pickedBy: String,       // agent who answered
+  callerEmail: String,
+  callerLocation: String,
+  callerAddress: String,
 })
+
+
 
 export default mongoose.models.Call || mongoose.model('Call', callSchema)

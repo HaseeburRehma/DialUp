@@ -37,17 +37,29 @@ export async function POST(req: NextRequest) {
 /**
  * Fetch call history for the logged in user
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connect()
-
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const calls = await Call.find({ userId: session.user.id }).sort({ timestamp: -1 })
-    return NextResponse.json(calls)
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get("page") || "1", 10)
+    const limit = parseInt(searchParams.get("limit") || "10", 10)
+
+    const skip = (page - 1) * limit
+
+    const [calls, total] = await Promise.all([
+      Call.find({ userId: session.user.id })
+        .sort({ timestamp: -1 })
+        .skip(skip)
+        .limit(limit),
+      Call.countDocuments({ userId: session.user.id })
+    ])
+
+    return NextResponse.json({ calls, total, page, limit })
   } catch (err: any) {
     console.error('❌ Fetch Calls Error:', err)
     return NextResponse.json({ error: err.message }, { status: 500 })

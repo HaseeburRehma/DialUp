@@ -72,8 +72,8 @@ async function start() {
       cors({ origin: allowedOrigins, credentials: true })
     );
 
-    const jsonParser = express.json({ limit: "50mb" });
-    const urlParser = express.urlencoded({ extended: true, limit: "50mb" });
+    const jsonParser = express.json({ limit: "500mb" });
+    const urlParser = express.urlencoded({ extended: true, limit: "500mb" });
 
     // Static files
     app.use("/audio", express.static(path.join(__dirname, "../public/audio")));

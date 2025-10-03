@@ -1,19 +1,42 @@
-  // src/app/api/send-call-transcript/route.ts
-
+// src/app/api/send-automatic-transcript/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import nodemailer from "nodemailer"
 
 export async function POST(req: NextRequest) {
   try {
-    const { recipientEmail, callerNumber, transcript, callDuration, callDate } = await req.json()
+    const { 
+      transcript, 
+      callDuration, 
+      callDate, 
+      callerNumber, 
+      receiverNumber, 
+      callerEmail, 
+      receiverEmail,
+      recordingUrl,           // ✅ NEW: single recording link
+      whisperRecordings = []  // ✅ NEW: array of whisper recordings
+    } = await req.json()
 
-    if (!recipientEmail || !transcript) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!transcript) {
+      return NextResponse.json({ error: "Transcript missing" }, { status: 400 })
     }
 
-    // Configure nodemailer (you'll need to add these environment variables)
+    // Collect recipients
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g
+    let recipients: string[] = []
+    if (callerEmail) recipients.push(callerEmail)
+    if (receiverEmail) recipients.push(receiverEmail)
+
+    // fallback: extract from transcript if no explicit receiver
+    if (!receiverEmail) {
+      const found = transcript.match(emailRegex)
+      if (found?.length) recipients.push(found[0])
+    }
+
+    recipients = [...new Set(recipients.filter(Boolean))] // dedupe
+
+    // Setup SMTP
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
       port: 587,
       secure: false,
       auth: {
@@ -22,84 +45,91 @@ export async function POST(req: NextRequest) {
       },
     })
 
+    // Recording Section (only if exists)
+    const recordingSection = (recordingUrl || whisperRecordings.length) ? `
+      <div style="margin-top:20px; padding: 15px; background:#fef9c3; border-left:4px solid #eab308; border-radius:8px;">
+        <h3 style="margin-top:0; font-size:16px;">🎧 Call Recording</h3>
+        ${recordingUrl ? `<p><a href="${recordingUrl}" style="color:#2563eb; font-weight:600;" target="_blank">▶️ Listen to Full Recording</a></p>` : ""}
+        ${whisperRecordings.length ? `
+          <ul style="padding-left:20px; margin:10px 0;">
+            ${whisperRecordings.map((url: string, i: number) => 
+              `<li><a href="${url}" style="color:#2563eb;" target="_blank">Whisper Clip ${i+1}</a></li>`).join("")}
+          </ul>
+        ` : ""}
+      </div>
+    ` : ""
+
+    // Build HTML
     const htmlContent = `
       <!DOCTYPE html>
       <html>
         <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Call Transcript</title>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <title>Call Summary & Transcript</title>
           <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
-            .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
-            .header h1 { margin: 0; font-size: 28px; font-weight: 300; }
-            .content { padding: 30px; }
-            .call-info { background: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 25px; }
-            .info-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-            .info-label { font-weight: 600; color: #666; }
-            .info-value { color: #333; }
-            .transcript { background: #fff; border: 1px solid #e9ecef; border-radius: 8px; padding: 20px; margin-top: 20px; }
-            .transcript h3 { margin-top: 0; color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
-            .transcript-content { white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.8; }
-            .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 12px; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.1); overflow: hidden; }
+            .header { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; padding: 25px; text-align: center; }
+            .header h1 { margin: 0; font-size: 26px; font-weight: 400; }
+            .content { padding: 25px; }
+            .summary { background: #f9fafb; border-radius: 8px; padding: 18px; margin-bottom: 20px; }
+            .row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+            .row span:first-child { font-weight: 600; color: #555; }
+            .row span:last-child { color: #222; }
+            .transcript { border: 1px solid #e5e7eb; background: #fff; border-radius: 8px; padding: 15px; }
+            .transcript h3 { margin-top: 0; font-size: 16px; border-bottom: 1px solid #e5e7eb; padding-bottom: 8px; }
+            .transcript-content { font-family: monospace; font-size: 14px; white-space: pre-wrap; }
+            .footer { background: #f9fafb; padding: 15px; text-align: center; font-size: 12px; color: #666; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>📞 Call Transcript</h1>
-              <p>Your call details and conversation transcript</p>
+              <h1>📞 Call Summary</h1>
             </div>
             <div class="content">
-              <div class="call-info">
-                <div class="info-row">
-                  <span class="info-label">📱 Caller Number:</span>
-                  <span class="info-value">${callerNumber || 'Unknown'}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">📅 Call Date:</span>
-                  <span class="info-value">${callDate}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">⏱️ Duration:</span>
-                  <span class="info-value">${callDuration}</span>
-                </div>
+              <div class="summary">
+                <div class="row"><span>📱 From:</span><span>${callerNumber || "Unknown"}</span></div>
+                <div class="row"><span>📞 To:</span><span>${receiverNumber || "Unknown"}</span></div>
+                <div class="row"><span>📅 Date:</span><span>${callDate || "N/A"}</span></div>
+                <div class="row"><span>⏱ Duration:</span><span>${callDuration || "N/A"}</span></div>
+                <div class="row"><span>Status:</span><span style="color:green;font-weight:600;">Completed</span></div>
               </div>
-              
               <div class="transcript">
                 <h3>📝 Conversation Transcript</h3>
                 <div class="transcript-content">${transcript}</div>
               </div>
+              ${recordingSection}
             </div>
             <div class="footer">
-              <p>This transcript was automatically generated from your phone call.</p>
-              <p>Generated on ${new Date().toLocaleString()}</p>
+              <p>Generated automatically on ${new Date().toLocaleString()}</p>
             </div>
           </div>
         </body>
       </html>
     `
 
+    if (!recipients.length) {
+      console.warn("Transcript ready but no recipients:", {
+        callerNumber, receiverNumber, callDuration, callDate
+      })
+      return NextResponse.json({ success: true, message: "Transcript generated but no recipients found" })
+    }
+
     const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to: recipientEmail,
-      subject: `📞 Call Transcript - ${callDate}`,
+      to: recipients.join(","),
+      subject: `📞 Call Summary: ${callerNumber || "Unknown"} ↔ ${receiverNumber || "Unknown"} - ${callDate}`,
       html: htmlContent,
     }
 
     await transporter.sendMail(mailOptions)
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Transcript sent successfully' 
-    })
+    return NextResponse.json({ success: true, recipients, message: "Transcript email sent" })
 
-  } catch (error: any) {
-    console.error('Error sending transcript email:', error)
-    return NextResponse.json({ 
-      error: 'Failed to send email', 
-      details: error.message 
-    }, { status: 500 })
+  } catch (err: any) {
+    console.error("Error sending transcript:", err)
+    return NextResponse.json({ error: "Email send failed", details: err.message }, { status: 500 })
   }
 }

@@ -23,7 +23,7 @@ server
     ssl_certificate_key / etc / letsencrypt / live / voiceai.wordpressstagingsite.com / privkey.pem;
 
 #Increase upload size limit
-    client_max_body_size 100M;
+    client_max_body_size 500M;
 
 #SIP WebSocket(Asterisk)
     location / sipws

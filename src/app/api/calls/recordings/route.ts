@@ -9,15 +9,13 @@ import Call from '../../../../../server/models/Call'
 export async function POST(req: NextRequest) {
   await connect()
   try {
-    const { callId, recordings } = await req.json()
-    const updateData: any = { $set: { recordings: Array.isArray(recordings) ? recordings : [recordings] } }
-    
-    // If transcription provided in recordings, update it
-    if (recordings && typeof recordings === 'object' && recordings.transcription) {
-      updateData.$set.transcription = recordings.transcription
-    }
-    
+    const { callId, recordings, transcription } = await req.json()
+    const updateData: any = { $set: {} }
+    if (recordings) updateData.$set.recordings = Array.isArray(recordings) ? recordings : [recordings]
+    if (transcription) updateData.$set.transcription = transcription
+
     await Call.findByIdAndUpdate(callId, updateData)
+
     return NextResponse.json({ success: true })
   } catch (err: any) {
     console.error('❌ Recordings update error:', err)

@@ -8,6 +8,7 @@ import { TwilioProvider } from '@/components/dialer/TwilioProvider'
 import { CallInterface } from '@/components/dialer/call-interface'
 import { CallAnalytics } from '@/components/dialer/call-analytics'
 import { CallHistory } from '@/components/dialer/call-history'
+import { CallRecords } from '@/components/dialer/CallRecords'
 import { IncomingCallModal } from '@/components/dialer/incoming-call-modal'
 import VapiWidget from '@/components/dialer/VapiWidget'
 import { CustomDialerProvider } from '@/components/dialer/CustomDialerProvider'
@@ -45,22 +46,23 @@ export default function DialerPage() {
 
 
       <TwilioProvider>
-        <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
-          {/* Overlay modal for ringing calls */}
+        <div className="min-h-screen ">
+          <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+            {/* Overlay modal for ringing calls */}
 
-          {/* Main interface */}
-          <CallInterface />
-          {/* 👉 Vapi Widget */}
+            {/* Main interface */}
+            <CallInterface />
+            {/* 👉 Vapi Widget */}
 
+       
+            <CallAnalytics />
 
-          {/* Analytics dashboard */}
-          <CallAnalytics />
-
-          {/* Call history list 
+            {/* Call history list 
           <CallHistory />
           */}
+          </div>
         </div>
-     {/*   <VapiWidget /> */}
+        {/*   <VapiWidget /> */}
       </TwilioProvider>
     </DashboardLayout>
   )

@@ -153,9 +153,11 @@ export function useOptimizedWhisperLive(
       .trim()
   }, [])
 
+
+
   const isDuplicate = useCallback((text: string): boolean => {
     const normalized = normalizeText(text)
-    if (normalized.length < 3) return true // Ignore very short texts
+    if (normalized.length < 1) return true // Ignore very short texts
 
     if (transcriptHistoryRef.current.has(normalized)) {
       return true
@@ -262,6 +264,8 @@ export function useOptimizedWhisperLive(
         model: config.model,
         use_vad: config.vad,
         stream: true,
+        diarize: true,                // 👈 enable speaker diarization
+        return_speaker_labels: true,
         save_recording: config.saveRecording,
         output_filename: config.outputFilename,
         max_clients: config.maxClients,
@@ -446,7 +450,19 @@ export function useOptimizedWhisperLive(
     }
   }, [config, toast, isDuplicate, addToHistory, normalizeText])
 
-  // Optimized transcription start
+  // Utility to send speaker-labeled audio frames
+  function sendWithSpeaker(float32: Float32Array, speaker: number) {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
+
+    // Allocate [1 byte speaker ID + PCM data]
+    const pcmBuffer = float32.buffer
+    const out = new Uint8Array(pcmBuffer.byteLength + 1)
+    out[0] = speaker // 0 = caller, 1 = receiver
+    out.set(new Uint8Array(pcmBuffer), 1)
+
+    wsRef.current.send(out)
+  }
+
   const startTranscription = useCallback(async () => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       setState(s => ({ ...s, error: 'Not connected to server' }))
@@ -454,26 +470,7 @@ export function useOptimizedWhisperLive(
     }
 
     try {
-      // Enhanced system audio capture
-      let systemStream: MediaStream | null = null
-      if (config.audioSources?.systemAudio) {
-        try {
-          systemStream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: {
-              sampleRate: 16000,
-              channelCount: 1,
-              echoCancellation: false, // Don't cancel interviewer voice
-              noiseSuppression: false,
-            },
-          })
-          systemRef.current = systemStream
-        } catch {
-          console.warn('[OptimizedWhisperLive] System audio denied, using microphone only')
-        }
-      }
-
-      // Enhanced microphone capture
+      // --- Microphone ---
       const micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
@@ -484,59 +481,33 @@ export function useOptimizedWhisperLive(
         },
       })
       micRef.current = micStream
-
-      const ctx = ctxRef.current!
-      const dest = ctx.createMediaStreamDestination()
-
-      // Create optimized audio routing
-      const micSrc = ctx.createMediaStreamSource(micStream)
-      const micGain = ctx.createGain()
-      micGain.gain.value = 1.0
-      micSrc.connect(micGain).connect(dest)
-
-      if (systemStream) {
-        const sysSrc = ctx.createMediaStreamSource(systemStream)
-        const sysGain = ctx.createGain()
-        sysGain.gain.value = 1.2 // Boost system audio slightly
-        sysSrc.connect(sysGain).connect(dest)
-      }
-
-      // Create optimized processor
-      const mixedSrc = ctx.createMediaStreamSource(dest.stream)
-      const chunkSize = config.optimization?.chunkSize || 2048
-      const processor = ctx.createScriptProcessor(chunkSize, 1, 1)
-
-      mixedSrc.connect(processor)
-
-      // Optimized audio processing
-      processor.onaudioprocess = (e) => {
+      const micSrc = ctxRef.current!.createMediaStreamSource(micStream)
+      const micProc = ctxRef.current!.createScriptProcessor(config.optimization?.chunkSize || 2048, 1, 1)
+      micSrc.connect(micProc)
+      micProc.onaudioprocess = e => {
         const float32 = e.inputBuffer.getChannelData(0)
-        const float32Buffer = new Float32Array(float32)
-
-        // Save for recording if enabled
-        if (config.saveRecording) {
-          recordingBuffers.current.push(float32Buffer)
-        }
-
-        // Convert to Uint8Array for visualization (optimized)
-        const ui8 = new Uint8Array(float32Buffer.length)
-        for (let i = 0; i < float32Buffer.length; i++) {
-          ui8[i] = Math.min(255, Math.max(0, Math.floor((float32Buffer[i] + 1) * 127.5)))
-        }
-
-        // Send to server (only if connected)
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(float32Buffer.buffer)
-        }
-
-        // Update visualizer
-        audioDataRef.current = ui8
-        setAudioData(ui8)
-        setDataUpdateTrigger(t => t + 1)
+        sendWithSpeaker(float32, 0) // caller
       }
 
-      processor.connect(ctx.destination)
-      processorRef.current = processor
+      // --- System Audio (if enabled) ---
+      if (config.audioSources?.systemAudio) {
+        try {
+          const sysStream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: { sampleRate: 16000, channelCount: 1 },
+          })
+          systemRef.current = sysStream
+          const sysSrc = ctxRef.current!.createMediaStreamSource(sysStream)
+          const sysProc = ctxRef.current!.createScriptProcessor(config.optimization?.chunkSize || 2048, 1, 1)
+          sysSrc.connect(sysProc)
+          sysProc.onaudioprocess = e => {
+            const float32 = e.inputBuffer.getChannelData(0)
+            sendWithSpeaker(float32, 1) // receiver
+          }
+        } catch {
+          console.warn('[OptimizedWhisperLive] System audio denied, using mic only')
+        }
+      }
 
       setState(s => ({ ...s, isTranscribing: true, error: null }))
     } catch (err: any) {

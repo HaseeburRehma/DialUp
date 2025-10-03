@@ -34,10 +34,13 @@ export interface WhisperLiveHandle {
 
 interface Props {
   onSegments: (segments: Segment[]) => void;
+  hideUI?: boolean; // 👈 add this
 }
 
+
+
 export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
-  function WhisperLiveRecorder({ onSegments }, ref) {
+  function WhisperLiveRecorder({ onSegments, hideUI }, ref) {
     const { settings, setSettings } = useSettings();
     const { transcription } = settings;
     const whisperliveSettings = transcription.whisperlive;
@@ -65,6 +68,10 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
       transcription.audioSources,
       whisperliveSettings,
     ]);
+
+
+    if (hideUI) return null;
+
 
     const onSettingsChange = (cfg: WhisperLiveConfig) => {
       setSettings({

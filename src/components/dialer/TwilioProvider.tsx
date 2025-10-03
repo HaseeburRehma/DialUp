@@ -32,6 +32,14 @@ interface CallRecord {
   recording?: string
   notes?: string
   transcription?: string
+  metadata?: { callSid?: string }   // ✅ add this
+  callerName?: string
+  callReason?: string
+  pickedBy?: string
+  callerEmail?: string
+  receiverEmail?: string
+  callerLocation?: string
+  callerAddress?: string
 }
 
 interface TwilioConnection {
@@ -73,6 +81,20 @@ interface EnhancedDialerContextProps {
   // Incoming calls
   incomingConnection: TwilioConnection | null
   isRinging: boolean
+  callerName: string
+
+
+  setCallerName: React.Dispatch<React.SetStateAction<string>>
+  pickedBy: string
+  setPickedBy: React.Dispatch<React.SetStateAction<string>>
+  callReason: string
+  setCallReason: React.Dispatch<React.SetStateAction<string>>
+  callerEmail: string
+  setCallerEmail: React.Dispatch<React.SetStateAction<string>>
+  callerLocation: string
+  setCallerLocation: React.Dispatch<React.SetStateAction<string>>
+  callerAddress: string
+  setCallerAddress: React.Dispatch<React.SetStateAction<string>>
 
   // Conference & Transfer
   conferenceParticipants: string[]
@@ -90,7 +112,7 @@ interface EnhancedDialerContextProps {
   liveSegments: Segment[] // <-- Added this line
 
   // Actions
-  startCall: (number: string) => void
+  startCall: (number: string, receiverEmail?: string) => void
   hangUp: () => void
   acceptCall: () => void
   rejectCall: () => void
@@ -161,6 +183,13 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [finalTranscript, setFinalTranscript] = useState('') // <-- move here
 
+  const [callerName, setCallerName] = useState('');
+  const [pickedBy, setPickedBy] = useState('');
+  const [callReason, setCallReason] = useState('');
+  const [callerEmail, setCallerEmail] = useState('');
+  const [callerLocation, setCallerLocation] = useState('');
+  const [callerAddress, setCallerAddress] = useState('');
+  const [receiverEmailState, setReceiverEmailState] = useState<string>("")
 
   // Refs
   const timerRef = useRef<NodeJS.Timeout | null>(null)
@@ -168,6 +197,23 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   const currentCallStartTime = useRef<Date | null>(null)
   const transcriptionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const whisperRef = useRef<WhisperLiveHandle>(null)
+  const [userProfile, setUserProfile] = useState<{ email: string; phone: string } | null>(null)
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const res = await fetch("/api/user/profile")   // <-- create endpoint that returns logged in user
+        if (res.ok) {
+          const data = await res.json()
+          setUserProfile({ email: data.email, phone: data.phone })
+          setCallerEmail(data.email)   // auto set caller email from logged-in user
+        }
+      } catch (err) {
+        log("❌ Failed to load user profile", "error")
+      }
+    }
+    loadProfile()
+  }, [])
 
   // Initialize ringtone
   useEffect(() => {
@@ -202,24 +248,9 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   const { state, startRecording, stopRecording } = useMediaRecorder()
 
-  const [userProfile, setUserProfile] = useState<{ email: string; phone: string } | null>(null)
   const [lastRecording, setLastRecording] = useState<string | null>(null)
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const res = await fetch("/api/user/profile")
-        if (res.ok) {
-          const data = await res.json()
-          setUserProfile({ email: data.email, phone: data.phone })
-          log(`👤 Loaded user profile: ${data.email}`, "info")
-        }
-      } catch (err: any) {
-        log("❌ Failed to load user profile", "error")
-      }
-    }
-    loadProfile()
-  }, [])
+
 
   async function sendToWhisper(blob: Blob): Promise<string> {
     try {
@@ -235,23 +266,34 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
-  const startCallFeatures = () => {
-    startRecording();
+  const waitForWhisper = () =>
+    new Promise<WhisperLiveHandle>((resolve, reject) => {
+      let attempts = 0
+      const interval = setInterval(() => {
+        if (whisperRef.current) {
+          clearInterval(interval)
+          resolve(whisperRef.current)
+        } else if (attempts++ > 10) {
+          clearInterval(interval)
+          reject(new Error("Whisper not ready"))
+        }
+      }, 300)
+    })
 
-    const tryConnect = (attempts = 0) => {
-      if (whisperRef.current) {
-        whisperRef.current.connect();
-        whisperRef.current.startTranscription();
-        setIsTranscribing(true);
-        log('🟢 Whisper connected + transcription started', 'info');
-      } else if (attempts < 5) {
-        setTimeout(() => tryConnect(attempts + 1), 500);
-      }
-    };
+  const startCallFeatures = async () => {
+    startRecording()
+    try {
+      const whisper = await waitForWhisper()
+      whisper.connect()
+      whisper.startTranscription()
+      setIsTranscribing(true)
+      setIsRecording(true)
+      log("🟢 Whisper + recording auto-started", "info")
+    } catch (err) {
+      log(`❌ Whisper init failed: ${(err as Error).message}`, "error")
+    }
+  }
 
-    tryConnect();
-    setIsRecording(true);
-  };
 
 
   const stopCallFeatures = async () => {
@@ -303,19 +345,19 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     receiverEmail?: string
   ) => {
     try {
-      const response = await fetch('/api/send-automatic-transcript', {
+
+      const response = await fetch('/api/send-call-transcript', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          recipientEmail: receiverEmail,   // must match API
+          callerNumber: currentConnection?.parameters?.From || 'Unknown',
           transcript,
           callDuration: formatTime(callSeconds),
           callDate: new Date().toLocaleString(),
-          callerNumber: currentConnection?.parameters?.From || 'Unknown',
-          receiverNumber: currentConnection?.parameters?.To || 'Unknown',
-          callerEmail: callerEmail || userProfile?.email,
-          receiverEmail: receiverEmail || userProfile?.email
         })
       })
+
 
       if (response.ok) {
         log('📧 Automatic transcript emails sent successfully', 'info')
@@ -496,14 +538,14 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
           // Stop features and get assets
           const { recordingUrl, whisperRecordings } = await stopCallFeatures()
-          
+
 
           // Extract emails (fallback to profile or transcript)
           const transcriptText = finalTranscript || liveTranscription
           const emailRegex = /[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g
           const emails = transcriptText.match(emailRegex) || []
           const callerEmail = call.parameters?.CallerEmail || userProfile?.email || emails[0]
-          const receiverEmail = call.parameters?.ReceiverEmail || userProfile?.email || emails[1] || emails[0]
+          const receiverEmail = call.parameters?.ReceiverEmail || receiverEmailState || emails[1] || emails[0] || ""
 
           // Send emails ONCE here
           await sendAutomaticEmails(transcriptText, recordingUrl ?? undefined, callerEmail, receiverEmail)
@@ -516,7 +558,8 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   callId: callSid,
-                  recordings: [recordingUrl, ...whisperRecordings].filter(Boolean)
+                  recordings: [recordingUrl, ...whisperRecordings].filter(Boolean),
+                  transcription: transcriptText,
                 })
               })
               log('💾 Recordings saved to DB', 'info')
@@ -536,6 +579,16 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
             recording: recordingUrl ?? undefined,
             notes: callNotes,
             transcription: transcriptText,
+            metadata: { callSid },
+            // 👇 include new fields
+            callerEmail: userProfile?.email,   // logged in agent
+            receiverEmail: receiverEmail,      // customer email
+            callerName,
+            pickedBy,
+            callReason,
+            callerLocation,
+            callerAddress,
+
           }
 
           try {
@@ -554,6 +607,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           setIsMuted(false)
           setCallNotes('')
           setLiveTranscription('')
+          setLiveSegments([])
 
           if (timerRef.current) {
             clearInterval(timerRef.current)
@@ -652,62 +706,103 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       log('🧹 Cleanup: Device destroyed & connections closed', 'info')
     }
   }, []) // Empty dependency array
+  // Live transcription via SSE
+  useEffect(() => {
+    const es = new EventSource("/api/voice/stream");
+
+    es.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+
+        // ensure id uniqueness
+        if (!data.id || seenSegmentsRef.current.has(data.id)) return;
+        seenSegmentsRef.current.add(data.id);
+
+        const segment: Segment = {
+          id: data.id,
+          speaker: data.speaker || "unknown",
+          content: data.content || data.text || "",
+          isFinal: !!data.final,
+          volume: 0,
+          timestamp: 0
+        };
+
+        // Append live segments
+        setLiveSegments((prev) => [...prev, segment]);
+
+        // Update live + final transcripts
+        setLiveTranscription((prev) =>
+          prev ? prev + `\n${segment.speaker}: ${segment.content}` : `${segment.speaker}: ${segment.content}`
+        );
+        if (segment.isFinal) {
+          setFinalTranscript((prev) =>
+            prev ? prev + `\n${segment.speaker}: ${segment.content}` : `${segment.speaker}: ${segment.content}`
+          );
+        }
+      } catch (err) {
+        console.error("❌ SSE parse error:", err);
+      }
+    };
+
+    es.onerror = (err) => {
+      console.error("❌ SSE connection error:", err);
+      es.close();
+    };
+
+    return () => es.close();
+  }, []);
+
 
   // Actions
-  const startCall = async (phoneNumber: string) => {
+  const startCall = async (phoneNumber: string, receiverEmail?: string) => {
     if (!device || !isReady) {
       log("❌ Device not ready for calls", "error")
       return
     }
 
-    // ✅ Expect already normalized input from UI
     let cleanNumber = phoneNumber.trim()
-
-    // ✅ Ensure starts with +
     if (!cleanNumber.startsWith("+")) {
       log("❌ Invalid number, must include country code", "error")
       return
     }
-    setIsCalling(true)
 
-    console.log("📞 Attempting call to:", cleanNumber)
+    setIsCalling(true)
     log(`📞 Calling ${cleanNumber}...`, "info")
+
     if (!userProfile) {
       log("❌ No user profile loaded yet", "error")
       return
     }
+
+    // 👇 Save the customer email locally
+    if (receiverEmail) {
+      setReceiverEmailState(receiverEmail)
+    }
+
     try {
       const call = await device.connect({
         params: {
           To: cleanNumber,
-          CallerEmail: userProfile.email,
-          CallerNumber: userProfile.phone,
+          CallerEmail: userProfile.email,   // agent email
+          CallerNumber: userProfile.phone,  // agent phone
+          ReceiverEmail: receiverEmail || "" // customer email
         }
       })
 
-      call.on("accept", () => {
-        console.log("📲 Call accepted")
-        log("📲 Call accepted", "info")
-      })
-
-      call.on("ringing", () => {
-        console.log("🔔 Remote side ringing")
-        log("🔔 Remote side ringing", "info")
-      })
-
+      call.on("accept", () => log("📲 Call accepted", "info"))
+      call.on("ringing", () => log("🔔 Remote side ringing", "info"))
       call.on("error", (err: any) => {
-        console.error("❌ Call error:", err)
         log(`❌ Call error: ${err.message}`, "error")
         setIsCalling(false)
         setCurrentConnection(null)
       })
-
     } catch (err: any) {
-      console.error("❌ Error starting call:", err)
       log(`❌ Error starting call: ${err.message}`, "error")
       setIsCalling(false)
     }
   }
+
+
 
 
   const hangUp = () => {
@@ -745,6 +840,8 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       if (timerRef.current) clearInterval(timerRef.current)
       timerRef.current = setInterval(() => setCallSeconds(c => c + 1), 1000)
     }
+    // 👇 Auto-start features for inbound
+    startCallFeatures()
   }
 
   const rejectCall = () => {
@@ -851,14 +948,14 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     setCallNotes(notes)
   }
 
+
   const getCallStats = () => {
+    if (!Array.isArray(callHistory)) return { totalCalls: 0, averageDuration: 0, successRate: 0, todaysCalls: 0 }
+
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const todaysCalls = callHistory.filter(call =>
-      new Date(call.timestamp) >= today
-    ).length
-
+    const todaysCalls = callHistory.filter(call => new Date(call.timestamp) >= today).length
     const totalCalls = callHistory.length
     const completedCalls = callHistory.filter(call => call.status === 'completed')
 
@@ -866,9 +963,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       ? completedCalls.reduce((sum, call) => sum + call.duration, 0) / completedCalls.length
       : 0
 
-    const successRate = totalCalls > 0
-      ? (completedCalls.length / totalCalls) * 100
-      : 0
+    const successRate = totalCalls > 0 ? (completedCalls.length / totalCalls) * 100 : 0
 
     return {
       totalCalls,
@@ -878,14 +973,16 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   }
 
+
   // Load call history on mount
   useEffect(() => {
     const loadHistory = async () => {
       try {
         const res = await fetch('/api/calls')
         if (res.ok) {
-          const history = await res.json()
-          setCallHistory(history)
+          const data = await res.json()
+          const history = Array.isArray(data) ? data : data.calls // ✅ handle both
+          setCallHistory(history || [])
           log(`📊 Loaded ${history.length} call records`, 'info')
         }
       } catch (err: any) {
@@ -894,6 +991,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
     if (isReady) loadHistory()
   }, [isReady])
+
 
   // inside TwilioProvider
   const seenSegmentsRef = useRef<Set<string>>(new Set())
@@ -926,7 +1024,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         isReady,
         connectionQuality,
         setLiveTranscription,
-        finalTranscript,  
+        finalTranscript,
         liveSegments,
         userProfile,
         isCalling,
@@ -964,11 +1062,18 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         startConference,
         updateCallNotes,
         getCallStats,
+        callerName, setCallerName,
+        pickedBy, setPickedBy,
+        callReason, setCallReason,
+        callerEmail, setCallerEmail,
+        callerLocation, setCallerLocation,
+        callerAddress, setCallerAddress,
+
       }}
     >
       {children}
 
-      <WhisperLiveRecorder ref={whisperRef} onSegments={handleWhisperSegments} />
+      <WhisperLiveRecorder ref={whisperRef} onSegments={handleWhisperSegments} hideUI />
 
 
 
