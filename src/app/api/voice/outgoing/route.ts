@@ -16,30 +16,42 @@ export async function POST(req: Request) {
 
     const twiml = new VoiceResponse();
 
-    // ✅ Start streaming BEFORE dialing
+    // Global stream
     const start = twiml.start();
     start.stream({
       url: `${process.env.BASE_URL}/api/voice/stream`,
-      track: "both_tracks",
+      track: "inbound_track",
+    });
+    start.stream({
+      url: `${process.env.BASE_URL}/api/voice/stream`,
+      track: "outbound_track",
     });
 
-    // 👇 ensure callerId is always a string
-    const callerId: string =
+    const callerId =
       process.env.TWILIO_CALLER_ID ||
-      (CallerNumber && process.env.ALLOW_CUSTOM_CALLER_ID === "true"
-        ? CallerNumber
-        : process.env.DEFAULT_CALLER_ID || "+12184893380");
+      process.env.DEFAULT_CALLER_ID || "+12184893380";
 
-    // ✅ PSTN Call
     if (To && /^\+?\d+$/.test(To)) {
       const dial = twiml.dial({
-        callerId: callerId,
+        callerId,
         record: "record-from-answer-dual",
         trim: "do-not-trim",
       });
+
+      // Add per-leg stream
+      const legStream = dial.start();
+      legStream.stream({
+        url: `${process.env.BASE_URL}/api/voice/stream`,
+        track: "inbound_track",
+      });
+      legStream.stream({
+        url: `${process.env.BASE_URL}/api/voice/stream`,
+        track: "outbound_track",
+      });
+
       dial.number(To);
-      console.log(`📤 Outgoing PSTN call: ${callerId} → ${To}`);
     }
+
 
     // ✅ Client Call
     else if (To) {
@@ -72,3 +84,6 @@ export async function GET() {
     headers: { "Content-Type": "text/xml" },
   });
 }
+
+
+   
