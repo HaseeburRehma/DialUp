@@ -20,25 +20,27 @@ const clients: SSEClient[] = [];
  */
 function pcmToWav(buffer: Buffer, sampleRate = 8000) {
   const header = Buffer.alloc(44);
-  header.write("RIFF", 0); // ChunkID
-  header.writeUInt32LE(36 + buffer.length, 4); // ChunkSize
-  header.write("WAVE", 8); // Format
-  header.write("fmt ", 12); // Subchunk1ID
-  header.writeUInt32LE(16, 16); // Subchunk1Size (16 for PCM)
-  header.writeUInt16LE(1, 20); // AudioFormat (1 = PCM)
-  header.writeUInt16LE(1, 22); // NumChannels (1 = mono)
-  header.writeUInt32LE(sampleRate, 24); // SampleRate
-  header.writeUInt32LE(sampleRate * 2, 28); // ByteRate
-  header.writeUInt16LE(2, 32); // BlockAlign
-  header.writeUInt16LE(16, 34); // BitsPerSample
-  header.write("data", 36); // Subchunk2ID
-  header.writeUInt32LE(buffer.length, 40); // Subchunk2Size
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + buffer.length, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(buffer.length, 40);
   return Buffer.concat([header, buffer]);
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    console.log("🛰️ STREAM EVENT:", body.event);
 
     if (body.event === "start") {
       console.log("🚀 Twilio stream started:", body.start);
@@ -49,8 +51,9 @@ export async function POST(req: Request) {
     if (body.event === "media" && body.media?.payload) {
       const audioBuffer = Buffer.from(body.media.payload, "base64");
       audioBuffers.push(audioBuffer);
+      console.log("🎙️ Received media packet", audioBuffers.length);
 
-      // flush in chunks to keep near-realtime
+      // flush every ~50 frames for near real-time updates
       if (audioBuffers.length >= 50) {
         await transcribeAndBroadcast();
       }
@@ -75,16 +78,12 @@ async function transcribeAndBroadcast(final = false) {
   const buffer = Buffer.concat(audioBuffers);
   audioBuffers = []; // reset
 
-  // Wrap PCM into WAV
   const wavBuffer = pcmToWav(buffer, 8000);
   await writeFile(tmpPath, wavBuffer);
 
   try {
     const form = new FormData();
-    form.append(
-      "audio",
-      new File([wavBuffer], "chunk.wav", { type: "audio/wav" })
-    );
+    form.append("audio", new File([wavBuffer], "chunk.wav", { type: "audio/wav" }));
 
     const resp = await fetch(`${process.env.BASE_URL}/api/server/transcribe`, {
       method: "POST",
@@ -101,7 +100,7 @@ async function transcribeAndBroadcast(final = false) {
       console.error("Whisper failed:", await resp.text());
     }
   } finally {
-    await unlink(tmpPath).catch(() => {});
+    await unlink(tmpPath).catch(() => { });
   }
 }
 
@@ -111,14 +110,11 @@ export async function GET() {
     start(controller) {
       const encoder = new TextEncoder();
       const send = (data: any) =>
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
-        );
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
-      // Send transcript backlog
+      // send existing transcript
       transcriptLog.forEach((t) => send({ text: t }));
 
-      // Keep alive every 15s
       const interval = setInterval(() => {
         controller.enqueue(encoder.encode(": keepalive\n\n"));
       }, 15000);
@@ -131,7 +127,6 @@ export async function GET() {
       clients.push(client);
     },
     cancel() {
-      // cleanup if browser disconnects
       clients.forEach((c) => c.close());
       clients.length = 0;
     },
@@ -147,7 +142,6 @@ export async function GET() {
   });
 }
 
-// Broadcast transcript to all SSE clients
 function broadcast(payload: { text: string; final?: boolean; speaker?: string }) {
   const data = {
     id: Date.now().toString(),
