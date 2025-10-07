@@ -26,7 +26,7 @@ if (process.env.NODE_ENV !== "production") {
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT) || 3000;
-const whisperPort = process.env.WHISPER_PORT || 4001;
+const whisperPort = process.env.WHISPER_PORT || 4000;
 
 async function start() {
   try {
