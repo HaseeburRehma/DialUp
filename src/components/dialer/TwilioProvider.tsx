@@ -65,7 +65,7 @@ interface EnhancedDialerContextProps {
   callSeconds: number
   currentConnection: TwilioConnection | null
 
-  setLiveTranscription: React.Dispatch<React.SetStateAction<string>>
+  setLiveSegments: React.Dispatch<React.SetStateAction<Segment[]>>;
 
   userProfile: { email: string; phone: string } | null
 
@@ -107,7 +107,8 @@ interface EnhancedDialerContextProps {
 
   // Real-time features
   liveTranscription: string
-  finalTranscript: string
+  finalTranscript: string;
+  setFinalTranscript: React.Dispatch<React.SetStateAction<string>>;
   isTranscribing: boolean
   liveSegments: Segment[] // <-- Added this line
 
@@ -198,6 +199,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   const transcriptionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const whisperRef = useRef<WhisperLiveHandle>(null)
   const [userProfile, setUserProfile] = useState<{ email: string; phone: string } | null>(null)
+  const seenSegmentsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -608,6 +610,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           setCallNotes('')
           setLiveTranscription('')
           setLiveSegments([])
+          setFinalTranscript('');
 
           if (timerRef.current) {
             clearInterval(timerRef.current)
@@ -717,7 +720,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
     console.log("🔊 Starting SSE connection:", sseUrl);
     const es = new EventSource(sseUrl, { withCredentials: false });
-
+    seenSegmentsRef.current.clear();
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
@@ -1005,11 +1008,10 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
 
   // inside TwilioProvider
-  const seenSegmentsRef = useRef<Set<string>>(new Set())
   const [liveSegments, setLiveSegments] = useState<Segment[]>([])
   const handleWhisperSegments = (segments: Segment[]) => {
     const unique = segments.filter((s) => {
-      const key = s.id || s.text || s.content
+      const key = s.id || s.content
       if (!key || seenSegmentsRef.current.has(key.trim().toLowerCase())) return false
       seenSegmentsRef.current.add(key.trim().toLowerCase())
       return true
@@ -1018,7 +1020,8 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
     // when handling segments
     if (unique.length) {
-      const joined = unique.map(s => s.text || s.content).join('\n')
+      const joined = unique.map(s => s.content).join('\n')
+
       setLiveTranscription(prev => (prev ? prev + '\n' + joined : joined))
       setLiveSegments(prev => [...prev, ...unique])
 
@@ -1034,9 +1037,12 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         device,
         isReady,
         connectionQuality,
-        setLiveTranscription,
+
         finalTranscript,
+        setFinalTranscript,
         liveSegments,
+        setLiveSegments,
+
         userProfile,
         isCalling,
         isOnHold,

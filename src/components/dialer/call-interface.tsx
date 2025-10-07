@@ -54,7 +54,7 @@ export function CallInterface() {
     speakerVolume, setSpeakerVolume, micVolume, setMicVolume,
     isSpeakerOn, toggleSpeaker,
     toggleRecording, toggleTranscription,
-    getCallStats, setLiveTranscription,
+    getCallStats, setFinalTranscript,
     callerName, setCallerName,
     pickedBy, setPickedBy,
     callReason, setCallReason,

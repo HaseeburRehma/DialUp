@@ -7,6 +7,12 @@ const next = require("next");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 const { connect: connectDb } = require("./utils/db");
 
+const { WebSocketServer } = require("ws");
+const fs = require("fs");
+const os = require("os");
+const FormData = require("form-data");
+const { pushTranscript } = require("../src/app/api/voice/stream/route");
+
 // Add process error handlers at the very top
 process.on("uncaughtException", (error) => {
   console.error("❌ Uncaught Exception:", error);
@@ -82,7 +88,7 @@ async function start() {
     try {
       app.use("/api/transcribe", jsonParser, urlParser, require("./routes/transcribe"));
       app.use("/api/upload", jsonParser, urlParser, require("./routes/upload"));
-     // app.use("/api/twilio-token", jsonParser, urlParser, require("./routes/twilio"));
+      // app.use("/api/twilio-token", jsonParser, urlParser, require("./routes/twilio"));
       console.log("✅ API routes loaded");
     } catch (error) {
       console.error("❌ Failed to load API routes:", error);
@@ -90,7 +96,7 @@ async function start() {
     }
 
     // WebSocket proxy
-   console.log(`🎤 Setting up WebSocket proxy to Whisper backend on port ${whisperPort}`);
+    console.log(`🎤 Setting up WebSocket proxy to Whisper backend on port ${whisperPort}`);
     const wsProxy = createProxyMiddleware({
       target: `http://127.0.0.1:${whisperPort}`,
       changeOrigin: true,
@@ -120,17 +126,111 @@ async function start() {
     const server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
     });
+    // 🧠 Twilio Media Stream WebSocket
+    const wss = new WebSocketServer({ noServer: true });
+    let audioBuffers = [];
+
+    wss.on("connection", (ws) => {
+      console.log("🎧 Twilio WebSocket connected");
+
+      ws.on("message", async (message) => {
+        try {
+          const data = JSON.parse(message.toString());
+          if (data.event === "start") {
+            console.log("🚀 Stream started:", data.start);
+            audioBuffers = [];
+          }
+
+          if (data.event === "media" && data.media?.payload) {
+            const pcm = Buffer.from(data.media.payload, "base64");
+            audioBuffers.push(pcm);
+
+            if (audioBuffers.length >= 35) { // ~2.5 seconds of audio at 8000 Hz
+              const wavBuffer = pcmToWav(Buffer.concat(audioBuffers), 8000);
+              audioBuffers = [];
+              await transcribeChunk(wavBuffer, data.media.track);
+
+            }
+          }
+
+          if (data.event === "stop") {
+            console.log("🛑 Stream stopped. Transcribing final chunk...");
+            if (audioBuffers.length > 0) {
+              const wavBuffer = pcmToWav(Buffer.concat(audioBuffers), 8000);
+              await transcribeChunk(wavBuffer, "final");
+              audioBuffers = [];
+            }
+          }
+
+        } catch (err) {
+          console.error("❌ WS message error:", err);
+        }
+      });
+
+      ws.on("close", () => console.log("🔌 Twilio WS closed"));
+    });
 
     // WebSocket upgrade forwarding
     server.on("upgrade", (req, socket, head) => {
-      console.log("🔄 Forwarding WebSocket upgrade to Whisper backend");
-      wsProxy.upgrade(req, socket, head);
+      if (req.url === "/api/voice/stream") {
+        console.log("🔄 Twilio is connecting to /api/voice/stream");
+        wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+      } else {
+        console.log("🔄 Forwarding other WebSockets to Whisper backend");
+        wsProxy.upgrade(req, socket, head);
+      }
     });
+
 
   } catch (error) {
     console.error("❌ Failed to start Express backend:", error);
     console.error("Stack trace:", error.stack);
     process.exit(1);
+  }
+}
+function pcmToWav(buffer, sampleRate = 8000) {
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + buffer.length, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(sampleRate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(buffer.length, 40);
+  return Buffer.concat([header, buffer]);
+}
+
+async function transcribeChunk(wavBuffer, track = "unknown") {
+  const tmpPath = path.join(os.tmpdir(), `twilio-${Date.now()}.wav`);
+  fs.writeFileSync(tmpPath, wavBuffer);
+
+  try {
+    const form = new FormData();
+    form.append("audio", fs.createReadStream(tmpPath));
+    const resp = await fetch(`${process.env.BASE_URL}/api/server/transcribe`, {
+      method: "POST",
+      body: form,
+    });
+
+    if (resp.ok) {
+      const { text } = await resp.json();
+      console.log(`🧠 Whisper (${track}):`, text);
+      pushTranscript({ text, track }); // ✅ Broadcast to frontend
+      console.log(`📡 Broadcasted transcript (${track}):`, text);
+
+    } else {
+      console.error("Whisper failed:", await resp.text());
+    }
+  } catch (err) {
+    console.error("Transcription error:", err);
+  } finally {
+    fs.unlink(tmpPath, () => { });
   }
 }
 
