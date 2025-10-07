@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { writeFile, unlink } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 let audioBuffers: Buffer[] = [];
 let transcriptLog: string[] = [];
@@ -54,9 +56,10 @@ export async function POST(req: Request) {
       console.log("🎙️ Received media packet", audioBuffers.length);
 
       // flush every ~50 frames for near real-time updates
-      if (audioBuffers.length >= 50) {
-        await transcribeAndBroadcast();
-      }
+      const track = body.media.track;
+      console.log(`🎙️ Received packet #${audioBuffers.length} (${track})`);
+      if (audioBuffers.length >= 50) await transcribeAndBroadcast(false, track);
+
     }
 
     if (body.event === "stop") {
@@ -71,38 +74,39 @@ export async function POST(req: Request) {
   }
 }
 
-async function transcribeAndBroadcast(final = false) {
-  if (audioBuffers.length === 0) return;
+let isTranscribing = false;
+
+async function transcribeAndBroadcast(final = false, track?: string) {
+  if (audioBuffers.length === 0 || isTranscribing) return;
+  isTranscribing = true;
 
   const tmpPath = join(tmpdir(), `twilio-${Date.now()}.wav`);
   const buffer = Buffer.concat(audioBuffers);
-  audioBuffers = []; // reset
-
+  audioBuffers = [];
   const wavBuffer = pcmToWav(buffer, 8000);
   await writeFile(tmpPath, wavBuffer);
+
+
+
 
   try {
     const form = new FormData();
     form.append("audio", new File([wavBuffer], "chunk.wav", { type: "audio/wav" }));
-
-    const resp = await fetch(`${process.env.BASE_URL}/api/server/transcribe`, {
-      method: "POST",
-      body: form,
-    });
+    const resp = await fetch(`${process.env.BASE_URL}/api/server/transcribe`, { method: "POST", body: form });
 
     if (resp.ok) {
       const { text } = await resp.json();
       if (text) {
         transcriptLog.push(text);
-        broadcast({ text, final });
+        broadcast({ text, final, track });
       }
-    } else {
-      console.error("Whisper failed:", await resp.text());
-    }
+    } else console.error("Whisper failed:", await resp.text());
   } finally {
     await unlink(tmpPath).catch(() => { });
+    isTranscribing = false;
   }
 }
+
 
 // SSE endpoint for frontend (live transcript stream)
 export async function GET() {
@@ -112,7 +116,7 @@ export async function GET() {
       const send = (data: any) =>
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
-      // send existing transcript
+      // Send any existing transcript backlog
       transcriptLog.forEach((t) => send({ text: t }));
 
       const interval = setInterval(() => {
@@ -134,18 +138,36 @@ export async function GET() {
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "Connection": "keep-alive",
       "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "X-Accel-Buffering": "no",
     },
   });
 }
 
-function broadcast(payload: { text: string; final?: boolean; speaker?: string }) {
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
+function broadcast(payload: { text: string; final?: boolean; track?: string }) {
+  const speaker =
+    payload.track === "inbound_track" ? "caller" :
+      payload.track === "outbound_track" ? "agent" : "unknown";
+
   const data = {
     id: Date.now().toString(),
-    speaker: payload.speaker || "unknown",
+    speaker,
     content: payload.text,
     final: payload.final || false,
   };
@@ -155,11 +177,10 @@ function broadcast(payload: { text: string; final?: boolean; speaker?: string })
   for (const client of [...clients]) {
     try {
       client.write(sseData);
-    } catch (e) {
-      console.error("SSE client write failed, removing client", e);
+    } catch (err) {
+      console.error("⚠️ Dropping dead SSE client:", err);
       client.close();
-      const idx = clients.indexOf(client);
-      if (idx !== -1) clients.splice(idx, 1);
+      clients.splice(clients.indexOf(client), 1);
     }
   }
 }

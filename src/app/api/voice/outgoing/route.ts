@@ -1,5 +1,4 @@
 // src/app/api/voice/outgoing/route.ts
-// src/app/api/voice/outgoing/route.ts
 import { NextResponse } from "next/server";
 import twilio from "twilio";
 

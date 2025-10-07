@@ -705,35 +705,42 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       }
       log('🧹 Cleanup: Device destroyed & connections closed', 'info')
     }
-  }, []) // Empty dependency array
-  // Live transcription via SSE
+  }, [])
+
+
+  // Live transcription via SSE (only active during calls)
   useEffect(() => {
-    const es = new EventSource("/api/voice/stream");
+    if (!isCalling) return; // don't start SSE until a call begins
+
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+    const sseUrl = `${baseUrl}/api/voice/stream`;
+
+    console.log("🔊 Starting SSE connection:", sseUrl);
+    const es = new EventSource(sseUrl, { withCredentials: false });
 
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
+        if (!data || !data.content) return;
 
-        // ensure id uniqueness
-        if (!data.id || seenSegmentsRef.current.has(data.id)) return;
+        if (seenSegmentsRef.current.has(data.id)) return;
         seenSegmentsRef.current.add(data.id);
 
         const segment: Segment = {
-          id: data.id,
+          id: data.id || Date.now().toString(),
           speaker: data.speaker || "unknown",
-          content: data.content || data.text || "",
+          content: data.content || "",
           isFinal: !!data.final,
           volume: 0,
-          timestamp: 0
+          timestamp: Date.now(),
         };
 
-        // Append live segments
+        // Push segment live
         setLiveSegments((prev) => [...prev, segment]);
-
-        // Update live + final transcripts
         setLiveTranscription((prev) =>
           prev ? prev + `\n${segment.speaker}: ${segment.content}` : `${segment.speaker}: ${segment.content}`
         );
+
         if (segment.isFinal) {
           setFinalTranscript((prev) =>
             prev ? prev + `\n${segment.speaker}: ${segment.content}` : `${segment.speaker}: ${segment.content}`
@@ -749,8 +756,12 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       es.close();
     };
 
-    return () => es.close();
-  }, []);
+    return () => {
+      console.log("🧹 Closing SSE connection");
+      es.close();
+    };
+  }, [isCalling]);
+
 
 
   // Actions
