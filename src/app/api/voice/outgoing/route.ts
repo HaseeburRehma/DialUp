@@ -1,4 +1,5 @@
 // src/app/api/voice/outgoing/route.ts
+// src/app/api/voice/outgoing/route.ts
 import { NextResponse } from "next/server";
 import twilio from "twilio";
 
@@ -8,7 +9,6 @@ export async function POST(req: Request) {
   try {
     const formData = await req.formData();
 
-    // 👇 safely cast form values
     const To = (formData.get("To") as string | null)?.trim() || null;
     const CallerNumber = (formData.get("CallerNumber") as string | null) || undefined;
 
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
     const twiml = new VoiceResponse();
 
-    // Global stream
+    // ✅ Global media stream setup (valid placement)
     const start = twiml.start();
     start.stream({
       url: `${process.env.BASE_URL}/api/voice/stream`,
@@ -29,31 +29,21 @@ export async function POST(req: Request) {
 
     const callerId =
       process.env.TWILIO_CALLER_ID ||
-      process.env.DEFAULT_CALLER_ID || "+12184893380";
+      process.env.DEFAULT_CALLER_ID ||
+      "+12184893380";
 
+    // ✅ PSTN call
     if (To && /^\+?\d+$/.test(To)) {
       const dial = twiml.dial({
         callerId,
         record: "record-from-answer-dual",
         trim: "do-not-trim",
       });
-
-      // Add per-leg stream
-      const legStream = dial.start();
-      legStream.stream({
-        url: `${process.env.BASE_URL}/api/voice/stream`,
-        track: "inbound_track",
-      });
-      legStream.stream({
-        url: `${process.env.BASE_URL}/api/voice/stream`,
-        track: "outbound_track",
-      });
-
       dial.number(To);
+      console.log(`📤 Outgoing PSTN call: ${callerId} → ${To}`);
     }
 
-
-    // ✅ Client Call
+    // ✅ Client call
     else if (To) {
       const dial = twiml.dial({ callerId });
       dial.client(To);
@@ -86,4 +76,4 @@ export async function GET() {
 }
 
 
-   
+
