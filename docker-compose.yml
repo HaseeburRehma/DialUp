@@ -1,12 +1,11 @@
-version: "3.9"
+\version: "3.9"
 
 services:
   app:
     build: .
     command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
     ports:
-      - "3000:3000"   # Next.js
-      - "4000:4000"   # Whisper backend proxied through app
+      - "3000:3000"   # Next.js only
     env_file:
       - .env
     environment:
@@ -28,11 +27,8 @@ services:
     container_name: whisper
     restart: unless-stopped
     expose:
-      - "4000:4000"
-      - "4001:4001"
-    ports:
-    - "4000:4000"
-    - "4001:4001"
+      - "4000"
+      - "4001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4001/healthz"]
       interval: 20s
