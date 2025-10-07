@@ -12,7 +12,7 @@ const FormData = require("form-data");
 const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args)); // ✅ Node18 fix
 const { pushTranscript } = require("./utils/sse");
 
-// Error safety
+// --- Error Safety ---
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
 });
@@ -45,7 +45,7 @@ async function start() {
     console.log("🚀 Next.js ready, starting Express...");
     const app = express();
 
-    // Environment setup
+    // --- Environment setup ---
     if (!process.env.NEXTAUTH_URL) {
       const host = process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
       process.env.NEXTAUTH_URL = dev ? `http://localhost:${PORT}` : `https://${host}`;
@@ -59,7 +59,7 @@ async function start() {
 
     console.log("🔐 CORS allowed origins:", allowedOrigins);
 
-    // ✅ CORS before everything
+    // --- CORS Middleware ---
     app.use(
       [
         "/api/transcribe",
@@ -74,21 +74,22 @@ async function start() {
     const jsonParser = express.json({ limit: "500mb" });
     const urlParser = express.urlencoded({ extended: true, limit: "500mb" });
 
-    // Static
+    // --- Static Files ---
     app.use("/audio", express.static(path.join(__dirname, "../public/audio")));
 
-    // Routes
+    // --- API Routes ---
     app.use("/api/transcribe", jsonParser, urlParser, require("./routes/transcribe"));
     app.use("/api/upload", jsonParser, urlParser, require("./routes/upload"));
     console.log("✅ API routes loaded");
 
-    // ✅ Whisper WebSocket proxy
-    console.log(`🎤 Setting up Whisper proxy → :${whisperPort}`);
+    // --- Whisper WebSocket Proxy ---
+    console.log(`🎤 Setting up Whisper proxy → whisper:${whisperPort}`);
     const wsProxy = createProxyMiddleware({
-      target: `http://127.0.0.1:${whisperPort}`,
+      target: `http://whisper:${whisperPort}`, // ✅ Fixed: Docker internal service name
       changeOrigin: true,
       ws: true,
       logLevel: dev ? "debug" : "silent",
+      pathRewrite: { "^/whisper": "/v1/realtime" }, // ✅ Fixed: Rewrite to new WhisperLive WS endpoint
       onError: (err, req, socket) => {
         console.error("❌ Whisper WS proxy error:", err.message);
         socket.destroy();
@@ -96,7 +97,7 @@ async function start() {
     });
     app.use("/whisper", wsProxy);
 
-    // Health check
+    // --- Health Check ---
     app.get("/health", (_req, res) => {
       res.json({
         ok: true,
@@ -106,7 +107,7 @@ async function start() {
       });
     });
 
-    // ✅ SSE endpoint
+    // --- SSE Endpoint (Twilio Stream Feedback) ---
     const { addClient, removeClient } = require("./utils/sse");
 
     app.get("/api/voice/stream", (req, res) => {
@@ -131,14 +132,15 @@ async function start() {
       });
     });
 
-    // ✅ Next.js catch-all LAST
+    // --- Next.js Catch-All ---
     app.all("*", (req, res) => handle(req, res));
 
+    // --- Start Server ---
     const server = app.listen(PORT, "0.0.0.0", () =>
       console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`)
     );
 
-    // --- Twilio Media Stream (WS)
+    // --- Twilio Media Stream (WS) ---
     const wss = new WebSocketServer({ noServer: true });
     let audioBuffers = [];
 
@@ -179,7 +181,7 @@ async function start() {
       ws.on("close", () => console.log("🔌 Twilio WS closed"));
     });
 
-    // ✅ WebSocket upgrade routing
+    // --- WebSocket Upgrade Routing ---
     server.on("upgrade", (req, socket, head) => {
       if (req.url.startsWith("/whisper")) {
         console.log("🔄 Whisper WS upgrade → backend");
@@ -191,6 +193,7 @@ async function start() {
         socket.destroy();
       }
     });
+
   } catch (err) {
     console.error("❌ Startup failure:", err);
     process.exit(1);

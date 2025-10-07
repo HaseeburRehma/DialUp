@@ -1,13 +1,5 @@
-upstream asterisk_ws {
-    server asterisk:8089;
-}
-
-upstream whisper_ws {
-    server app:4000;
-}
-
 upstream voiceai_app {
-    server app:3000;
+    server 127.0.0.1:3000;
 }
 
 server {
@@ -19,60 +11,34 @@ server {
 
     client_max_body_size 500M;
 
-    # Common proxy headers
     proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
     proxy_set_header Host $host;
-    proxy_read_timeout 3600s;
-    proxy_send_timeout 3600s;
+    proxy_read_timeout 86400;
+    proxy_send_timeout 86400;
 
-    # -------------------------------
-    # SIP WebSocket (Asterisk)
-    # -------------------------------
-    location /sipws {
-        proxy_pass http://asterisk_ws/ws;
-    }
-
-    # -------------------------------
-    # Whisper WebSocket (app:4000)
-    # -------------------------------
+    # --- Whisper (WebSocket) ---
     location /whisper {
-        proxy_pass http://whisper_ws;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection "Upgrade";
         proxy_set_header Host $host;
-        proxy_read_timeout 3600s;
-        proxy_send_timeout 3600s;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
     }
 
-    # -------------------------------
-    # SSE endpoint (EventSource)
-    # -------------------------------
+    # --- Server-Sent Events ---
     location /api/voice/stream {
-        proxy_pass http://voiceai_app;
+        proxy_pass http://127.0.0.1:3000;
         proxy_set_header Connection '';
         proxy_buffering off;
-        proxy_cache off;
-        proxy_read_timeout 1h;
-        proxy_send_timeout 1h;
         add_header X-Accel-Buffering no;
     }
 
-    # -------------------------------
-    # Main App (Next.js)
-    # -------------------------------
+    # --- Default Next.js ---
     location / {
-        proxy_pass http://voiceai_app;
+        proxy_pass http://127.0.0.1:3000;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-
-    location /_next/webpack-hmr {
-        proxy_pass http://voiceai_app;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection "Upgrade";
     }
 }
