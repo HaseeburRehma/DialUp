@@ -26,9 +26,9 @@ services:
     command: python3 -u server/WhisperLive/run_server.py --port 4000 --backend faster_whisper
     container_name: whisper
     restart: unless-stopped
-    expose:
-      - "4000"
-      - "4001"
+    ports:
+      - "4000:4000"
+      - "4001:4001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4001/healthz"]
       interval: 20s
