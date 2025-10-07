@@ -1,58 +1,17 @@
 import argparse
 import os
+import threading
+import uvicorn
+from fastapi import FastAPI
+from whisper_live.server import TranscriptionServer
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--port', '-p',
-                        type=int,
-                        default=9090,
-                        help="Websocket port to run the server on.")
-    parser.add_argument('--backend', '-b',
-                        type=str,
-                        default='faster_whisper',
-                        help='Backends from ["tensorrt", "faster_whisper", "openvino"]')
-    parser.add_argument('--faster_whisper_custom_model_path', '-fw',
-                        type=str, default=None,
-                        help="Custom Faster Whisper Model")
-    parser.add_argument('--trt_model_path', '-trt',
-                        type=str,
-                        default=None,
-                        help='Whisper TensorRT model path')
-    parser.add_argument('--trt_multilingual', '-m',
-                        action="store_true",
-                        help='Boolean only for TensorRT model. True if multilingual.')
-    parser.add_argument('--trt_py_session',
-                        action="store_true",
-                        help='Boolean only for TensorRT model. Use python session or cpp session, By default uses Cpp.')
-    parser.add_argument('--omp_num_threads', '-omp',
-                        type=int,
-                        default=1,
-                        help="Number of threads to use for OpenMP")
-    parser.add_argument('--no_single_model', '-nsm',
-                        action='store_true',
-                        help='Set this if every connection should instantiate its own model. Only relevant for custom model, passed using -trt or -fw.')
-    parser.add_argument('--max_clients',
-                        type=int,
-                        default=4,
-                        help='Maximum clients supported by the server.')
-    parser.add_argument('--max_connection_time',
-                        type=int,
-                        default=300,
-                        help='The maximum duration (in seconds) a client can stay connected. Defaults to 300 seconds (5 minutes)')
-    parser.add_argument('--cache_path', '-c',
-                        type=str,
-                        default="~/.cache/whisper-live/",
-                        help='Path to cache the converted ctranslate2 models.')
-    args = parser.parse_args()
+app = FastAPI()
 
-    if args.backend == "tensorrt":
-        if args.trt_model_path is None:
-            raise ValueError("Please Provide a valid tensorrt model path")
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 
-    if "OMP_NUM_THREADS" not in os.environ:
-        os.environ["OMP_NUM_THREADS"] = str(args.omp_num_threads)
-
-    from whisper_live.server import TranscriptionServer
+def start_whisper_server(args):
     server = TranscriptionServer()
     server.run(
         "0.0.0.0",
@@ -67,3 +26,27 @@ if __name__ == "__main__":
         max_connection_time=args.max_connection_time,
         cache_path=args.cache_path
     )
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", "-p", type=int, default=4000)
+    parser.add_argument("--backend", "-b", type=str, default="faster_whisper")
+    parser.add_argument("--faster_whisper_custom_model_path", "-fw", type=str, default=None)
+    parser.add_argument("--trt_model_path", "-trt", type=str, default=None)
+    parser.add_argument("--trt_multilingual", "-m", action="store_true")
+    parser.add_argument("--trt_py_session", action="store_true")
+    parser.add_argument("--omp_num_threads", "-omp", type=int, default=1)
+    parser.add_argument("--no_single_model", "-nsm", action="store_true")
+    parser.add_argument("--max_clients", type=int, default=4)
+    parser.add_argument("--max_connection_time", type=int, default=1800)
+    parser.add_argument("--cache_path", "-c", type=str, default="~/.cache/whisper-live/")
+    args = parser.parse_args()
+
+    if "OMP_NUM_THREADS" not in os.environ:
+        os.environ["OMP_NUM_THREADS"] = str(args.omp_num_threads)
+
+    # Start the Whisper WebSocket server in a background thread
+    threading.Thread(target=start_whisper_server, args=(args,), daemon=True).start()
+
+    # Start FastAPI health endpoint
+    uvicorn.run(app, host="0.0.0.0", port=args.port + 1)

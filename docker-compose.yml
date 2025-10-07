@@ -30,6 +30,9 @@ services:
     expose:
       - "4000:4000"
       - "4001:4001"
+    ports:
+    - "4000:4000"
+    - "4001:4001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4001/healthz"]
       interval: 20s
