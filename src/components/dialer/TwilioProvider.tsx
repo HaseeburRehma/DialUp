@@ -716,8 +716,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (!isCalling) return; // don't start SSE until a call begins
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
-    const sseUrl = `${baseUrl}/api/voice/stream`;
-
+    const sseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${window.location.origin}/api/voice/stream`;
     console.log("🔊 Starting SSE connection:", sseUrl);
     const es = new EventSource(sseUrl, { withCredentials: false });
     seenSegmentsRef.current.clear();
@@ -737,6 +736,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           volume: 0,
           timestamp: Date.now(),
         };
+        console.log("🧠 Received SSE data:", data);
 
         // Push segment live
         setLiveSegments((prev) => [...prev, segment]);
@@ -1090,7 +1090,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     >
       {children}
 
-      <WhisperLiveRecorder ref={whisperRef} onSegments={handleWhisperSegments} hideUI />
+      <WhisperLiveRecorder ref={whisperRef} onSegments={handleWhisperSegments} />
 
 
 

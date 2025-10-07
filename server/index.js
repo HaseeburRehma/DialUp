@@ -119,6 +119,47 @@ async function start() {
       });
     });
 
+
+
+    // --- SSE: Live Transcription Stream ---
+    const { addClient, removeClient } = require("./utils/sse");
+
+    app.get("/api/voice/stream", (req, res) => {
+      res.set({
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        "Access-Control-Allow-Origin": "*",
+        "X-Accel-Buffering": "no",
+      });
+
+      res.flushHeaders();
+
+      const client = {
+        write: (data) => res.write(data),
+        close: () => res.end(),
+      };
+
+      addClient(client);
+      console.log("👂 SSE client connected");
+
+      // Keepalive ping every 15s
+      const keepalive = setInterval(() => {
+        try {
+          res.write(": keepalive\n\n");
+        } catch {
+          clearInterval(keepalive);
+        }
+      }, 15000);
+
+      req.on("close", () => {
+        clearInterval(keepalive);
+        removeClient(client);
+        console.log("👋 SSE client disconnected");
+      });
+    });
+
+
     // Next.js catch-all
     app.all("*", (req, res) => handle(req, res));
 
@@ -213,7 +254,7 @@ async function transcribeChunk(wavBuffer, track = "unknown") {
   try {
     const form = new FormData();
     form.append("audio", fs.createReadStream(tmpPath));
-    const resp = await fetch(`${process.env.BASE_URL}/api/server/transcribe`, {
+    const resp = await fetch(`http://127.0.0.1:${whisperPort}/transcribe`, {
       method: "POST",
       body: form,
     });
