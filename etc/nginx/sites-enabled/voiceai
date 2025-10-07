@@ -11,34 +11,50 @@ server {
 
     client_max_body_size 500M;
 
+    # --- Common Proxy Settings ---
     proxy_http_version 1.1;
     proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
     proxy_read_timeout 86400;
     proxy_send_timeout 86400;
+    proxy_connect_timeout 300;
 
-    # --- Whisper (WebSocket) ---
+    # --- Whisper (WebSocket Proxy) ---
     location /whisper {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:3000;     # Express handles /whisper → Whisper :4001/v1/realtime
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
+        proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
-        proxy_read_timeout 86400;
-        proxy_send_timeout 86400;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;                  # Disable buffering for real-time streaming
+        proxy_redirect off;
     }
 
-    # --- Server-Sent Events ---
+    # --- Server-Sent Events (Twilio live transcript stream) ---
     location /api/voice/stream {
         proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
         proxy_set_header Connection '';
         proxy_buffering off;
         add_header X-Accel-Buffering no;
     }
 
-    # --- Default Next.js ---
+    # --- Default Next.js frontend + APIs ---
     location / {
         proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
     }
+}
+
+# Optional HTTP redirect
+server {
+    listen 80;
+    server_name voiceai.wordpressstagingsite.com;
+    return 301 https://$host$request_uri;
 }
