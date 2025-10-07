@@ -27,23 +27,29 @@ server {
     proxy_read_timeout 3600s;
     proxy_send_timeout 3600s;
 
-    # ---------------------
+    # -------------------------------
     # SIP WebSocket (Asterisk)
-    # ---------------------
+    # -------------------------------
     location /sipws {
         proxy_pass http://asterisk_ws/ws;
     }
 
-    # ---------------------
-    # Whisper WebSocket
-    # ---------------------
+    # -------------------------------
+    # Whisper WebSocket (app:4000)
+    # -------------------------------
     location /whisper {
         proxy_pass http://whisper_ws;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
     }
 
-    # ---------------------
-    # SSE endpoint fix
-    # ---------------------
+    # -------------------------------
+    # SSE endpoint (EventSource)
+    # -------------------------------
     location /api/voice/stream {
         proxy_pass http://voiceai_app;
         proxy_set_header Connection '';
@@ -54,11 +60,18 @@ server {
         add_header X-Accel-Buffering no;
     }
 
-    # ---------------------
+    # -------------------------------
     # Main App (Next.js)
-    # ---------------------
+    # -------------------------------
     location / {
         proxy_pass http://voiceai_app;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    location /_next/webpack-hmr {
+        proxy_pass http://voiceai_app;
+        proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
     }
