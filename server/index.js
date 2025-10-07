@@ -11,7 +11,7 @@ const { WebSocketServer } = require("ws");
 const fs = require("fs");
 const os = require("os");
 const FormData = require("form-data");
-const { pushTranscript } = require("../src/app/api/voice/stream/route");
+const { pushTranscript } = require("./utils/sse");
 
 // Add process error handlers at the very top
 process.on("uncaughtException", (error) => {
