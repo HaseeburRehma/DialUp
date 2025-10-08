@@ -486,6 +486,7 @@ export function useOptimizedWhisperLive(
       micSrc.connect(micProc)
       micProc.onaudioprocess = e => {
         const float32 = e.inputBuffer.getChannelData(0)
+        console.log('[AudioChunk]', float32.length, float32.slice(0, 5))
         sendWithSpeaker(float32, 0) // caller
       }
 

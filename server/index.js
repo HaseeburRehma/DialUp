@@ -85,16 +85,16 @@ async function start() {
     // --- Whisper WebSocket Proxy ---
     console.log(`🎤 Setting up Whisper proxy → whisper:${whisperPort}`);
     const wsProxy = createProxyMiddleware({
-      target: `http://whisper:${whisperPort}`, // ✅ Fixed: Docker internal service name
+      target: `http://whisper:${whisperPort}`,
       changeOrigin: true,
       ws: true,
       logLevel: dev ? "debug" : "silent",
-      pathRewrite: { "^/whisper": "/v1/realtime" }, // ✅ Fixed: Rewrite to new WhisperLive WS endpoint
       onError: (err, req, socket) => {
         console.error("❌ Whisper WS proxy error:", err.message);
         socket.destroy();
       },
     });
+
     app.use("/whisper", wsProxy);
 
     // --- Health Check ---
@@ -131,15 +131,6 @@ async function start() {
         console.log("👋 SSE client disconnected");
       });
     });
-
-    // --- Next.js Catch-All ---
-    app.all("*", (req, res) => handle(req, res));
-
-    // --- Start Server ---
-    const server = app.listen(PORT, "0.0.0.0", () =>
-      console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`)
-    );
-
     // --- Twilio Media Stream (WS) ---
     const wss = new WebSocketServer({ noServer: true });
     let audioBuffers = [];
@@ -180,19 +171,39 @@ async function start() {
 
       ws.on("close", () => console.log("🔌 Twilio WS closed"));
     });
+    // --- Next.js Catch-All ---
+    app.all("*", (req, res) => handle(req, res));
 
-    // --- WebSocket Upgrade Routing ---
+    // --- Start Server ---
+    const server = app.listen(PORT, "0.0.0.0", () => {
+      console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
+    });
+
+    // ---  FIXED: WebSocket Upgrade Routing (must come after wss + server.listen) ---
     server.on("upgrade", (req, socket, head) => {
-      if (req.url.startsWith("/whisper")) {
-        console.log("🔄 Whisper WS upgrade → backend");
-        wsProxy.upgrade(req, socket, head);
-      } else if (req.url === "/api/voice/stream") {
-        console.log("🔄 Twilio WS → /api/voice/stream");
-        wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
-      } else {
+      try {
+        if (req.url.startsWith("/whisper")) {
+          console.log("🔄 Whisper WS upgrade → backend");
+          wsProxy.upgrade(req, socket, head);
+          return;
+        }
+
+        if (req.url === "/api/voice/stream") {
+          console.log("🔄 Twilio WS → /api/voice/stream");
+          wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
+          return;
+        }
+
+        socket.destroy(); // unknown target
+      } catch (err) {
+        console.error("❌ Upgrade handler error:", err);
         socket.destroy();
       }
     });
+
+
+
+
 
   } catch (err) {
     console.error("❌ Startup failure:", err);
@@ -239,7 +250,7 @@ async function transcribeChunk(wavBuffer, track = "unknown") {
   } catch (err) {
     console.error("Transcription error:", err);
   } finally {
-    fs.unlink(tmpPath, () => {});
+    fs.unlink(tmpPath, () => { });
   }
 }
 
