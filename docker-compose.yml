@@ -10,6 +10,8 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      WHISPER_PORT: 4001
+
     depends_on:
       whisper:
         condition: service_healthy
