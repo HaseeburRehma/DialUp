@@ -25,9 +25,9 @@ if (process.env.NODE_ENV !== "production") {
 
 const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT) || 3000;
-const whisperPort = process.env.WHISPER_PORT || 4001;
+const whisperPort = process.env.WHISPER_PORT || 4000;
 const WebSocket = require('ws');
-const whisperWs = new WebSocket('ws://127.0.0.1:4001/whisper');
+const whisperWs = new WebSocket('ws://127.0.0.1:4000/whisper');
 
 async function start() {
   try {
