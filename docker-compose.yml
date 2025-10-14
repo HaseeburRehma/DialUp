@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
+    ports:
+      - "3000:3000"   # Next.js
+      - "4000:4000"   # Whisper backend proxied through app
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      whisper:
+        condition: service_healthy
+    networks:
+      - voipnet
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./next.config.js:/app/next.config.js
+
+  whisper:
+    build:
+      context: .
+    command: python3 -u server/WhisperLive/run_server.py --port 4000 --backend faster_whisper
+    container_name: whisper
+    restart: unless-stopped
+    expose:
+      - "4000:4000"
+      - "4001:4001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001/healthz"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - voipnet
+
+networks:
+  voipnet:
+    driver: bridge

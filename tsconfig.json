@@ -1,0 +1,49 @@
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "es6"],
+    "types": ["next-auth"],
+
+    "allowJs": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "strict": true,
+    "skipLibCheck": true,
+
+    /* ✅ Allow output */
+    "noEmit": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+
+    /* ✅ Make Express happy - but also support ES modules */
+    "module": "commonjs",
+    "moduleResolution": "node",
+
+    "jsx": "preserve",
+    "incremental": true,
+
+    "plugins": [
+      { "name": "next" }
+    ],
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    
+
+    "target": "ES2017"
+  },
+  
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "server/**/*.ts",
+    "server/**/*.js",
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": ["node_modules", "dist"]
+  
+}

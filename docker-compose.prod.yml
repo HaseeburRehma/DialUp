@@ -1,0 +1,21 @@
+# Docker Compose Production Configuration
+version: "3.9"
+
+services:
+  app:
+    build: .
+    command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
+    ports:
+      - "3000:3000"  # Next.js
+      - "4000:4000"  # Whisper backend
+    environment:
+      NODE_ENV: production
+    depends_on:
+      - asterisk
+    deploy:
+      resources:
+        limits:
+          memory: 512M     # cap app RAM
+          cpus: "0.25"     # cap CPU
+
+  

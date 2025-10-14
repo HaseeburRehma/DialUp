@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Twilio Voice Device Test</title>
+  <script src="https://sdk.twilio.com/js/voice/2.10/twilio.min.js"></script>
+</head>
+<body>
+  <h2>Twilio Voice Device Test</h2>
+  <button id="init">Init Device</button>
+  <button id="call">Call +12184993380</button>
+  <button id="hangup">Hangup</button>
+  <pre id="log"></pre>
+
+  <script>
+    let device, conn;
+
+    function log(msg) {
+      document.getElementById("log").textContent += msg + "\n";
+      console.log(msg);
+    }
+
+    async function getToken() {
+      const res = await fetch("/api/test-token");
+      const data = await res.json();
+      return data.token;
+    }
+
+    document.getElementById("init").onclick = async () => {
+      const token = await getToken();
+      log("Got token: " + token.substring(0, 20) + "...");
+      device = new Twilio.Device(token, { logLevel: 3 });
+
+      device.on("ready", () => log("✅ Device ready"));
+      device.on("registered", () => log("✅ Device registered"));
+      device.on("error", e => log("❌ Device error: " + e.message));
+      device.on("incoming", c => {
+        log("📥 Incoming call from " + c.parameters.From);
+        conn = c;
+      });
+      device.on("connect", c => log("📞 Connected " + JSON.stringify(c.parameters)));
+      device.on("disconnect", c => log("📴 Disconnected " + JSON.stringify(c.parameters)));
+
+      await device.register();
+      log("Called device.register()");
+    };
+
+    document.getElementById("call").onclick = () => {
+      if (!device) return log("Device not init");
+      conn = device.connect({ params: { To: "+12184993380" } });
+      log("📞 Dialing +12184993380...");
+    };
+
+    document.getElementById("hangup").onclick = () => {
+      if (conn) conn.disconnect();
+      if (device) device.disconnectAll();
+      log("📴 Hangup called");
+    };
+  </script>
+</body>
+</html>
