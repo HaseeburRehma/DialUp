@@ -80,8 +80,9 @@ async function start() {
     const sseClients = [];
 
     // Static files
-    app.use("/audio", express.static(path.join(__dirname, "../public/audio")));
-
+    if (process.env.NODE_ENV === "development") {
+      app.use("/audio", express.static(path.join(__dirname, "../public/audio")));
+    }
     // API routes
     try {
       app.use("/api/transcribe", jsonParser, urlParser, require("./routes/transcribe"));
@@ -231,7 +232,7 @@ async function start() {
           const data = JSON.parse(msg);
 
           if (data.event === 'start') {
-            console.log('▶ Stream started:', data.start.callSid);
+            console.log(' Stream started:', data.start.callSid);
           }
 
           if (data.event === 'media') {

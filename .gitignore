@@ -1,6 +1,6 @@
 # Next dev/build outputs
 
-
+public/audio/
 .output
 .data
 .nuxt
