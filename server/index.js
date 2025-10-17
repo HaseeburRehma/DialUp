@@ -27,7 +27,7 @@ const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT) || 3000;
 const whisperPort = process.env.WHISPER_PORT || 4000;
 const WebSocket = require('ws');
-const whisperWs = new WebSocket('ws://127.0.0.1:4000/whisper');
+
 
 async function start() {
   try {
@@ -95,11 +95,12 @@ async function start() {
     // helper to broadcast to all browser clients
     function pushTranscript(payload) {
       const speaker =
-        payload.track === "inbound_track"
-          ? "caller"
-          : payload.track === "outbound_track"
-            ? "agent"
-            : "unknown";
+        payload.speaker ||
+        (payload.track === 'inbound_track'
+          ? 'caller'
+          : payload.track === 'outbound_track'
+            ? 'agent'
+            : 'unknown');
 
       const data = {
         id: Date.now().toString(),
@@ -107,6 +108,7 @@ async function start() {
         content: payload.text,
         final: payload.final || false,
       };
+
 
       const msg = `data: ${JSON.stringify(data)}\n\n`;
       for (const client of [...sseClients]) {
@@ -174,10 +176,18 @@ async function start() {
     }
 
     // --- Twilio WebSocket Stream Route ---
-    app.ws('/ws/twilio-stream', (ws, req) => {
+    app.ws('/twilio-stream', (ws, req) => {
       console.log('🔊 Twilio stream connected');
 
-      // Create a new Whisper connection per call
+      // Per-call file for debug audio capture
+      const fs = require('fs');
+      const debugFile = path.join(
+        '/tmp',
+        `twilio-audio-${Date.now()}.raw`
+      );
+      let chunkCount = 0;
+
+      // Connect to Whisper
       const whisperConn = new WebSocket(`ws://127.0.0.1:${whisperPort}/whisper`);
 
       whisperConn.on('open', () => {
@@ -194,67 +204,82 @@ async function start() {
         }));
       });
 
-      // Handle Whisper output and push to browser SSE
+      // Push transcript to SSE
       whisperConn.on('message', (msg) => {
         try {
           const data = JSON.parse(msg.toString());
           if (data.text || data.message) {
             pushTranscript({
               text: data.text || data.message,
-              track: 'inbound_track'
+              track: data.track,
+              speaker: data.speaker,
+              final: data.final,
             });
           }
         } catch (err) {
-          console.error('⚠️ Whisper message parse error:', err);
+          console.error(' Whisper message parse error:', err);
         }
       });
 
-      whisperConn.on('error', (err) => {
-        console.error('💥 Whisper connection error:', err);
-      });
+      whisperConn.on('error', (err) => console.error(' Whisper connection error:', err));
+      whisperConn.on('close', (code, reason) =>
+        console.log(` Whisper closed (${code || 1000}): ${reason || 'no reason'}`)
+      );
 
-      whisperConn.on('close', (code, reason) => {
-        console.log(`🧠 Whisper closed (${code || 1000}): ${reason || 'no reason'}`);
-      });
-
-      // Handle Twilio audio events
       ws.on('message', (msg) => {
         try {
           const data = JSON.parse(msg);
 
           if (data.event === 'start') {
-            console.log('▶️ Stream started:', data.start.callSid);
+            console.log('▶ Stream started:', data.start.callSid);
           }
 
           if (data.event === 'media') {
             const muLawBuf = Buffer.from(data.media.payload, 'base64');
             const pcmBuf = decodeMuLaw(muLawBuf);
 
+            // Save a few chunks for debugging (first ~10 only)
+            if (chunkCount < 10) {
+              fs.appendFileSync(debugFile, pcmBuf);
+              chunkCount++;
+              if (chunkCount === 1) console.log(` Saving debug audio to ${debugFile}`);
+              if (chunkCount === 10) console.log(` Captured 10 chunks, stopping file write`);
+            }
+
+            // Identify speaker
+            const speaker =
+              data.media.track === 'outbound_track' ? 'agent'
+                : data.media.track === 'inbound_track' ? 'caller'
+                  : 'unknown';
+
+            // Send to Whisper
             if (whisperConn.readyState === WebSocket.OPEN) {
+              whisperConn.send(JSON.stringify({ track: data.media.track, speaker }));
               whisperConn.send(pcmBuf);
             }
           }
 
           if (data.event === 'stop') {
-            console.log('⏹️ Stream stopped');
+            console.log(' Stream stopped');
             if (whisperConn.readyState === WebSocket.OPEN) {
               whisperConn.send(new TextEncoder().encode('END_OF_AUDIO'));
-              // Use valid close code (1000 = normal)
               whisperConn.close(1000, 'Stream ended');
             }
           }
         } catch (err) {
-          console.error('⚠️ Twilio message error:', err);
+          console.error(' Twilio message error:', err);
         }
       });
 
       ws.on('close', () => {
-        console.log('❌ Twilio stream closed');
+        console.log(' Twilio stream closed');
         if (whisperConn.readyState === WebSocket.OPEN) {
           whisperConn.close(1000, 'Twilio client disconnected');
         }
+        console.log(` Audio debug file saved: ${debugFile}`);
       });
     });
+
 
 
     // Health check
@@ -272,17 +297,17 @@ async function start() {
 
     // Start server
     const server = app.listen(PORT, "0.0.0.0", () => {
-      console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
+      console.log(` Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
     });
 
     // WebSocket upgrade forwarding
     server.on("upgrade", (req, socket, head) => {
-      console.log("🔄 Forwarding WebSocket upgrade to Whisper backend");
+      console.log(" Forwarding WebSocket upgrade to Whisper backend");
       wsProxy.upgrade(req, socket, head);
     });
 
   } catch (error) {
-    console.error("❌ Failed to start Express backend:", error);
+    console.error(" Failed to start Express backend:", error);
     console.error("Stack trace:", error.stack);
     process.exit(1);
   }

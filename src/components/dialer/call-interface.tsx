@@ -82,16 +82,12 @@ export function CallInterface() {
 
   const handleCall = async () => {
     if (!phoneNumber || !callerEmail || !receiverEmail) {
-      toast({
-        title: 'Missing Fields',
-        description: 'Please provide phone number and emails',
-        variant: 'destructive'
-      })
-      return
+      toast({ title: 'Missing Fields', description: 'Please provide phone number and emails', variant: 'destructive' });
+      return;
     }
-    const normalizedNumber = normalizeInput(phoneNumber, countryCode)
-    await startCall(normalizedNumber)
-  }
+    const normalizedNumber = normalizeInput(phoneNumber, countryCode);
+    await startCall(normalizedNumber, { callerEmail, receiverEmail }); // <— pass them
+  };
 
   const stats = getCallStats()
 
@@ -246,8 +242,8 @@ export function CallInterface() {
           <h3 className="text-lg text-white mb-3">Live Transcription</h3>
           <div className="text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto bg-slate-800 p-3 rounded">
             {liveSegments.length > 0 ? (
-              liveSegments.map(seg => (
-                <div key={seg.id} className="flex gap-2">
+              (liveSegments as Segment[]).map((seg, idx: number) => (
+                <div key={seg.id || `${seg.speaker}-${seg.content.slice(0, 10)}-${idx}`}>
                   <span className="font-mono text-xs text-slate-500">{seg.speaker}:</span>
                   <span>{seg.content}</span>
                 </div>
@@ -257,14 +253,14 @@ export function CallInterface() {
             )}
           </div>
 
-          {/* Completed transcript after call */}
+          {/* Completed transcript after call 
           {!isCalling && finalTranscript && (
             <div className="mt-4 p-3 bg-slate-700 rounded text-slate-200 whitespace-pre-wrap">
               <h4 className="text-white mb-2">Final Transcript</h4>
               <div>{finalTranscript}</div>
             </div>
           )}
-
+          */}
 
         </CardContent>
       </Card>

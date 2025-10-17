@@ -646,8 +646,20 @@ export function useOptimizedWhisperLive(
 
     // Close WebSocket
     if (wsRef.current) {
-      wsRef.current.close(1000, 'User disconnect')
-      wsRef.current = null
+      try {
+        // ✅ Prevent invalid close codes like 45395
+        const safeCode = 1000
+        const reason = 'Normal Closure'
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.close(safeCode, reason)
+        } else {
+          console.warn('[OptimizedWhisperLive] WebSocket already closed or not open:', wsRef.current.readyState)
+        }
+      } catch (err) {
+        console.warn('[OptimizedWhisperLive] Safe close failed:', err)
+      } finally {
+        wsRef.current = null
+      }
     }
 
     // Stop transcription

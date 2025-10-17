@@ -13,6 +13,7 @@ import { Device } from "@twilio/voice-sdk"
 import { useMediaRecorder } from '@/hooks/use-media-recorder'
 import { WhisperLiveRecorder, WhisperLiveHandle } from '../notes/whisper-live-recorder'
 import type { Segment } from '@/types/transcription'
+import type { Recording } from '@/hooks/use-optimized-whisper-live';
 
 declare global {
   interface Window {
@@ -90,7 +91,7 @@ interface EnhancedDialerContextProps {
   liveSegments: Segment[] // <-- Added this line
 
   // Actions
-  startCall: (number: string) => void
+  startCall: (number: string, opts?: { callerEmail?: string; receiverEmail?: string }) => void
   hangUp: () => void
   acceptCall: () => void
   rejectCall: () => void
@@ -159,7 +160,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   // Real-time features
   const [liveTranscription, setLiveTranscription] = useState('')
   const [isTranscribing, setIsTranscribing] = useState(false)
-  const [finalTranscript, setFinalTranscript] = useState('') // <-- move here
+  const [finalTranscript, setFinalTranscript] = useState('') 
 
 
   // Refs
@@ -243,7 +244,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         whisperRef.current.connect();
         whisperRef.current.startTranscription();
         setIsTranscribing(true);
-        log('🟢 Whisper connected + transcription started', 'info');
+        log('Whisper connected + transcription started', 'info');
       } else if (attempts < 5) {
         setTimeout(() => tryConnect(attempts + 1), 500);
       }
@@ -296,6 +297,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   }
 
   // Consolidated email sender - called only once on hangup
+  // TwilioProvider.tsx (sendAutomaticEmails)
   const sendAutomaticEmails = async (
     transcript: string,
     recordingUrl?: string,
@@ -303,29 +305,37 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     receiverEmail?: string
   ) => {
     try {
-      const response = await fetch('/api/send-automatic-transcript', {
+      const payload = {
+        transcript,
+        callDuration: formatTime(callSeconds),
+        callDate: new Date().toLocaleString(),
+        callerNumber: currentConnection?.parameters?.From || 'Unknown',
+        receiverNumber: currentConnection?.parameters?.To || 'Unknown',
+        callerEmail: callerEmail || currentConnection?.parameters?.CallerEmail || userProfile?.email,
+        receiverEmail: receiverEmail || currentConnection?.parameters?.ReceiverEmail || userProfile?.email,
+      }
+
+      const res = await fetch('/api/send-automatic-transcript', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transcript,
-          callDuration: formatTime(callSeconds),
-          callDate: new Date().toLocaleString(),
-          callerNumber: currentConnection?.parameters?.From || 'Unknown',
-          receiverNumber: currentConnection?.parameters?.To || 'Unknown',
-          callerEmail: callerEmail || userProfile?.email,
-          receiverEmail: receiverEmail || userProfile?.email
-        })
+        body: JSON.stringify(payload),
       })
 
-      if (response.ok) {
-        log('📧 Automatic transcript emails sent successfully', 'info')
+      const body = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        log(`❌ Email API failed [${res.status}]: ${body?.error || 'unknown error'}`, 'error')
+        if (body?.failed?.length) log(`⚠️ Failed recipients: ${body.failed.join(', ')}`, 'warning')
       } else {
-        log('❌ Failed to send automatic transcript emails', 'error')
+        const sentTo = body?.sent?.length ? body.sent.join(', ') : 'unknown'
+        log(`📧 Transcript emailed successfully to: ${sentTo}`, 'info')
       }
     } catch (error: any) {
       log(`❌ Error sending automatic emails: ${error.message}`, 'error')
     }
   }
+
+
 
   const formatTime = (seconds: number) =>
     `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`
@@ -496,10 +506,26 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
           // Stop features and get assets
           const { recordingUrl, whisperRecordings } = await stopCallFeatures()
-          
+
 
           // Extract emails (fallback to profile or transcript)
-          const transcriptText = finalTranscript || liveTranscription
+          let transcriptText = finalTranscript || liveTranscription || ''
+          if (whisperRef.current) {
+            try {
+              log('🧠 Flushing Whisper segments before final email...', 'info')
+              await whisperRef.current.stopTranscription()
+              await new Promise((r) => setTimeout(r, 500)) // small buffer flush
+              const recs = await whisperRef.current.uploadRecordings()
+              const text = recs.map((r: any) => r.transcription || r.text || '').join('\n')
+              if (text.trim()) transcriptText = text
+              log(`📝 Final transcript lines: ${text.split('\n').length}`, 'info')
+            } catch (e) {
+              log(`❌ Whisper flush/upload failed on hangup: ${(e as Error).message}`, 'error')
+            }
+          }
+
+
+
           const emailRegex = /[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g
           const emails = transcriptText.match(emailRegex) || []
           const callerEmail = call.parameters?.CallerEmail || userProfile?.email || emails[0]
@@ -563,6 +589,15 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           const minutes = Math.floor(duration / 60)
           const seconds = duration % 60
           log(`📴 Call ended - Duration: ${minutes}:${seconds.toString().padStart(2, '0')}`, 'info')
+          log(`📊 Summary:
+• Caller: ${call.parameters?.From || 'Unknown'}
+• Receiver: ${call.parameters?.To || 'Unknown'}
+• Duration: ${duration}s
+• Transcript length: ${transcriptText?.length || 0} chars
+• Recording: ${recordingUrl || 'none'}
+• Emails sent to: ${callerEmail || '-'}, ${receiverEmail || '-'}
+`, 'info')
+
         })
 
         // --- Handle Incoming Call ---
@@ -654,60 +689,42 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   }, []) // Empty dependency array
 
   // Actions
-  const startCall = async (phoneNumber: string) => {
-    if (!device || !isReady) {
-      log("❌ Device not ready for calls", "error")
-      return
-    }
+  // TwilioProvider.tsx
+  const startCall = async (phoneNumber: string, opts?: { callerEmail?: string; receiverEmail?: string }) => {
+    if (!device || !isReady) { log("❌ Device not ready for calls", "error"); return; }
 
-    // ✅ Expect already normalized input from UI
-    let cleanNumber = phoneNumber.trim()
+    let cleanNumber = phoneNumber.trim();
+    if (!cleanNumber.startsWith("+")) { log("❌ Invalid number, must include country code", "error"); return; }
 
-    // ✅ Ensure starts with +
-    if (!cleanNumber.startsWith("+")) {
-      log("❌ Invalid number, must include country code", "error")
-      return
-    }
-    setIsCalling(true)
+    setIsCalling(true);
+    if (!userProfile) { log("❌ No user profile loaded yet", "error"); return; }
 
-    console.log("📞 Attempting call to:", cleanNumber)
-    log(`📞 Calling ${cleanNumber}...`, "info")
-    if (!userProfile) {
-      log("❌ No user profile loaded yet", "error")
-      return
-    }
     try {
       const call = await device.connect({
         params: {
           To: cleanNumber,
-          CallerEmail: userProfile.email,
+          CallerEmail: opts?.callerEmail || userProfile.email,   // <—
+          ReceiverEmail: opts?.receiverEmail || userProfile.email, // <—
           CallerNumber: userProfile.phone,
         }
-      })
+      });
 
-      call.on("accept", () => {
-        console.log("📲 Call accepted")
-        log("📲 Call accepted", "info")
-      })
+      // keep ref for disconnect
+      setCurrentConnection(call as TwilioConnection);
 
-      call.on("ringing", () => {
-        console.log("🔔 Remote side ringing")
-        log("🔔 Remote side ringing", "info")
-      })
-
+      call.on("accept", () => log("📲 Call accepted", "info"));
+      call.on("ringing", () => log("🔔 Remote side ringing", "info"));
       call.on("error", (err: any) => {
-        console.error("❌ Call error:", err)
-        log(`❌ Call error: ${err.message}`, "error")
-        setIsCalling(false)
-        setCurrentConnection(null)
-      })
-
+        log(`❌ Call error: ${err.message}`, "error");
+        setIsCalling(false);
+        setCurrentConnection(null);
+      });
     } catch (err: any) {
-      console.error("❌ Error starting call:", err)
-      log(`❌ Error starting call: ${err.message}`, "error")
-      setIsCalling(false)
+      log(`❌ Error starting call: ${err.message}`, "error");
+      setIsCalling(false);
     }
-  }
+  };
+
 
 
   const hangUp = () => {
@@ -926,7 +943,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         isReady,
         connectionQuality,
         setLiveTranscription,
-        finalTranscript,  
+        finalTranscript,
         liveSegments,
         userProfile,
         isCalling,

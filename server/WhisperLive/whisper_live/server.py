@@ -294,6 +294,20 @@ class TranscriptionServer:
         frame_data = websocket.recv()
         if frame_data == b"END_OF_AUDIO":
             return False
+        if isinstance(frame_data, str):
+            try:
+               meta = json.loads(frame_data)
+               client = self.client_manager.get_client(websocket)
+
+               if client:
+                   if "speaker" in meta:
+                       client.current_speaker = meta["speaker"]
+                   if "track" in meta:  
+                         client.current_track = meta["track"]
+            except Exception:
+                pass
+            return None
+
         return np.frombuffer(frame_data, dtype=np.float32)
 
     def handle_new_connection(self, websocket, faster_whisper_custom_model_path,
@@ -326,6 +340,10 @@ class TranscriptionServer:
     def process_audio_frames(self, websocket):
         frame_np = self.get_audio_from_websocket(websocket)
         client = self.client_manager.get_client(websocket)
+        if frame_np is None:
+            return True
+        
+        
         if frame_np is False:
             if self.backend.is_tensorrt():
                 client.set_eos(True)

@@ -109,6 +109,8 @@ class ServeClientFasterWhisper(ServeClientBase):
             return
 
         self.use_vad = use_vad
+        self.current_speaker = "unknown"
+
 
         # threading
         self.trans_thread = threading.Thread(target=self.speech_to_text)
@@ -233,4 +235,11 @@ class ServeClientFasterWhisper(ServeClientBase):
             segments = self.prepare_segments(last_segment)
 
         if len(segments):
+            speaker = getattr(self, "current_speaker", "unknown")
+            track = getattr(self, "current_track", "unknown_track")
+            for seg in segments:
+                seg["speaker"] = speaker
+                seg["track"] = track
+                seg["final"] = seg.get("final", False) 
+
             self.send_transcription_to_client(segments)

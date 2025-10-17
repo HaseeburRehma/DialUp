@@ -110,10 +110,11 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
     const { toast } = useToast();
 
     useEffect(() => {
-      if (whisperState.segments.length) {
-        onSegments(whisperState.segments)
+      if (onSegments && Array.isArray(whisperState.segments)) {
+        onSegments(whisperState.segments as Segment[])
       }
     }, [whisperState.segments, onSegments])
+
 
     useImperativeHandle(ref, () => ({
       connect,
