@@ -345,16 +345,26 @@ export function useOptimizedWhisperLive(
 
             // Check for duplicate content
             if (!isDuplicate(content)) {
+              const role =
+                wsSeg.speaker === 0
+                  ? 'caller'
+                  : wsSeg.track === 'inbound' || wsSeg.track === 'inbound_track'
+                    ? 'caller'
+                    : wsSeg.track === 'outbound' || wsSeg.track === 'outbound_track'
+                      ? 'agent'
+                      : 'unknown'
+
               const segment: Segment = {
-                speaker: wsSeg.speaker === 0 ? 'mic' : 'speaker',
+                speaker: role,
                 text: content,
                 content,
                 volume: rms,
                 confidence: wsSeg.confidence || 0.8,
-                id: '',
-                timestamp: 0,
+                id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                timestamp: now,
                 isFinal: true,
               }
+
 
               newSegments.push(segment)
               addToHistory(content)

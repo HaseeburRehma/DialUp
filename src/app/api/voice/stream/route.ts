@@ -18,11 +18,9 @@ export function pushTranscript(payload: {
   final?: boolean;
 }) {
   const speaker =
-    payload.track === "inbound_track"
-      ? "caller"
-      : payload.track === "outbound_track"
-      ? "agent"
-      : "unknown";
+  payload.track === "inbound_track" ? "caller" :
+  payload.track === "outbound_track" ? "agent" : "unknown";
+
 
   const data = {
     id: Date.now().toString(),

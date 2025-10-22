@@ -1,4 +1,4 @@
-//src/app/api/voice/outgoing/route.ts
+// src/app/api/voice/outgoing/route.ts
 
 import { NextResponse } from "next/server";
 import twilio from "twilio";
@@ -23,28 +23,43 @@ export async function POST(req: Request) {
 
     const twiml = new VoiceResponse();
 
-    // 1️⃣ Attach stream first (before Dial)
+    // 1️⃣ Attach Twilio Media Stream
     const start = twiml.start();
     start.stream({
       name: "voiceai-live-stream",
       url: `wss://${process.env.PUBLIC_DOMAIN || "voiceai.wordpressstagingsite.com"}/twilio-stream`,
       track: "both_tracks",
     });
-    console.log("🎤 Media stream attached (before dial)");
 
-    // 2️⃣ Then dial the number or client
+    // 2️⃣ Attach Twilio Transcription
+    twiml.append(`
+      <Start>
+        <Transcription 
+          name="voiceai-outgoing-transcription"
+          track="both_tracks"
+          action="${process.env.PUBLIC_URL || "https://voiceai.wordpressstagingsite.com"}/api/send-automatic-transcript"
+          method="POST"
+          playBeep="false" />
+      </Start>
+    `);
+
+    console.log("🎤 Streaming + transcription enabled for outgoing call");
+
+    // 3️⃣ Dial
     const callerId =
       process.env.TWILIO_CALLER_ID ||
-      (CallerNumber && process.env.ALLOW_CUSTOM_CALLER_ID === "true" ? CallerNumber : undefined);
+      (CallerNumber && process.env.ALLOW_CUSTOM_CALLER_ID === "true"
+        ? CallerNumber
+        : undefined);
 
     if (To && /^\+?\d+$/.test(To)) {
       const dial = twiml.dial({ callerId });
       dial.number(To);
-      console.log(`📤 Outgoing PSTN: From ${callerId} to ${To}`);
+      console.log(`📤 Outgoing PSTN: From ${callerId} → ${To}`);
     } else if (To) {
       const dial = twiml.dial({ callerId });
       dial.client(To);
-      console.log(`📤 Outgoing Client: From ${callerId} to client:${To}`);
+      console.log(`📤 Outgoing Client: From ${callerId} → client:${To}`);
     } else {
       twiml.say("No destination provided");
     }
@@ -58,4 +73,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
-

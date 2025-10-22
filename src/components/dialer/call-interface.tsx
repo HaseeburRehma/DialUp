@@ -244,8 +244,11 @@ export function CallInterface() {
             {liveSegments.length > 0 ? (
               (liveSegments as Segment[]).map((seg, idx: number) => (
                 <div key={seg.id || `${seg.speaker}-${seg.content.slice(0, 10)}-${idx}`}>
-                  <span className="font-mono text-xs text-slate-500">{seg.speaker}:</span>
-                  <span>{seg.content}</span>
+                  <span className={`font-bold ${seg.speaker === 'caller' ? 'text-blue-400' : 'text-green-400'
+                    }`}>
+                    {seg.speaker === 'caller' ? 'Caller' : 'Agent'}:
+                  </span>
+                  <span className="ml-2 text-slate-200">{seg.content}</span>
                 </div>
               ))
             ) : (

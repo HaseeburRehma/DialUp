@@ -1,17 +1,19 @@
-export type Speaker = 'mic' | 'speaker';
+export type WhisperSpeaker = 'caller' | 'agent' | 'unknown';
+export type AudioSpeaker = 'mic' | 'speaker';
+export type Speaker = WhisperSpeaker | AudioSpeaker;
 
 export interface Segment {
-  isFinal: boolean;
-  id: string; // Add unique ID for better deduplication
+  id: string;
   speaker: Speaker;
-  text?: string  ;
   content: string;
-  volume: number; // 0–1
+  text?: string;
+  isFinal: boolean;
   timestamp: number;
+  volume?: number;
   confidence?: number;
-  audioSource?: 'microphone' | 'system' | 'mixed'; // Track audio source
-  
+  source?: 'whisper' | 'twilio' | 'recorder';
 }
+
 
 export interface ProcessedSegment extends Segment {
   processedAt: number;
