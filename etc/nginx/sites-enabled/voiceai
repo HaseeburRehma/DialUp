@@ -1,62 +1,80 @@
-
-upstream asterisk_ws
-{
-    server asterisk : 8089;
+upstream asterisk_ws {
+    server asterisk:8089;
 }
 
-upstream whisper_ws
-{
-    server app : 4000;
+upstream whisper_ws {
+    server app:4000;
 }
 
-upstream voiceai_app
-{
-    server app : 3000;
+upstream voiceai_app {
+    server app:3000;
 }
 
-server
-{
-    listen 443 ssl http2;
+server {
+    listen 443 ssl ;
     server_name voiceai.wordpressstagingsite.com;
 
-    ssl_certificate / etc / letsencrypt / live / voiceai.wordpressstagingsite.com / fullchain.pem;
-    ssl_certificate_key / etc / letsencrypt / live / voiceai.wordpressstagingsite.com / privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/voiceai.wordpressstagingsite.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/voiceai.wordpressstagingsite.com/privkey.pem;
 
-#Increase upload size limit
+    # Allow large uploads
     client_max_body_size 500M;
+    gzip off;
 
-#SIP WebSocket(Asterisk)
-    location / sipws
-    {
-        proxy_pass http : // asterisk_ws/ws;
-                          proxy_http_version 1.1;
+    # --- Common headers ---
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # --- SIP WebSocket (Asterisk) ---
+    location /sipws {
+        proxy_pass http://asterisk_ws/ws;
+        proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "Upgrade";
-        proxy_set_header Host $host;
         proxy_read_timeout 3600;
         proxy_send_timeout 3600;
     }
 
-#WhisperLive WebSocket
-    location / whisper
-    {
-        proxy_pass http : // whisper_ws;
-                          proxy_http_version 1.1;
-
+    # --- Whisper backend ---
+ location /whisper {
+        proxy_pass http://whisper_ws;
+        proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "Upgrade";
-        proxy_set_header Host $host;
-        proxy_read_timeout 3600;
-        proxy_send_timeout 3600;
+    }
+# Twilio Media Stream WebSocket
+location /twilio-stream {
+    proxy_pass http://127.0.0.1:3000/twilio-stream;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "Upgrade";
+    proxy_set_header Host $host;
+    proxy_read_timeout 3600;
+    proxy_send_timeout 3600;
+    proxy_set_header Accept-Encoding "";
+    proxy_set_header Sec-WebSocket-Extensions "";
+    proxy_buffering off;
+    tcp_nodelay on;
+}
+
+    # --- Regular app traffic (Next.js + API) ---
+    location / {
+        proxy_pass http://voiceai_app;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
     }
 
-#Proxy app frontend
-    location /
-    {
-        proxy_pass http : // voiceai_app;
-                          proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
+    # Optional healthcheck
+    location /health {
+        proxy_pass http://voiceai_app/health;
     }
+}
+
+server {
+    listen 80;
+    server_name voiceai.wordpressstagingsite.com;
+    return 301 https://$host$request_uri;
 }
