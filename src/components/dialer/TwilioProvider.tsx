@@ -591,7 +591,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
               log(' Call updated in DB with recording & transcript', 'info');
             } else {
               const res = await axios.post('/api/calls', callRecord);
-              log(`💾 Call saved to DB: ${res.data.call._id}`, 'info');
+              log(` Call saved to DB: ${res.data.call._id}`, 'info');
             }
           } catch (err: any) {
             log(`❌ DB save failed: ${err.message}`, 'error');
@@ -607,7 +607,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           setLiveTranscription('');
           if (timerRef.current) clearInterval(timerRef.current);
 
-          log(`📊 Call finalized — ${duration}s, ${allRecordings.length} recordings`, 'info');
+          log(` Call finalized — ${duration}s, ${allRecordings.length} recordings`, 'info');
         });
 
         // --- Handle Incoming Call ---

@@ -77,8 +77,11 @@ async function start() {
     const jsonParser = express.json({ limit: "500mb" });
     const urlParser = express.urlencoded({ extended: true, limit: "500mb" });
     const expressWs = require('express-ws')(app, null, {
-      wsOptions: { perMessageDeflate: false }  // 🔧 disables compression bits
+      wsOptions: { perMessageDeflate: false }  // 
+
     });
+    console.log("🧠 express-ws options:", expressWs.getWss().options);
+
     const sseClients = [];
 
     // Static files
@@ -180,6 +183,8 @@ async function start() {
 
     // --- Twilio WebSocket Stream Route ---
     app.ws('/twilio-stream', (ws, req) => {
+      ws._socket.setNoDelay(true);
+      ws._extensions = {};
       console.log('🔊 Twilio stream connected');
 
       // Per-call file for debug audio capture
@@ -294,7 +299,15 @@ async function start() {
         whisper_port: whisperPort,
       });
     });
-
+    app.use(
+      "/api",
+      createProxyMiddleware({
+        target: `http://127.0.0.1:${PORT}`,
+        changeOrigin: true,
+        ws: false,
+        logLevel: dev ? "debug" : "silent",
+      })
+    );
     // Next.js catch-all
     app.all("*", (req, res) => handle(req, res));
 
