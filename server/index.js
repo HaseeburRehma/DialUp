@@ -76,7 +76,9 @@ async function start() {
 
     const jsonParser = express.json({ limit: "500mb" });
     const urlParser = express.urlencoded({ extended: true, limit: "500mb" });
-    const expressWs = require('express-ws')(app);
+    const expressWs = require('express-ws')(app, null, {
+      wsOptions: { perMessageDeflate: false }  // 🔧 disables compression bits
+    });
     const sseClients = [];
 
     // Static files
