@@ -19,7 +19,7 @@ transporter.verify((err) => {
   }
 });
 
-export async function sendNoteNotification({ to, subject, html }) {
+export async function sendNoteNotification({ to, subject, html , from}) {
   await transporter.sendMail({
     from: `"VOICE AI" <${process.env.SMTP_USER}>`,
     to,

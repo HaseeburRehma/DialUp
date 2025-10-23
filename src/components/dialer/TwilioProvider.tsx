@@ -588,7 +588,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           try {
             if ((call as any)._dbId) {
               await axios.patch(`/api/calls/${(call as any)._dbId}`, callRecord);
-              log('✅ Call updated in DB with recording & transcript', 'info');
+              log(' Call updated in DB with recording & transcript', 'info');
             } else {
               const res = await axios.post('/api/calls', callRecord);
               log(`💾 Call saved to DB: ${res.data.call._id}`, 'info');

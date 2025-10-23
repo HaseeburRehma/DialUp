@@ -1,7 +1,6 @@
 // src/app/api/send-automatic-transcript/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { sendNoteNotification } from "../../../../server/utils/mailer.js";
-
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -17,6 +16,7 @@ export async function POST(req: NextRequest) {
       receiverEmail,
     } = await req.json();
 
+    // Validate transcript
     if (!transcript || !transcript.trim()) {
       return NextResponse.json({ error: "No transcript provided" }, { status: 400 });
     }
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     if (callerEmail) recipients.add(callerEmail.trim());
     if (receiverEmail) recipients.add(receiverEmail.trim());
 
-    // Fallback: scrape one from transcript if missing
+    // Fallback: scrape from transcript if missing
     if (recipients.size === 0) {
       const found = transcript.match(emailRegex);
       if (found?.length) {
@@ -50,7 +50,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Email structure
     const subject = `📞 Call Summary: ${callerNumber || "Unknown"} ↔ ${receiverNumber || "Unknown"}`;
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
 
     const html = `
       <h2>📞 Call Summary</h2>
@@ -73,7 +75,7 @@ ${transcript.trim()}
     // Send to each recipient individually
     for (const to of recipients) {
       try {
-        await sendNoteNotification({ to, subject, html });
+        await sendNoteNotification({ to, from, subject, html });
         successful.push(to);
       } catch (e: any) {
         console.error(`❌ Failed to send to ${to}:`, e.message);
@@ -81,7 +83,6 @@ ${transcript.trim()}
       }
     }
 
-    // Respond with result summary
     return NextResponse.json({
       success: true,
       totalRecipients: recipients.size,
