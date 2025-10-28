@@ -8,14 +8,14 @@ import { connect } from '../../../../../server/utils/db.js';
 import AnswerAI from '../../../../../server/models/AnswerAi.js';
 import { sendNoteNotification } from '../../../../../server/utils/mailer.js';
 import User from '../../../../../server/models/User.js';
-import { verifyUserToken } from '../../../../../server/utils/verifyToken.js'
 
+import { requireAuth } from '../../../../../server/utils/requireAuth.js';
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
-  const user = await verifyUserToken(req)
+  const user = await requireAuth(req)
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await verifyUserToken(req)
+  const user = await requireAuth(req)
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const data = await req.json()
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  const user = await verifyUserToken(req)
+  const user = await requireAuth(req)
   if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
   const data = await req.json()

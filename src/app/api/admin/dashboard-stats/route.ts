@@ -4,18 +4,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connect } from '../../../../../server/utils/db.js';
 import User from '../../../../../server/models/User.js';
 import { getServerSession } from "next-auth/next"
+import { requireAuth } from '../../../../../server/utils/requireAuth.js'
 
 
 import { authOptions } from 'server/config/authOptions.js'
 
 export async function GET(request: NextRequest) {
   try {
-   const session = await getServerSession({ req: request, ...authOptions })
-
-
-    if (!session || session.user?.role !== 'admin') {
+    const user = await requireAuth(request)
+    if (!user || user.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
+   
 
     await connect()
 

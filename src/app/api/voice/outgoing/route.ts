@@ -7,7 +7,6 @@ const VoiceResponse = twilio.twiml.VoiceResponse;
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-{/*}
 export async function POST(req: Request) {
   const twiml = new VoiceResponse();
 
@@ -40,7 +39,7 @@ export async function POST(req: Request) {
     stream.parameter({ name: "Caller", value: Caller });
 
     // ☎️ Dial logic
-    const callerId = process.env.TWILIO_CALLER_ID || From || "+10000000000";
+    const callerId = process.env.TWILIO_CALLER_ID || From || "+447437985716";
 
     if (To && /^\+?\d+$/.test(To)) {
       const dial = twiml.dial({ callerId });
@@ -74,52 +73,4 @@ export async function POST(req: Request) {
     });
   }
 }
-*/}
 
-export async function POST(req: Request) {
-  const twiml = new VoiceResponse();
-  try {
-    const text = await req.text();
-    const params = new URLSearchParams(text);
-    const To = params.get("To")?.trim() || "";
-    const From = params.get("From") || "";
-    const CallSid = params.get("CallSid") || "";
-
-    console.log("📞 Outgoing webhook:", { To, From, CallSid });
-
-    const protocol = process.env.NODE_ENV === "production" ? "wss" : "ws";
-    const host = req.headers.get("host") || "localhost:3000";
-    const wsUrl = `${protocol}://${host}/twilio-stream`;
-
-    const start = twiml.start();
-    start.stream({
-      name: "voiceai-stream",
-      url: wsUrl,
-      track: "both_tracks",
-    });
-
-    const callerId = process.env.TWILIO_CALLER_ID || From || "+447437985716";
-
-    if (To && /^\+?\d+$/.test(To)) {
-      const dial = twiml.dial({ callerId });
-      dial.number(To);
-      console.log(`📤 Dialing number: ${To}`);
-    } else {
-      twiml.say("Invalid number.");
-      console.warn("⚠️ Invalid 'To' number.");
-    }
-
-    return new NextResponse(twiml.toString(), {
-      status: 200,
-      headers: { "Content-Type": "text/xml" },
-    });
-  } catch (err: any) {
-    console.error("❌ Outgoing route error:", err);
-    const errorTwiml = new VoiceResponse();
-    errorTwiml.say("An error occurred while connecting your call.");
-    return new NextResponse(errorTwiml.toString(), {
-      status: 200,
-      headers: { "Content-Type": "text/xml" },
-    });
-  }
-}

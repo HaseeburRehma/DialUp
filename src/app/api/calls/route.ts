@@ -4,12 +4,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connect } from '../../../../server/utils/db'
 import Call from '../../../../server/models/Call'
-import { verifyUserToken } from '../../../../server/utils/verifyToken'
+import { requireAuth } from '../../../../server/utils/requireAuth.js'
 
 export async function POST(req: NextRequest) {
   try {
     await connect()
-    const user = await verifyUserToken(req)
+    const user = await requireAuth(req)
     const body = await req.json()
 
     const newCall = await Call.create({
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     await connect()
-    const user = await verifyUserToken(req)
+    const user = await requireAuth(req)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

@@ -1,52 +1,102 @@
 // src/app/api/send-automatic-transcript/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
-
+import { sendNoteNotification } from "../../../../server/utils/mailer.js";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/**
- * Twilio sends this as application/x-www-form-urlencoded
- * We just log the transcript and return 200 XML.
- */
 export async function POST(req: NextRequest) {
   try {
-    const text = await req.text();
-    const params = new URLSearchParams(text);
+    const {
+      transcript,
+      callDuration,
+      callDate,
+      callerNumber,
+      receiverNumber,
+      callerEmail,
+      receiverEmail,
+    } = await req.json();
 
-    const CallSid = params.get("CallSid");
-    const TranscriptionText =
-      params.get("TranscriptionText") ||
-      params.get("transcript") ||
-      "No text";
+    // Validate transcript
+    if (!transcript || !transcript.trim()) {
+      return NextResponse.json({ error: "No transcript provided" }, { status: 400 });
+    }
 
-    console.log("📝 Received Twilio transcript:", {
-      CallSid,
-      TranscriptionText: TranscriptionText.slice(0, 200),
-    });
+    // Detect email addresses inside transcript as fallback
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g;
+    const recipients = new Set<string>();
 
-    // ✅ respond with TwiML XML so Twilio doesn't throw 11200
-    const xml = `
-      <Response>
-        <Say>Transcript received.</Say>
-      </Response>
+    if (callerEmail) recipients.add(callerEmail.trim());
+    if (receiverEmail) recipients.add(receiverEmail.trim());
+
+    // Fallback: scrape from transcript if missing
+    if (recipients.size === 0) {
+      const found = transcript.match(emailRegex);
+      if (found?.length) {
+        for (const email of found.slice(0, 2)) recipients.add(email);
+      }
+    }
+
+    // ❗ Return 400 if no valid recipients
+    if (recipients.size === 0) {
+      console.warn("❌ send-automatic-transcript: no valid recipients", {
+        callerNumber,
+        receiverNumber,
+        callDuration,
+        callDate,
+      });
+      return NextResponse.json(
+        { error: "No valid email recipients found for this transcript." },
+        { status: 400 }
+      );
+    }
+
+    // Email structure
+    const subject = `📞 Call Summary: ${callerNumber || "Unknown"} ↔ ${receiverNumber || "Unknown"}`;
+    const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+    const html = `
+      <h2>📞 Call Summary</h2>
+      <ul>
+        <li><strong>From:</strong> ${callerNumber || "Unknown"}</li>
+        <li><strong>To:</strong> ${receiverNumber || "Unknown"}</li>
+        <li><strong>Date:</strong> ${callDate || new Date().toLocaleString()}</li>
+        <li><strong>Duration:</strong> ${callDuration || "N/A"}</li>
+      </ul>
+      <hr />
+      <h3>📝 Transcript</h3>
+      <pre style="background:#f9f9f9;padding:12px;border-radius:6px;white-space:pre-wrap;line-height:1.5;font-family:monospace;">
+${transcript.trim()}
+      </pre>
     `;
 
-    return new NextResponse(xml, {
-      status: 200,
-      headers: { "Content-Type": "text/xml" },
-    });
-  } catch (err: any) {
-    console.error("❌ send-automatic-transcript error:", err);
+    const successful: string[] = [];
+    const failed: string[] = [];
 
-    const fallback = `
-      <Response>
-        <Say>Error processing transcript.</Say>
-      </Response>
-    `;
-    return new NextResponse(fallback, {
-      status: 200,
-      headers: { "Content-Type": "text/xml" },
+    // Send to each recipient individually
+    for (const to of recipients) {
+      try {
+        await sendNoteNotification({ to, from, subject, html });
+        successful.push(to);
+      } catch (e: any) {
+        console.error(`❌ Failed to send to ${to}:`, e.message);
+        failed.push(to);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      totalRecipients: recipients.size,
+      sent: successful,
+      failed,
     });
+  } catch (error: any) {
+    console.error("❌ Fatal error in send-automatic-transcript:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to send automatic transcript",
+        details: error.message,
+      },
+      { status: 500 }
+    );
   }
 }

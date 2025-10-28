@@ -3,11 +3,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Settings from '../../../../server/models/Settings.js'
 import { connect } from '../../../../server/utils/db.js'
-import { verifyUserToken } from '../../../../server/utils/verifyToken.js'
 import User from '../../../../server/models/User.js'
+import { requireAuth } from '../../../../server/utils/requireAuth.js'
 
 export async function GET(req: NextRequest) {
-  const user = await verifyUserToken(req)
+  const user = await requireAuth(req)
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const user = await verifyUserToken(req)
+  const user = await reuqireAuth(req)
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }

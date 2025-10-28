@@ -297,6 +297,8 @@ async function start() {
       });
     });
 
+    app.all("/api/auth/*", (req, res) => handle(req, res));
+
     // Next.js catch-all
     app.all("*", (req, res) => handle(req, res));
 

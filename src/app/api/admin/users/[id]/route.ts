@@ -1,16 +1,14 @@
 // src/app/api/admin/users/[id]/route.ts
-
 import { NextRequest, NextResponse } from 'next/server'
 import { connect } from '../../../../../../server/utils/db.js'
 import User from '../../../../../../server/models/User.js'
-import { authOptions } from 'server/config/authOptions.js'
-import { getServerSession } from "next-auth"
+import { requireAuth } from '../../../../../../server/utils/requireAuth.js'
 
 export async function PATCH(request: NextRequest, context: any) {
   try {
-    const session = await getServerSession(authOptions)
+    const adminUser = await requireAuth(request)
 
-    if (!session || session.user?.role !== 'admin') {
+    if (!adminUser || adminUser.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
@@ -19,29 +17,29 @@ export async function PATCH(request: NextRequest, context: any) {
 
     await connect()
 
-    const user = await User.findById(userId)
-    if (!user) {
+    const targetUser = await User.findById(userId)
+    if (!targetUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     switch (action) {
       case 'make-admin':
-        user.role = 'admin'
+        targetUser.role = 'admin'
         break
       case 'remove-admin':
-        user.role = 'user'
+        targetUser.role = 'user'
         break
       case 'activate':
-        user.isActive = true
+        targetUser.isActive = true
         break
       case 'deactivate':
-        user.isActive = false
+        targetUser.isActive = false
         break
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     }
 
-    await user.save()
+    await targetUser.save()
 
     return NextResponse.json({ message: 'User updated successfully' })
   } catch (error) {

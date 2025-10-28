@@ -306,13 +306,16 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   // Consolidated email sender - called only once on hangup
   // TwilioProvider.tsx (sendAutomaticEmails)
-  {/* ... 
   const sendAutomaticEmails = async (
     transcript: string,
     recordingUrl?: string,
     callerEmail?: string,
     receiverEmail?: string
   ) => {
+    if (!transcript || !transcript.trim()) {
+    log('⚠️ Skipping email — no transcript available', 'warning');
+    return;
+  }
     try {
       const payload = {
         transcript,
@@ -343,7 +346,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       log(`❌ Error sending automatic emails: ${error.message}`, 'error')
     }
   }
-*/}
+
 
 
   const formatTime = (seconds: number) =>
@@ -411,6 +414,116 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
     return () => clearInterval(interval)
   }, [device])
+
+
+  async function finalizeCall(call: any) {
+    // --- Guard: prevent double-finalization ---
+    if ((call as any)._finalized) {
+      log("⚠️ finalizeCall() skipped — already finalized", "warning");
+      return;
+    }
+    (call as any)._finalized = true;
+
+    log('📴 Finalizing call (shared helper)...', 'info');
+
+    const duration = callSeconds;
+    const callSid = call.parameters?.CallSid;
+
+    // Pull email metadata
+    const emailMetadata = (call as any)._emailMetadata || {};
+    const callerEmail = emailMetadata.callerEmail || call.parameters?.CallerEmail || userProfile?.email;
+    const receiverEmail = emailMetadata.receiverEmail || call.parameters?.ReceiverEmail || userProfile?.email;
+
+    // --- Stop recording + transcription ---
+    const { recordingUrl } = await stopCallFeatures();
+
+    // --- Grace delay to allow Whisper WebSocket close ---
+    await new Promise(r => setTimeout(r, 1200));
+
+    // --- Upload Whisper recordings and gather transcript ---
+    let transcriptText = finalTranscript || liveTranscription || '';
+    let whisperUrls: string[] = [];
+
+    if (whisperRef.current) {
+      try {
+        await whisperRef.current.stopTranscription();
+        const recs = await whisperRef.current.uploadRecordings();
+
+        whisperUrls = recs.map((r: any) => (typeof r === 'string' ? r : r.url));
+
+        const texts = recs.map((r: any) => r.transcription || r.text || '').filter(Boolean);
+        if (texts.length) transcriptText = texts.join('\n');
+
+        log(`📝 Final transcript built: ${transcriptText.split('\n').length} lines`, 'info');
+      } catch (e: any) {
+        log(`❌ Whisper upload failed: ${e.message}`, 'error');
+      }
+    }
+
+    // --- Format transcript with speaker tags if available ---
+    const formattedTranscript =
+      liveSegments
+        .map(seg => `[${seg.speaker?.toUpperCase() || 'SPEAKER'}]: ${seg.content}`)
+        .join('\n') || transcriptText;
+
+    // --- Send automatic emails ---
+    try {
+      await sendAutomaticEmails(
+        formattedTranscript,
+        recordingUrl ?? undefined,
+        callerEmail,
+        receiverEmail
+      );
+      log('📧 Transcript emailed successfully', 'info');
+    } catch (e: any) {
+      log(`⚠️ Email send failed: ${e.message}`, 'warning');
+    }
+
+    // --- Save to DB ---
+    const allRecordings = [recordingUrl, ...whisperUrls].filter(
+      (u): u is string => typeof u === 'string' && u.length > 0
+    );
+
+    const callRecord: CallRecord = {
+      id: callSid || Date.now().toString(),
+      number: call.parameters?.To || call.parameters?.From || 'Unknown',
+      direction: call.parameters?.To ? 'outbound' : 'inbound',
+      duration,
+      status: 'completed',
+      timestamp: currentCallStartTime.current || new Date(),
+      recording: allRecordings[0],
+      notes: callNotes,
+      transcription: formattedTranscript,
+      callerEmail,
+      receiverEmail,
+    };
+
+    try {
+      if ((call as any)._dbId) {
+        await axios.patch(`/api/calls/${(call as any)._dbId}`, callRecord, { withCredentials: true });
+        log('💾 Call updated in DB', 'info');
+      } else {
+        const res = await axios.post('/api/calls', callRecord, { withCredentials: true });
+        log(`💾 Call saved to DB: ${res.data.call._id}`, 'info');
+      }
+    } catch (err: any) {
+      log(`❌ DB save failed: ${err.message}`, 'error');
+    }
+
+    // --- Cleanup AFTER saving ---
+    setCallHistory(prev => [callRecord, ...prev]);
+    setIsCalling(false);
+    setCurrentConnection(null);
+    setIsOnHold(false);
+    setIsMuted(false);
+    setCallNotes('');
+    setLiveTranscription('');
+    setLiveSegments([]);
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    log(`✅ Call finalized: ${duration}s`, 'info');
+  }
+
 
   // Initialize Twilio Device
   useEffect(() => {
@@ -492,7 +605,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           };
 
           try {
-            const res = await axios.post('/api/calls', newCall);
+            const res = await axios.post('/api/calls', newCall, { withCredentials: true });
             log(`💾 Call started and saved to DB: ${res.data.call._id}`, 'info');
             (call as any)._dbId = res.data.call._id; // keep ref for update later
           } catch (err: any) {
@@ -518,10 +631,14 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
             setConnectionQuality('excellent')
             log('✅ Call quality improved', 'info')
           })
+          call.on('disconnect', async () => {
+            log('📴 Connection disconnect detected — finalizing...', 'info')
+            await finalizeCall(call)
+          })
         })
 
-        // --- Handle Call Disconnect (SINGLE POINT FOR HANGUP LOGIC) ---
         {/*}
+        // --- Handle Call Disconnect (SINGLE POINT FOR HANGUP LOGIC) ---
         dev.on('disconnect', async (call: any) => {
           if (!mounted) return;
           const duration = callSeconds;
@@ -565,15 +682,12 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
           // Send emails with formatted transcript
           try {
-
             await sendAutomaticEmails(
               formattedTranscript,
               recordingUrl ?? undefined,
               callerEmail,
               receiverEmail
             );
-          
-
             log('📧 Transcript emails sent successfully', 'info');
           } catch (e: any) {
             log(`⚠️ Email send failed: ${e.message}`, 'warning');
@@ -603,7 +717,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
               await axios.patch(`/api/calls/${(call as any)._dbId}`, callRecord);
               log('💾 Call updated in DB', 'info');
             } else {
-              const res = await axios.post('/api/calls', callRecord);
+              const res = await axios.post('/api/calls', callRecord, { withCredentials: true });
               log(`💾 Call saved to DB: ${res.data.call._id}`, 'info');
             }
           } catch (err: any) {
@@ -623,52 +737,11 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
           log(`✅ Call finalized: ${duration}s`, 'info');
         });
-  */}
-        // --- Handle Call Disconnect (SINGLE POINT FOR HANGUP LOGIC) ---
+*/}
         dev.on('disconnect', async (call: any) => {
-          if (!mounted) return;
-          const duration = callSeconds;
-          const callSid = call.parameters?.CallSid;
-
-          log('📴 Call disconnect detected — finalizing...', 'info');
-
-          // Stop recording + transcription
-          const { recordingUrl } = await stopCallFeatures();
-
-          // Skip all email + transcript logic for testing
-          log('📧 Email sending skipped for testing', 'info');
-
-          // Save to database (minimal version)
-          const callRecord: CallRecord = {
-            id: callSid || Date.now().toString(),
-            number: call.parameters?.To || call.parameters?.From || 'Unknown',
-            direction: call.parameters?.To ? 'outbound' : 'inbound',
-            duration,
-            status: 'completed',
-            timestamp: currentCallStartTime.current || new Date(),
-            recording: recordingUrl || undefined,
-          };
-
-          try {
-            const res = await axios.post('/api/calls', callRecord);
-            log(`💾 Call saved to DB: ${res.data.call._id}`, 'info');
-          } catch (err: any) {
-            log(`❌ DB save failed: ${err.message}`, 'error');
-          }
-
-          setCallHistory((p) => [callRecord, ...p]);
-          setIsCalling(false);
-          setCurrentConnection(null);
-          setIsOnHold(false);
-          setIsMuted(false);
-          setCallNotes('');
-          setLiveTranscription('');
-          setLiveSegments([]);
-          if (timerRef.current) clearInterval(timerRef.current);
-
-          log(`✅ Call finalized: ${duration}s`, 'info');
+          log('📴 Device-level disconnect detected — finalizing...', 'info');
+          await finalizeCall(call);
         });
-
         // --- Handle Incoming Call ---
         dev.on('incoming', (connection: any) => {
           if (!mounted) return
@@ -783,7 +856,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
       log(`📞 Starting call: ${cleanNumber}`, 'info');
       log(`📧 Emails - Caller: ${callerEmail}, Receiver: ${receiverEmail}`, 'info');
-      {/*}
+
       const call = await device.connect({
         params: {
           To: cleanNumber,
@@ -792,13 +865,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           CallerNumber: userProfile.phone,
         }
       });
-      */}
-      const call = await device.connect({
-        params: {
-          To: cleanNumber,
-          CallerNumber: userProfile.phone,
-        },
-      });
+
       setCurrentConnection(call as TwilioConnection);
       setIsCalling(true);
 
@@ -826,26 +893,28 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
 
 
-  const hangUp = () => {
+  const hangUp = async () => {
     if (currentConnection) {
-      currentConnection.disconnect()
-      log('📴 Call ended by user', 'info')
+      log('📴 Call ended by user', 'info');
+      const callCopy = currentConnection;
+      currentConnection.disconnect(); // triggers Twilio disconnect
+      await finalizeCall(callCopy);   // <--- force finalize immediately
     } else if (device) {
-      device.disconnectAll()
+      device.disconnectAll();
     }
 
     if (incomingConnection) {
-      incomingConnection.reject()
-      setIncomingConnection(null)
-      setIsRinging(false)
-      stopRingtone()
-      log('📴 Incoming call rejected', 'info')
+      incomingConnection.reject();
+      setIncomingConnection(null);
+      setIsRinging(false);
+      stopRingtone();
+      log('📴 Incoming call rejected', 'info');
     }
 
-    // Reset call state
-    setIsCalling(false)
-    setCurrentConnection(null)
-  }
+    setIsCalling(false);
+    setCurrentConnection(null);
+  };
+
 
   const acceptCall = () => {
     if (incomingConnection) {

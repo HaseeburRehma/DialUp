@@ -6,32 +6,26 @@ import { connect } from '../../../../server/utils/db.js'
 import Note from '../../../../server/models/Note.js'
 import { sendNoteNotification } from '../../../../server/utils/mailer.js'
 import User from '../../../../server/models/User.js'
+import { getToken } from "next-auth/jwt"
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-/**
- * GET /api/notes
- * Returns all notes for the authenticated user.
- */
+
 export async function GET(req: NextRequest) {
   try {
-    const token = req.cookies.get('next-auth.session-token')?.value
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
-    const { payload } = await jwtVerify(token, secret)
-
     await connect()
-    const docs = await Note.find({ userId: payload.sub }).sort({ createdAt: -1 })
+    const docs = await Note.find({ userId: token.id }).sort({ createdAt: -1 })
 
     const notes = docs.map(doc => ({
       id: doc._id.toString(),
       text: doc.text,
-      audioUrls:
-        doc.audioUrls?.map((url: string) =>
-          url.startsWith('http') ? url : `/api/uploads/${url}`
-        ) || [],
+      audioUrls: doc.audioUrls?.map((url: string) =>
+        url.startsWith('http') ? url : `/api/uploads/${url}`
+      ) || [],
       callerName: doc.callerName,
       callerEmail: doc.callerEmail,
       callerLocation: doc.callerLocation,
@@ -47,6 +41,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
 
 /**
  * POST /api/notes
@@ -98,6 +93,8 @@ export async function POST(req: NextRequest) {
     if (callerEmail) {
       await sendNoteNotification({
         to: callerEmail,
+          from: process.env.SMTP_USER,
+
         subject: 'Copy of Your Submitted Note',
         html: body,
       })
