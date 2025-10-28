@@ -55,7 +55,7 @@ async function start() {
 
     console.log("🚀 Next.js prepared, creating Express app...");
     const app = express();
-
+    app.set('trust proxy', 1);
     // Ensure NEXTAUTH_URL in prod
     if (!process.env.NEXTAUTH_URL) {
       const host = process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;

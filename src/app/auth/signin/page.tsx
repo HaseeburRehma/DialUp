@@ -14,6 +14,7 @@ import { Eye, EyeOff, Mic2, ArrowLeft, Sparkles, Check } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { Canvas } from '@react-three/fiber'
 import { MeshDistortMaterial, OrbitControls, Sphere } from '@react-three/drei'
+import { signIn } from "next-auth/react"
 
 export default function SignInPage() {
   const [formData, setFormData] = useState({ username: '', password: '' })
@@ -23,53 +24,28 @@ export default function SignInPage() {
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  e.preventDefault()
+  setLoading(true)
 
-    try {
-      // Call your custom API route instead of NextAuth
-      const response = await fetch('/api/auth/signin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
-        }),
-      })
+  const res = await signIn("credentials", {
+    redirect: false,
+    username: formData.username,
+    password: formData.password,
+  })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        toast({
-          title: 'Error',
-          description: data.error || 'Invalid username or password.',
-          variant: 'destructive',
-        })
-        setLoading(false)
-        return
-      }
-
-      toast({ 
-        title: 'Success', 
-        description: 'Signed in successfully.' 
-      })
-      
-      // Redirect to notes page
-      router.push('/notes')
-      router.refresh() // Refresh to update session
-    } catch (error) {
-      console.error('Sign in error:', error)
-      toast({
-        title: 'Error',
-        description: 'Something went wrong. Please try again.',
-        variant: 'destructive',
-      })
-    } finally {
-      setLoading(false)
-    }
+  if (res?.error) {
+    toast({
+      title: "Error",
+      description: res.error,
+      variant: "destructive",
+    })
+  } else {
+    toast({ title: "Success", description: "Signed in successfully." })
+    router.push("/notes")
   }
+
+  setLoading(false)
+}
 
   const benefits = [
     'Unlimited voice recordings',

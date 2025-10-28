@@ -6,25 +6,21 @@ export async function verifyUserToken(req) {
   try {
     let token;
 
-    // 1️⃣ Try to read cookie from Next.js App Router context (async now!)
-    try {
-      const cookieStore = await cookies(); // ✅ must await
-      token =
-        cookieStore.get("next-auth.session-token")?.value ||
-        cookieStore.get("__Secure-next-auth.session-token")?.value;
-    } catch {
-      // 2️⃣ Fallback for legacy requests or Express
-      if (req?.cookies?.get)
-        token = req.cookies.get("next-auth.session-token")?.value;
-      else if (req?.cookies?.token) token = req.cookies.token;
-    }
+    // ✅ Try all possible cookie names
+    const cookieStore = await cookies();
+    token =
+      cookieStore.get("next-auth.session-token")?.value ||
+      cookieStore.get("__Secure-next-auth.session-token")?.value ||
+      req?.cookies?.get?.("next-auth.session-token")?.value ||
+      req?.cookies?.get?.("__Secure-next-auth.session-token")?.value ||
+      req?.cookies?.token;
 
     if (!token) {
       console.warn("⚠️ No session token found in cookies");
       return null;
     }
 
-    // 3️⃣ Verify it
+    // ✅ Verify JWT
     const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
     const { payload } = await jwtVerify(token, secret);
 
@@ -34,7 +30,7 @@ export async function verifyUserToken(req) {
       email: payload.email,
     };
   } catch (err) {
-    console.error("Token verification failed:", err.message);
+    console.error("❌ Token verification failed:", err.message);
     return null;
   }
 }

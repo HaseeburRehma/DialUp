@@ -44,17 +44,31 @@ export default function SignUpPage() {
 
       if (response.ok) {
         toast({
-          title: 'Success',
-          description: 'Account created successfully! Please sign in to continue.',
+          title: 'Account created!',
+          description: 'Welcome aboard 🎉 Logging you in...',
         })
-        router.push('/auth/signin')
-        return
-      }
-      else {
+
+        // 🔑 Immediately sign the user in using NextAuth credentials provider
+        const loginRes = await signIn('credentials', {
+          redirect: false,
+          username: formData.username,
+          password: formData.password,
+        })
+
+        if (loginRes?.error) {
+          toast({
+            title: 'Error',
+            description: loginRes.error,
+            variant: 'destructive',
+          })
+        } else {
+          router.push('/notes')
+        }
+      } else {
         toast({
           title: 'Error',
           description: data.error || 'Sign up failed',
-          variant: 'destructive'
+          variant: 'destructive',
         })
       }
     } catch (error) {
@@ -62,7 +76,7 @@ export default function SignUpPage() {
       toast({
         title: 'Error',
         description: 'Network error. Please try again.',
-        variant: 'destructive'
+        variant: 'destructive',
       })
     } finally {
       setLoading(false)
