@@ -1,3 +1,4 @@
+// src/app/api/admin/plans/[planId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { deletePlan, updatePlan } from '@/lib/db/admin';
 

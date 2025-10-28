@@ -1,3 +1,4 @@
+// src/app/api/admin/analytics/route.ts
 import { NextResponse } from 'next/server'
 import { getAnalyticsStats } from '@/lib/db/admin'
 

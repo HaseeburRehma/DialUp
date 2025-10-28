@@ -1,3 +1,5 @@
+//  src/components/layout/header.tsx
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -29,9 +31,10 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
-import { useSession, signOut } from "next-auth/react"
+import { signOut } from "next-auth/react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
+import { useCustomSession } from '@/hooks/use-custom-session'
 
 
 
@@ -39,7 +42,7 @@ import Link from "next/link"
 // (Removed mock signOut function to resolve import conflict)
 
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
-  const { data: session } = useSession()
+  const { data: session } = useCustomSession()
   const pathname = usePathname() ?? ''
 
   const [isScrolled, setIsScrolled] = useState(false)
@@ -201,7 +204,15 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
-                  onClick={() => signOut({ callbackUrl: '/' })}
+                  onClick={async () => {
+                    try {
+                      await fetch('/api/auth/logout', { method: 'POST' })
+                      // Redirect manually after cookie is cleared
+                      window.location.href = '/'
+                    } catch (err) {
+                      console.error('Logout failed:', err)
+                    }
+                  }}
                   className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                 >
                   <LogOut className="mr-3 h-4 w-4" />

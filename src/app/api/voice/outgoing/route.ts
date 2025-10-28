@@ -1,63 +1,112 @@
 // src/app/api/voice/outgoing/route.ts
-
 import { NextResponse } from "next/server";
 import twilio from "twilio";
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
-export async function GET() {
-  return new NextResponse("<Response><Say>✅ Outgoing endpoint alive</Say></Response>", {
-    status: 200,
-    headers: { "Content-Type": "text/xml" },
-  });
-}
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
+{/*}
 export async function POST(req: Request) {
+  const twiml = new VoiceResponse();
+
   try {
-    // ✅ FIX: Parse x-www-form-urlencoded safely
-    const bodyText = await req.text();
-    const formData = new URLSearchParams(bodyText);
+    // ✅ Always parse as URLSearchParams (Twilio sends x-www-form-urlencoded)
+    const text = await req.text();
+    const params = new URLSearchParams(text);
 
-    const To = formData.get("To")?.trim() || null;
-    const CallerEmail = formData.get("CallerEmail");
-    const CallerNumber = formData.get("CallerNumber");
-    const ReceiverEmail = formData.get("ReceiverEmail");
+    const To = params.get("To")?.trim() || "";
+    const Caller = params.get("Caller") || "";
+    const CallSid = params.get("CallSid") || "";
+    const From = params.get("From") || "";
 
-    console.log("📞 Outgoing call webhook hit. To:", To);
-    console.log("CallerEmail:", CallerEmail, "ReceiverEmail:", ReceiverEmail);
+    console.log("📞 Twilio webhook:", { To, Caller, CallSid, From });
 
-    const twiml = new VoiceResponse();
-    twiml.say(`Connecting call for ${CallerEmail || "unknown caller"}`);
+    // ✅ Build WebSocket URL dynamically
+    const protocol = process.env.NODE_ENV === "production" ? "wss" : "ws";
+    const host = req.headers.get("host") || "localhost:3000";
+    const wsUrl = `${protocol}://${host}/twilio-stream`;
 
-    // ✅ 1️⃣ Start Twilio Media Stream (to your WebSocket)
-    const start1 = twiml.start();
-    start1.stream({
-      name: "voiceai-live-stream",
-      url: `wss://${process.env.PUBLIC_DOMAIN || "voiceai.wordpressstagingsite.com"}/twilio-stream`,
+    // 🎤 Start media stream
+    const start = twiml.start();
+    const stream = start.stream({
+      name: "voiceai-stream",
+      url: wsUrl,
       track: "both_tracks",
     });
 
-    
+    stream.parameter({ name: "CallSid", value: CallSid });
+    stream.parameter({ name: "Caller", value: Caller });
 
-    console.log("🎤 Media Stream + Real-Time Transcription enabled");
-
-    // ✅ 3️⃣ Dial logic
-    const callerId =
-      process.env.TWILIO_CALLER_ID ||
-      (CallerNumber && process.env.ALLOW_CUSTOM_CALLER_ID === "true"
-        ? CallerNumber
-        : undefined);
+    // ☎️ Dial logic
+    const callerId = process.env.TWILIO_CALLER_ID || From || "+10000000000";
 
     if (To && /^\+?\d+$/.test(To)) {
       const dial = twiml.dial({ callerId });
       dial.number(To);
-      console.log(`📤 Outgoing PSTN call: From ${callerId} → ${To}`);
+      console.log(`📤 Dialing PSTN: ${To}`);
     } else if (To) {
       const dial = twiml.dial({ callerId });
       dial.client(To);
-      console.log(`📤 Outgoing Client Call: From ${callerId} → client:${To}`);
+      console.log(`📤 Dialing client: ${To}`);
     } else {
-      twiml.say("No destination number provided.");
+      twiml.say("No valid destination provided.");
+      console.warn("⚠️ No 'To' parameter in request");
+    }
+
+    return new NextResponse(twiml.toString(), {
+      status: 200,
+      headers: { "Content-Type": "text/xml" },
+    });
+
+  } catch (err: any) {
+    console.error("❌ Outgoing route error:", err);
+
+    // 🔒 Return fallback TwiML instead of JSON
+    const errorTwiml = new VoiceResponse();
+    errorTwiml.say("An error occurred while processing your call. Please try again later.");
+    errorTwiml.hangup();
+
+    return new NextResponse(errorTwiml.toString(), {
+      status: 200, // ✅ Return 200 so Twilio doesn’t retry endlessly
+      headers: { "Content-Type": "text/xml" },
+    });
+  }
+}
+*/}
+
+export async function POST(req: Request) {
+  const twiml = new VoiceResponse();
+  try {
+    const text = await req.text();
+    const params = new URLSearchParams(text);
+    const To = params.get("To")?.trim() || "";
+    const From = params.get("From") || "";
+    const CallSid = params.get("CallSid") || "";
+
+    console.log("📞 Outgoing webhook:", { To, From, CallSid });
+
+    const protocol = process.env.NODE_ENV === "production" ? "wss" : "ws";
+    const host = req.headers.get("host") || "localhost:3000";
+    const wsUrl = `${protocol}://${host}/twilio-stream`;
+
+    const start = twiml.start();
+    start.stream({
+      name: "voiceai-stream",
+      url: wsUrl,
+      track: "both_tracks",
+    });
+
+    const callerId = process.env.TWILIO_CALLER_ID || From || "+447437985716";
+
+    if (To && /^\+?\d+$/.test(To)) {
+      const dial = twiml.dial({ callerId });
+      dial.number(To);
+      console.log(`📤 Dialing number: ${To}`);
+    } else {
+      twiml.say("Invalid number.");
+      console.warn("⚠️ Invalid 'To' number.");
     }
 
     return new NextResponse(twiml.toString(), {
@@ -66,6 +115,11 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     console.error("❌ Outgoing route error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const errorTwiml = new VoiceResponse();
+    errorTwiml.say("An error occurred while connecting your call.");
+    return new NextResponse(errorTwiml.toString(), {
+      status: 200,
+      headers: { "Content-Type": "text/xml" },
+    });
   }
 }

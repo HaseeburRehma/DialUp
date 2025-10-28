@@ -4,35 +4,16 @@
 import { useEffect, useState } from 'react'
 import { Header } from './header'
 import { Sidebar } from './../sidebar'
+import { useCustomSession } from '@/hooks/use-custom-session'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
-// Mock session hook for demo purposes
-function useSession() {
-  const [session, setSession] = useState<any>(null)
-  const [status, setStatus] = useState('loading')
 
-  useEffect(() => {
-    // Simulate loading and setting a mock session
-    setTimeout(() => {
-      setSession({
-        user: {
-          name: 'John Doe',
-          email: 'john@example.com',
-          role: 'admin'
-        }
-      })
-      setStatus('authenticated')
-    }, 1000)
-  }, [])
-
-  return { data: session, status }
-}
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { data: session, status } = useSession()
+  const { data: session, status } = useCustomSession()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   if (status === 'loading') {

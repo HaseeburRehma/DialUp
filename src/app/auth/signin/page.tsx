@@ -1,6 +1,7 @@
+// src/app/auth/signin/page.tsx
+
 'use client'
 
-import { signIn } from 'next-auth/react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -25,25 +26,49 @@ export default function SignInPage() {
     e.preventDefault()
     setLoading(true)
 
-    const nextAuthResult = await signIn('credentials', {
-      redirect: false,
-      username: formData.username,
-      password: formData.password,
-    })
+    try {
+      // Call your custom API route instead of NextAuth
+      const response = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+        }),
+      })
 
-    if (!nextAuthResult?.ok) {
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast({
+          title: 'Error',
+          description: data.error || 'Invalid username or password.',
+          variant: 'destructive',
+        })
+        setLoading(false)
+        return
+      }
+
+      toast({ 
+        title: 'Success', 
+        description: 'Signed in successfully.' 
+      })
+      
+      // Redirect to notes page
+      router.push('/notes')
+      router.refresh() // Refresh to update session
+    } catch (error) {
+      console.error('Sign in error:', error)
       toast({
         title: 'Error',
-        description: nextAuthResult?.error ?? 'Invalid username or password.',
+        description: 'Something went wrong. Please try again.',
         variant: 'destructive',
       })
+    } finally {
       setLoading(false)
-      return
     }
-
-    toast({ title: 'Success', description: 'Signed in successfully.' })
-    router.push('/notes')
-    setLoading(false)
   }
 
   const benefits = [
@@ -148,7 +173,7 @@ export default function SignInPage() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
-            <Card className="shadow- dobro2xl border-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm w-full max-w-md mx-auto">
+            <Card className="shadow-2xl border-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm w-full max-w-md mx-auto">
               <CardHeader className="text-center space-y-4">
                 <motion.div 
                   className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-2xl flex items-center justify-center"

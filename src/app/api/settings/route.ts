@@ -1,37 +1,42 @@
 // src/app/api/settings/route.ts
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import Settings from '../../../../server/models/Settings.js';
-import { connect } from '../../../../server/utils/db.js';
-import { authOptions } from 'server/config/authOptions.js'
-
-
+import { NextRequest, NextResponse } from 'next/server'
+import Settings from '../../../../server/models/Settings.js'
+import { connect } from '../../../../server/utils/db.js'
+import { verifyUserToken } from '../../../../server/utils/verifyToken.js'
+import User from '../../../../server/models/User.js'
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
+  const user = await verifyUserToken(req)
+  if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
   await connect()
-  let settings = await Settings.findOne({ userEmail: session.user.email })
+  const dbUser = await User.findById(user.id)
+  if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+  let settings = await Settings.findOne({ userEmail: dbUser.email })
   if (!settings) {
-    settings = await Settings.create({ userEmail: session.user.email })
+    settings = await Settings.create({ userEmail: dbUser.email })
   }
+
   return NextResponse.json(settings)
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
+  const user = await verifyUserToken(req)
+  if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
   await connect()
+  const dbUser = await User.findById(user.id)
+  if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
   const updates = await req.json()
   const settings = await Settings.findOneAndUpdate(
-    { userEmail: session.user.email },
+    { userEmail: dbUser.email },
     updates,
     { new: true, upsert: true }
   )

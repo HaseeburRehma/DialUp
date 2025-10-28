@@ -1,13 +1,15 @@
+
+// src/app/api/admin/users/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { connect } from '../../../../../server/utils/db.js'
 import User from '../../../../../server/models/User.js'
-import { getServerSession } from 'next-auth'
 import { authOptions } from 'server/config/authOptions.js'
+import { getServerSession } from "next-auth/next"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    
+    const session = await getServerSession({ req: request, ...authOptions })
+
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }

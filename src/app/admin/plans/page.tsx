@@ -1,3 +1,5 @@
+//  src/app/admin/plans/page.tsx
+
 "use client";
 
 

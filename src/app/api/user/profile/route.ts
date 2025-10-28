@@ -1,39 +1,34 @@
 // src/app/api/user/profile/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { connect } from '../../../../../server/utils/db'
 import User from '../../../../../server/models/User'
-import { authOptions } from 'server/config/authOptions.js'
+import { verifyUserToken } from '../../../../../server/utils/verifyToken'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    await connect()
-    
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const user = await verifyUserToken(req)
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = await User.findById(session.user.id).select('-password')
-    if (!user) {
+    await connect()
+    const dbUser = await User.findById(user.id).select('-password')
+    if (!dbUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
     return NextResponse.json({
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      username: user.username,
-      phone: user.phone,
-      role: user.role,
-      plan: user.plan
+      id: dbUser._id.toString(),
+      name: dbUser.name,
+      email: dbUser.email,
+      username: dbUser.username,
+      phone: dbUser.phone,
+      role: dbUser.role,
+      plan: dbUser.plan,
     })
   } catch (error: any) {
     console.error('Get profile error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

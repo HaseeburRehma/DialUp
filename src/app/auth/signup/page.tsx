@@ -45,29 +45,12 @@ export default function SignUpPage() {
       if (response.ok) {
         toast({
           title: 'Success',
-          description: 'Account created successfully!',
+          description: 'Account created successfully! Please sign in to continue.',
         })
-
-        const signInResult = await signIn('credentials', {
-          redirect: false,
-          username: formData.username,
-          password: formData.password,
-        })
-
-        if (signInResult?.ok) {
-          toast({
-            title: 'Welcome!',
-            description: 'You have been signed in automatically.',
-          })
-          router.push('/notes')
-        } else {
-          toast({
-            title: 'Account created',
-            description: 'Please sign in with your new account.',
-          })
-          router.push('/auth/signin')
-        }
-      } else {
+        router.push('/auth/signin')
+        return
+      }
+      else {
         toast({
           title: 'Error',
           description: data.error || 'Sign up failed',
@@ -116,7 +99,7 @@ export default function SignUpPage() {
       <div className="flex items-start justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-6 md:gap-8 items-start">
           {/* Benefits Section */}
-          <motion.div 
+          <motion.div
             className="hidden lg:block space-y-8"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -133,7 +116,7 @@ export default function SignUpPage() {
 
             <div className="space-y-4">
               {benefits.map((benefit, index) => (
-                <motion.div 
+                <motion.div
                   key={index}
                   className="flex items-center space-x-3"
                   initial={{ opacity: 0, y: 20 }}
@@ -148,7 +131,7 @@ export default function SignUpPage() {
               ))}
             </div>
 
-            <motion.div 
+            <motion.div
               className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-6 rounded-2xl shadow-sm"
               whileHover={{ scale: 1.02 }}
             >
@@ -159,7 +142,7 @@ export default function SignUpPage() {
             </motion.div>
 
             {/* 3D Visual */}
-            <motion.div 
+            <motion.div
               className="h-64"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -183,14 +166,14 @@ export default function SignUpPage() {
           </motion.div>
 
           {/* Sign Up Form */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
             <Card className="shadow-2xl border-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
               <CardHeader className="text-center space-y-4">
-                <motion.div 
+                <motion.div
                   className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-2xl flex items-center justify-center"
                   whileHover={{ scale: 1.1 }}
                 >

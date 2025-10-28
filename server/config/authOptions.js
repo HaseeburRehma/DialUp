@@ -1,3 +1,5 @@
+//  server/config/authOptions.js
+
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { connect } from "../utils/db.js"

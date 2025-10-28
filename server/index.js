@@ -8,9 +8,13 @@ const { createProxyMiddleware } = require("http-proxy-middleware");
 const { connect: connectDb } = require("./utils/db");
 
 // Add process error handlers at the very top
-process.on("uncaughtException", (error) => {
-  console.error("❌ Uncaught Exception:", error);
-  process.exit(1);
+process.on("uncaughtException", err => {
+  if (err.code === 'WS_ERR_INVALID_UTF8' || err.code === 'WS_ERR_INVALID_CLOSE_CODE') {
+    console.warn("⚠️ Ignored WebSocket frame error:", err.message);
+  } else {
+    console.error("❌ Uncaught:", err);
+    process.exit(1);
+  }
 });
 
 process.on("unhandledRejection", (reason, promise) => {
@@ -76,12 +80,7 @@ async function start() {
 
     const jsonParser = express.json({ limit: "500mb" });
     const urlParser = express.urlencoded({ extended: true, limit: "500mb" });
-    const expressWs = require('express-ws')(app, null, {
-      wsOptions: { perMessageDeflate: false }  // 
-
-    });
-    console.log("🧠 express-ws options:", expressWs.getWss().options);
-
+    const expressWs = require('express-ws')(app);
     const sseClients = [];
 
     // Static files
@@ -183,8 +182,6 @@ async function start() {
 
     // --- Twilio WebSocket Stream Route ---
     app.ws('/twilio-stream', (ws, req) => {
-      ws._socket.setNoDelay(true);
-      ws._extensions = {};
       console.log('🔊 Twilio stream connected');
 
       // Per-call file for debug audio capture
@@ -299,15 +296,7 @@ async function start() {
         whisper_port: whisperPort,
       });
     });
-    app.use(
-      "/api",
-      createProxyMiddleware({
-        target: `http://127.0.0.1:${PORT}`,
-        changeOrigin: true,
-        ws: false,
-        logLevel: dev ? "debug" : "silent",
-      })
-    );
+
     // Next.js catch-all
     app.all("*", (req, res) => handle(req, res));
 

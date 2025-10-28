@@ -1,91 +1,107 @@
+// src/app/api/answerai/[id]/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from "next-auth"
+import { getServerSession } from "next-auth/next"
 import { authOptions } from 'server/config/authOptions.js'
 
 import { connect } from '../../../../../server/utils/db.js';
 import AnswerAI from '../../../../../server/models/AnswerAi.js';
 import { sendNoteNotification } from '../../../../../server/utils/mailer.js';
 import User from '../../../../../server/models/User.js';
+import { verifyUserToken } from '../../../../../server/utils/verifyToken.js'
 
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-export async function PATCH(req: NextRequest, context: any) {
-  const { id } = context.params
-  const session = await getServerSession(authOptions)
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+export async function GET(req: NextRequest) {
+  const user = await verifyUserToken(req)
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  await connect()
+  const docs = await AnswerAI.find({ userId: user.id }).sort({ createdAt: -1 })
+
+  const sessions = docs.map(doc => ({
+    id: doc._id.toString(),
+    sessionName: doc.sessionName,
+    interviewerName: doc.interviewerName,
+    candidateName: doc.candidateName,
+    candidateEmail: doc.candidateEmail,
+    position: doc.position,
+    company: doc.company,
+    questions: doc.questions,
+    answers: doc.answers,
+    audioUrls: doc.audioUrls,
+    status: doc.status,
+    totalDuration: doc.totalDuration,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  }))
+
+  return NextResponse.json(sessions)
+}
+
+export async function POST(req: NextRequest) {
+  const user = await verifyUserToken(req)
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
   const data = await req.json()
-  const {
+  const { sessionName, interviewerName, candidateName, candidateEmail, position, company, questions = [], answers = [], audioUrls = [], transcript = '', status = 'active', totalDuration = 0 } = data
+
+  if (!sessionName || !candidateName || !position || !company) {
+    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+
+  await connect()
+  const dbUser = await User.findById(user.id)
+  if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+  const now = new Date()
+  const answerAISession = await AnswerAI.create({
+    userId: dbUser._id,
     sessionName,
     interviewerName,
     candidateName,
     candidateEmail,
     position,
     company,
-    questions = [],
-    answers = [],
-    transcript = '',
-    audioUrls = [],
-    status = 'active',
-    totalDuration = 0,
-  } = data
+    questions,
+    answers,
+    transcript,
+    audioUrls,
+    status,
+    totalDuration,
+    createdAt: now,
+    updatedAt: now,
+  })
+
+  const subject = `New AnswerAI Session: ${sessionName}`
+  const html = `<p>New AnswerAI session created by ${dbUser.name}</p>`
+  if (dbUser.email) await sendNoteNotification({ to: dbUser.email, subject, html })
+  if (candidateEmail) await sendNoteNotification({ to: candidateEmail, subject, html })
+
+  return NextResponse.json({ ...answerAISession.toObject(), id: answerAISession._id.toString() }, { status: 201 })
+}
+
+export async function PUT(req: NextRequest) {
+  const user = await verifyUserToken(req)
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
+  const data = await req.json()
+  const { sessionId, questions = [], answers = [], status, totalDuration } = data
+  if (!sessionId) return NextResponse.json({ error: 'Session ID required' }, { status: 400 })
 
   await connect()
+  const updateData: any = { updatedAt: new Date() }
+  if (questions.length) updateData.questions = questions
+  if (answers.length) updateData.answers = answers
+  if (status) updateData.status = status
+  if (totalDuration !== undefined) updateData.totalDuration = totalDuration
 
-  const processedAnswers = answers.map((answer: any) => ({
-    ...answer,
-    generatedAt: typeof answer.generatedAt === 'string'
-      ? new Date(answer.generatedAt).getTime()
-      : answer.generatedAt || Date.now()
-  }))
-  // Optional: ensure user exists in DB
-  const dbUser = await User.findById(session.user.id)
-  if (!dbUser) {
-    return NextResponse.json({ error: 'User not found' }, { status: 404 })
-  }
+  const updated = await AnswerAI.findOneAndUpdate({ _id: sessionId, userId: user.id }, updateData, { new: true })
+  if (!updated) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
-  const updatedSession = await AnswerAI.findOneAndUpdate(
-    { _id: id, userId: dbUser._id, },
-    {
-      sessionName,
-      interviewerName,
-      candidateName,
-      candidateEmail,
-      position,
-      company,
-      questions,
-      answers: processedAnswers,
-      audioUrls,
-      transcript,
-      status,
-      totalDuration,
-      updatedAt: new Date(),
-    },
-    { new: true }
-  )
-
-  if (!updatedSession) {
-    return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-  }
-
-  const subject = `AnswerAI Session Updated: ${sessionName}`
-  const html = `<p>The AnswerAI session for <strong>${candidateName}</strong> has been updated.</p>`
-
-  if (session.user.email) {
-    await sendNoteNotification({ to: session.user.email, subject, html })
-  }
-
-  if (candidateEmail) {
-    await sendNoteNotification({ to: candidateEmail, subject: 'Your interview session was updated', html })
-  }
-
-  return NextResponse.json({
-    ...updatedSession.toObject(),
-    id: updatedSession._id.toString()
-  })
+  return NextResponse.json({ ...updated.toObject(), id: updated._id.toString() })
 }

@@ -1,3 +1,5 @@
+// server/schemas/auth.schema.js
+
 const { z } = require('zod');
 
 const userValidationRules = {

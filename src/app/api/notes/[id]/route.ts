@@ -1,84 +1,59 @@
 // src/app/api/notes/[id]/route.ts
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from 'server/config/authOptions.js'
+import { NextRequest, NextResponse } from 'next/server'
+import { jwtVerify } from 'jose'
+import { connect } from '../../../../../server/utils/db.js'
+import Note from '../../../../../server/models/Note.js'
+import { sendNoteNotification } from '../../../../../server/utils/mailer.js'
+import User from '../../../../../server/models/User.js'
 
-import { connect } from '../../../../../server/utils/db.js';
-import Note from '../../../../../server/models/Note.js';
-import { sendNoteNotification } from '../../../../../server/utils/mailer.js';
-import User from '../../../../../server/models/User.js';
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
+export async function PATCH(req: NextRequest, { params }: any) {
+  try {
+    const token = req.cookies.get('next-auth.session-token')?.value
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-/**
- * PATCH /api/notes/:id
- */
-export async function PATCH(req: NextRequest, context: any) {
-  const { id } = context.params
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
+    const { payload } = await jwtVerify(token, secret)
+    const userId = payload.sub
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id)
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    const data = await req.json()
+    const { id } = params
 
-  const data = await req.json()
-  const {
-    text,
-    audioUrls,
-    callerName,
-    callerEmail,
-    callerLocation,
-    callerAddress,
-    callReason,
-  } = data
+    await connect()
+    const note = await Note.findOneAndUpdate(
+      { _id: id, userId },
+      data,
+      { new: true }
+    )
+    if (!note) return NextResponse.json({ error: 'Note not found' }, { status: 404 })
 
-  await connect()
-  
-  // ✅ FIX: Store audioUrls exactly as received, don't modify them
-  const note = await Note.findOneAndUpdate(
-    { _id: id, userId: session.user.id },
-    { text, audioUrls, callerName, callerEmail, callerLocation, callerAddress, callReason },
-    { new: true }
-  )
-  if (!note) return NextResponse.json({ error: 'Note not found' }, { status: 404 })
-
-  // send update notifications
-  const subject = `Note Updated by ${callerName || 'Caller'}`
-  const html = `<p>The note has been updated:</p><pre>${note.text}</pre>`
-  if (session.user.email) {
-    await sendNoteNotification({ to: session.user.email, subject, html })
+    return NextResponse.json(note)
+  } catch (err) {
+    console.error('PATCH /api/notes/[id] error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-  if (callerEmail) {
-    await sendNoteNotification({ to: callerEmail, subject: 'Your note was updated', html })
-  }
-
-  return NextResponse.json(note)
 }
 
-/**
- * DELETE /api/notes/:id
- */
-export async function DELETE(req: NextRequest, context: any) {
-  const { id } = context.params
+export async function DELETE(req: NextRequest, { params }: any) {
+  try {
+    const token = req.cookies.get('next-auth.session-token')?.value
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
+    const { payload } = await jwtVerify(token, secret)
+    const userId = payload.sub
+
+    await connect()
+    const result = await Note.deleteOne({ _id: params.id, userId })
+    if (result.deletedCount === 0)
+      return NextResponse.json({ error: 'Note not found' }, { status: 404 })
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('DELETE /api/notes/[id] error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-
-  await connect()
-  const result = await Note.deleteOne({ _id: id, userId: session.user.id })
-  if (result.deletedCount === 0) {
-    return NextResponse.json({ error: 'Note not found' }, { status: 404 })
-  }
-
-  // send deletion notification
-  const subject = `Note Deleted`
-  const html = `<p>Your note (ID: ${id}) was deleted.</p>`
-  if (session.user.email) {
-    await sendNoteNotification({ to: session.user.email, subject, html })
-  }
-
-  return NextResponse.json({ success: true })
 }

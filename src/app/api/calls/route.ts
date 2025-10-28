@@ -2,36 +2,19 @@
 // src/app/api/calls/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { connect } from '../../../../server/utils/db'
 import Call from '../../../../server/models/Call'
-import { authOptions } from 'server/config/authOptions.js'
+import { verifyUserToken } from '../../../../server/utils/verifyToken'
 
-/**
- * Save a new call record
- */
 export async function POST(req: NextRequest) {
   try {
     await connect()
+    const user = await verifyUserToken(req)
     const body = await req.json()
-
-    // Try to attach logged-in user if available
-    let userId: string | null = null
-    try {
-      const session = await getServerSession(authOptions)
-      if (session?.user?.id) {
-        userId = session.user.id
-        console.log('✅ Authenticated call from user:', userId)
-      } else {
-        console.log('⚠️ No authenticated user for this call (fallback mode)')
-      }
-    } catch (err) {
-      console.log('⚠️ Session fetch failed, saving anonymously')
-    }
 
     const newCall = await Call.create({
       ...body,
-      userId: userId || body.userId || null,
+      userId: user?.id || null,
     })
 
     console.log('💾 New call saved:', newCall._id)
@@ -42,19 +25,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * Fetch call history for the logged in user
- */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connect()
-
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const user = await verifyUserToken(req)
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const calls = await Call.find({ userId: session.user.id }).sort({ timestamp: -1 })
+    const calls = await Call.find({ userId: user.id }).sort({ timestamp: -1 })
     return NextResponse.json(calls)
   } catch (err: any) {
     console.error('❌ Fetch Calls Error:', err)
