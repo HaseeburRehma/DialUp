@@ -12,6 +12,7 @@ export interface Segment {
   volume?: number;
   confidence?: number;
   source?: 'whisper' | 'twilio' | 'recorder';
+  timestamps?: [number, number];
 }
 
 

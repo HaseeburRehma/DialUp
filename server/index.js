@@ -6,8 +6,9 @@ const cors = require("cors");
 const next = require("next");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 const { connect: connectDb } = require("./utils/db");
+const WebSocket = require('ws');
+const { pushTranscript } = require("./utils/streamBus");
 
-// Add process error handlers at the very top
 process.on("uncaughtException", err => {
   if (err.code === 'WS_ERR_INVALID_UTF8' || err.code === 'WS_ERR_INVALID_CLOSE_CODE') {
     console.warn("⚠️ Ignored WebSocket frame error:", err.message);
@@ -22,7 +23,6 @@ process.on("unhandledRejection", (reason, promise) => {
   process.exit(1);
 });
 
-// Load .env only in dev
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 }
@@ -30,8 +30,6 @@ if (process.env.NODE_ENV !== "production") {
 const dev = process.env.NODE_ENV !== "production";
 const PORT = Number(process.env.PORT) || 3000;
 const whisperPort = process.env.WHISPER_PORT || 4000;
-const WebSocket = require('ws');
-
 
 async function start() {
   try {
@@ -42,7 +40,7 @@ async function start() {
     );
     const conn = await Promise.race([dbPromise, timeoutPromise]);
     console.log(
-      "✅ MongoDB connected to",
+      " MongoDB connected to",
       `${conn.connection.host}:${conn.connection.port}`,
       "/",
       conn.connection.name
@@ -56,7 +54,7 @@ async function start() {
     console.log("🚀 Next.js prepared, creating Express app...");
     const app = express();
     app.set('trust proxy', 1);
-    // Ensure NEXTAUTH_URL in prod
+
     if (!process.env.NEXTAUTH_URL) {
       const host = process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
       process.env.NEXTAUTH_URL = dev
@@ -81,53 +79,23 @@ async function start() {
     const jsonParser = express.json({ limit: "500mb" });
     const urlParser = express.urlencoded({ extended: true, limit: "500mb" });
     const expressWs = require('express-ws')(app);
-    const sseClients = [];
 
-    // Static files
     if (process.env.NODE_ENV === "development") {
       app.use("/audio", express.static(path.join(__dirname, "../public/audio")));
     }
-    // API routes
+
     try {
       app.use("/api/transcribe", jsonParser, urlParser, require("./routes/transcribe"));
       app.use("/api/upload", jsonParser, urlParser, require("./routes/upload"));
-      // app.use("/api/twilio-token", jsonParser, urlParser, require("./routes/twilio"));
       console.log("✅ API routes loaded");
     } catch (error) {
       console.error("❌ Failed to load API routes:", error);
       throw error;
     }
-    // helper to broadcast to all browser clients
-    function pushTranscript(payload) {
-      const speaker =
-        payload.speaker ||
-        (payload.track === 'inbound_track'
-          ? 'caller'
-          : payload.track === 'outbound_track'
-            ? 'agent'
-            : 'unknown');
-
-      const data = {
-        id: Date.now().toString(),
-        speaker,
-        content: payload.text,
-        final: payload.final || false,
-      };
 
 
-      const msg = `data: ${JSON.stringify(data)}\n\n`;
-      for (const client of [...sseClients]) {
-        try {
-          client.write(msg);
-        } catch (err) {
-          console.error("⚠️ Dropping SSE client:", err);
-          client.end();
-          sseClients.splice(sseClients.indexOf(client), 1);
-        }
-      }
-    }
 
-    // SSE endpoint to connect from frontend
+    // SSE endpoint for browser
     app.get("/api/voice/stream", (req, res) => {
       res.writeHead(200, {
         "Content-Type": "text/event-stream",
@@ -136,17 +104,29 @@ async function start() {
         "Access-Control-Allow-Origin": "*",
       });
 
-      sseClients.push(res);
-      console.log("🧩 Browser connected to /api/voice/stream");
+      // Wire Express response as a bus client
+      const client = {
+        write: (data) => res.write(data),
+        close: () => {
+          try { res.end(); } catch { }
+        },
+      };
+
+      // Register the client in the bus
+      const { addClient, removeClient } = require("./utils/streamBus");
+      addClient(client);
+
+      // heartbeat
+      const ka = setInterval(() => res.write(": keepalive\n\n"), 15000);
 
       req.on("close", () => {
-        console.log("❌ Browser disconnected from /api/voice/stream");
-        const i = sseClients.indexOf(res);
-        if (i >= 0) sseClients.splice(i, 1);
+        clearInterval(ka);
+        removeClient(client);
       });
     });
+
     // WebSocket proxy
-    console.log(`🎤 Setting up WebSocket proxy to Whisper backend on port ${whisperPort}`);
+    console.log(`🎤 Setting up WebSocket proxy to port ${whisperPort}`);
     const wsProxy = createProxyMiddleware({
       target: `http://127.0.0.1:${whisperPort}`,
       changeOrigin: true,
@@ -159,12 +139,11 @@ async function start() {
     });
     app.use("/ws", wsProxy);
 
-    // --- μ-law decoder ---
+    // μ-law decoder
     function decodeMuLawSample(muLawByte) {
       const MULAW_MAX = 0x1FFF;
       const MULAW_BIAS = 33;
       muLawByte = ~muLawByte;
-
       const sign = (muLawByte & 0x80) ? -1 : 1;
       const exponent = (muLawByte >> 4) & 0x07;
       const mantissa = muLawByte & 0x0F;
@@ -180,111 +159,110 @@ async function start() {
       return Buffer.from(out.buffer);
     }
 
-    // --- Twilio WebSocket Stream Route ---
-    app.ws('/twilio-stream', (ws, req) => {
-      console.log('🔊 Twilio stream connected');
+    //  Twilio WebSocket with proper speaker tracking
 
-      // Per-call file for debug audio capture
-      const fs = require('fs');
-      const debugFile = path.join(
-        '/tmp',
-        `twilio-audio-${Date.now()}.raw`
-      );
+    // Twilio WebSocket endpoint: receives both inbound & outbound tracks
+    app.ws("/twilio-stream", (ws, req) => {
+      console.log(" Twilio media stream connected");
+
+      const fs = require("fs");
+      const path = require("path");
+      const debugFile = path.join("/tmp", `twilio-audio-${Date.now()}.raw`);
       let chunkCount = 0;
+      let callSid = null;
 
-      // Connect to Whisper
+      const trackToSpeaker = {
+        inbound: "caller",
+        inbound_track: "caller",
+        outbound: "agent",
+        outbound_track: "agent",
+      };
+
       const whisperConn = new WebSocket(`ws://127.0.0.1:${whisperPort}/whisper`);
 
-      whisperConn.on('open', () => {
-        console.log('🧠 Connected to Whisper backend');
-        whisperConn.send(JSON.stringify({
-          task: 'transcribe',
-          uid: `twilio-${Date.now()}`,
-          language: 'en',
-          model: 'base',
-          stream: true,
-          use_vad: true,
-          sample_rate: 8000,  // Twilio sends 8kHz audio
-          chunk_size: 2048
-        }));
+      whisperConn.on("open", () => {
+        console.log(" Connected to Whisper backend");
+        whisperConn.send(
+          JSON.stringify({
+            task: "transcribe",
+            uid: `twilio-${Date.now()}`,
+            language: "en",
+            model: "base",
+            stream: true,
+            use_vad: true,
+            sample_rate: 8000,
+            chunk_size: 2048,
+          })
+        );
       });
 
-      // Push transcript to SSE
-      whisperConn.on('message', (msg) => {
+      whisperConn.on("message", (msg) => {
         try {
           const data = JSON.parse(msg.toString());
-          if (data.text || data.message) {
-            pushTranscript({
-              text: data.text || data.message,
-              track: data.track,
-              speaker: data.speaker,
-              final: data.final,
-            });
-          }
+          const text = data.text || data.message;
+          if (!text) return;
+
+          const track = data.track || "unknown";
+          const speaker = trackToSpeaker[track] || data.speaker || "unknown";
+
+          console.log(`📝 Transcript [${speaker}] → ${text.slice(0, 80)}…`);
+
+          pushTranscript({
+            text,
+            track,
+            speaker,
+            final: data.final || false,
+          });
         } catch (err) {
-          console.error(' Whisper message parse error:', err);
+          console.error("❌ Whisper message parse error:", err);
         }
       });
 
-      whisperConn.on('error', (err) => console.error(' Whisper connection error:', err));
-      whisperConn.on('close', (code, reason) =>
-        console.log(` Whisper closed (${code || 1000}): ${reason || 'no reason'}`)
-      );
-
-      ws.on('message', (msg) => {
+      ws.on("message", (msg) => {
         try {
           const data = JSON.parse(msg);
-
-          if (data.event === 'start') {
-            console.log(' Stream started:', data.start.callSid);
+          if (data.event === "start") {
+            callSid = data.start.callSid;
+            console.log("📞 Stream started:", callSid);
           }
 
-          if (data.event === 'media') {
-            const muLawBuf = Buffer.from(data.media.payload, 'base64');
+          if (data.event === "media") {
+            const muLawBuf = Buffer.from(data.media.payload, "base64");
             const pcmBuf = decodeMuLaw(muLawBuf);
+            const track = data.media.track;
+            const speaker = trackToSpeaker[track] || "unknown";
 
-            // Save a few chunks for debugging (first ~10 only)
             if (chunkCount < 10) {
               fs.appendFileSync(debugFile, pcmBuf);
               chunkCount++;
-              if (chunkCount === 1) console.log(` Saving debug audio to ${debugFile}`);
-              if (chunkCount === 10) console.log(` Captured 10 chunks, stopping file write`);
             }
 
-            // Identify speaker
-            const speaker =
-              data.media.track === 'outbound_track' ? 'agent'
-                : data.media.track === 'inbound_track' ? 'caller'
-                  : 'unknown';
-
-            // Send to Whisper
             if (whisperConn.readyState === WebSocket.OPEN) {
-              whisperConn.send(JSON.stringify({ track: data.media.track, speaker }));
+              whisperConn.send(
+                JSON.stringify({ event: "media", track, speaker, callSid })
+              );
               whisperConn.send(pcmBuf);
             }
           }
 
-          if (data.event === 'stop') {
-            console.log(' Stream stopped');
+          if (data.event === "stop") {
+            console.log("🛑 Stream stopped");
             if (whisperConn.readyState === WebSocket.OPEN) {
-              whisperConn.send(new TextEncoder().encode('END_OF_AUDIO'));
-              whisperConn.close(1000, 'Stream ended');
+              whisperConn.send(new TextEncoder().encode("END_OF_AUDIO"));
+              whisperConn.close(1000, "Stream ended");
             }
           }
         } catch (err) {
-          console.error(' Twilio message error:', err);
+          console.error("❌ Twilio message error:", err);
         }
       });
 
-      ws.on('close', () => {
-        console.log(' Twilio stream closed');
-        if (whisperConn.readyState === WebSocket.OPEN) {
-          whisperConn.close(1000, 'Twilio client disconnected');
-        }
-        console.log(` Audio debug file saved: ${debugFile}`);
+      ws.on("close", () => {
+        console.log("🔴 Twilio stream closed");
+        if (whisperConn.readyState === WebSocket.OPEN)
+          whisperConn.close(1000, "Twilio client disconnected");
       });
     });
-
 
 
     // Health check
@@ -298,23 +276,19 @@ async function start() {
     });
 
     app.all("/api/auth/*", (req, res) => handle(req, res));
-
-    // Next.js catch-all
     app.all("*", (req, res) => handle(req, res));
 
-    // Start server
     const server = app.listen(PORT, "0.0.0.0", () => {
-      console.log(` Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
+      console.log(`🚀 Server listening at http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
     });
 
-    // WebSocket upgrade forwarding
     server.on("upgrade", (req, socket, head) => {
-      console.log(" Forwarding WebSocket upgrade to Whisper backend");
+      console.log("⬆️ Forwarding WebSocket upgrade");
       wsProxy.upgrade(req, socket, head);
     });
 
   } catch (error) {
-    console.error(" Failed to start Express backend:", error);
+    console.error("💥 Failed to start Express backend:", error);
     console.error("Stack trace:", error.stack);
     process.exit(1);
   }

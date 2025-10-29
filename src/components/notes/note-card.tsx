@@ -1,3 +1,5 @@
+
+// src/components/notes/note-card.tsx
 'use client'
 
 import { useState } from 'react'

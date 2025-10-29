@@ -112,7 +112,7 @@ export function useOptimizedWhisperLive(
   const [dataUpdateTrigger, setDataUpdateTrigger] = useState(0)
 
   // Enhanced refs for performance tracking
-  const wsRef = useRef<WebSocket | null>(null)
+
   const recordingBuffers = useRef<Float32Array[]>([])
   const sampleRateRef = useRef<number>(16000)
   const lastSegmentIndexRef = useRef(0)
@@ -131,6 +131,10 @@ export function useOptimizedWhisperLive(
   // Audio processing refs
   const micRef = useRef<MediaStream | null>(null)
   const systemRef = useRef<MediaStream | null>(null)
+  const wsMicRef = useRef<WebSocket | null>(null);
+  const wsSysRef = useRef<WebSocket | null>(null);
+  const micProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const sysProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const ctxRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
@@ -184,6 +188,89 @@ export function useOptimizedWhisperLive(
       }
     }
   }, [normalizeText])
+  // --- Add this above the connect() definition ---
+  function openRoleSocket(role: 'agent' | 'caller'): WebSocket {
+    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const base = process.env.NEXT_PUBLIC_WS_BASE || `${protocol}://${window.location.host}`;
+    const wsUrl = process.env.NEXT_PUBLIC_WHISPER_WS || `${base}/whisper`;
+
+    const ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        task: 'transcribe',
+        uid: `${uidRef.current}-${role}`,
+        language: config.language,
+        model: config.model,
+        use_vad: config.vad,
+        stream: true,
+        save_recording: config.saveRecording,
+        output_filename: `${config.outputFilename || 'recording'}-${role}.wav`,
+        sample_rate: sampleRateRef.current,
+        chunk_size: config.optimization?.chunkSize || 2048
+      }));
+    };
+
+    ws.onmessage = (e: MessageEvent) => {
+      if (typeof e.data !== 'string') return;
+      try {
+        const msg = JSON.parse(e.data);
+
+        if (Array.isArray(msg.segments)) {
+          const now = Date.now();
+          const newSegments: Segment[] = [];
+          for (const wsSeg of msg.segments) {
+            const text = (wsSeg.text || '').trim();
+            if (!text) continue;
+            const norm = normalizeText(text);
+            if (segmentHistoryRef.current.has(norm)) continue;
+
+            newSegments.push({
+              id: `${role}-${now}-${Math.random().toString(36).slice(2, 6)}`,
+              speaker: role,
+              text,
+              content: text,
+              isFinal: true,
+              timestamp: now,
+              confidence: wsSeg.confidence ?? 0.8
+            });
+            segmentHistoryRef.current.set(norm, now);
+          }
+          if (newSegments.length) {
+            setState(s => ({
+              ...s,
+              segments: [...s.segments, ...newSegments],
+              isTranscribing: true
+            }));
+          }
+        }
+
+        if ((msg.type === 'final' || msg.type === 'transcript') && msg.text) {
+          const t = msg.text.trim();
+          if (t && !isDuplicate(t)) {
+            addToHistory(t);
+            setState(s => ({
+              ...s,
+              transcript: s.transcript
+                ? `${s.transcript}\n[${role.toUpperCase()}] ${t}`
+                : `[${role.toUpperCase()}] ${t}`,
+            }));
+          }
+        }
+      } catch { }
+    };
+
+    ws.onclose = (event: CloseEvent) => {
+      console.warn(`[OptimizedWhisperLive] 🔴 ${role} socket closed:`, event.code, event.reason);
+    };
+
+    ws.onerror = (event: Event) => {
+      console.warn(`[OptimizedWhisperLive] WebSocket error for ${role}:`, event);
+    };
+
+    return ws;
+  }
 
   // Enhanced connection with retry logic
   const connect = useCallback(async () => {
@@ -210,11 +297,7 @@ export function useOptimizedWhisperLive(
       return
     }
 
-    // Close existing connection
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
-    }
+
 
     // Create optimized AudioContext
     const ctx = new AudioContext({
@@ -226,347 +309,89 @@ export function useOptimizedWhisperLive(
     recordingBuffers.current = []
 
     setState(s => ({ ...s, error: null }))
+    wsMicRef.current = openRoleSocket('agent');
+    wsSysRef.current = openRoleSocket('caller');
+    setState(s => ({ ...s, isConnected: true }));
+    await startTranscription();
 
-    // ✅ FIXED: Always use the Express proxy endpoint
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
-    const base =
-      process.env.NEXT_PUBLIC_WS_BASE ||
-      `${protocol}://${window.location.host}`
-
-    const wsUrl =
-      process.env.NEXT_PUBLIC_WHISPER_WS ||
-      `${base}/whisper`
-
-    console.log('[OptimizedWhisperLive] Connecting to WebSocket:', wsUrl)
-
-    const ws = new WebSocket(wsUrl)
-
-    ws.binaryType = 'arraybuffer'
-    wsRef.current = ws
-    lastSegmentIndexRef.current = 0
-    performanceRef.current = {
-      lastMessageTime: Date.now(),
-      messageCount: 0,
-      averageLatency: 0,
-    }
-
-    ws.onopen = async () => {
-      console.log('[OptimizedWhisperLive] 🟢 WebSocket connected with optimization')
-      connectionAttempts.current = 0
-
-      // Send optimized configuration
-      ws.send(JSON.stringify({
-        task: 'transcribe',
-        uid: uidRef.current,
-        language: config.language,
-        model: config.model,
-        use_vad: config.vad,
-        stream: true,
-        save_recording: config.saveRecording,
-        output_filename: config.outputFilename,
-        max_clients: config.maxClients,
-        max_connection_time: Math.max(config.maxConnectionTime, 3600),
-        sample_rate: sampleRateRef.current,
-        chunk_size: config.optimization?.chunkSize || 2048,
-        buffer_size: config.optimization?.bufferSize || 4096,
-        enable_smart_buffering: config.optimization?.enableSmartBuffering ?? true,
-        same_output_threshold: config.optimization?.same_output_threshold ?? 0.5,
-        no_speech_thresh: config.optimization?.no_speech_thresh ?? 0.45
-      }));
-
-      setState(s => ({ ...s, isConnected: true, connectionQuality: 'excellent' }))
-      await startTranscription()
-    }
-
-    // ENHANCED: Completely rewritten message handling with better deduplication
-    ws.onmessage = (e) => {
-      const now = Date.now()
-      const perf = performanceRef.current
-
-      // Update performance metrics
-      perf.messageCount++
-      const latency = now - perf.lastMessageTime
-      perf.averageLatency = (perf.averageLatency * (perf.messageCount - 1) + latency) / perf.messageCount
-      perf.lastMessageTime = now
-
-      // Update connection quality based on latency
-      let quality: 'excellent' | 'good' | 'poor' = 'excellent'
-      if (perf.averageLatency > 500) quality = 'poor'
-      else if (perf.averageLatency > 200) quality = 'good'
-
-      setState(s => ({
-        ...s,
-        latency: Math.round(perf.averageLatency),
-        connectionQuality: quality
-      }))
-
-      if (typeof e.data !== 'string') return
-
-      try {
-        const msg = JSON.parse(e.data)
-
-        // Skip duplicate messages
-        const messageKey = JSON.stringify(msg)
-        if (messageKey === lastProcessedMessageRef.current) {
-          return
-        }
-        lastProcessedMessageRef.current = messageKey
-
-        if (msg.message === 'SERVER_READY') return
-
-        if (msg.type === 'error') {
-          setState(s => ({ ...s, error: msg.message }))
-          return
-        }
-
-        // Enhanced segment processing with better deduplication
-        if (Array.isArray(msg.segments) && msg.segments.length > 0) {
-          // Calculate RMS for volume detection
-          let rms = 0
-          if (audioDataRef.current) {
-            const data = audioDataRef.current
-            let sum = 0
-            for (const x of data) sum += (x - 128) ** 2
-            rms = Math.sqrt(sum / data.length) / 128
-          }
-
-          const newSegments: Segment[] = []
-
-          for (const wsSeg of msg.segments) {
-            if (!wsSeg.text || !wsSeg.text.trim()) continue
-
-            const content = wsSeg.text.trim()
-            const segmentKey = normalizeText(content)
-
-            // Skip if we've seen this exact segment content recently
-            if (segmentHistoryRef.current.has(segmentKey)) {
-              continue
-            }
-
-            // Check for duplicate content
-            if (!isDuplicate(content)) {
-              const role =
-                wsSeg.speaker === 0
-                  ? 'caller'
-                  : wsSeg.track === 'inbound' || wsSeg.track === 'inbound_track'
-                    ? 'caller'
-                    : wsSeg.track === 'outbound' || wsSeg.track === 'outbound_track'
-                      ? 'agent'
-                      : 'unknown'
-
-              const segment: Segment = {
-                speaker: role,
-                text: content,
-                content,
-                volume: rms,
-                confidence: wsSeg.confidence || 0.8,
-                id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-                timestamp: now,
-                isFinal: true,
-              }
-
-
-              newSegments.push(segment)
-              addToHistory(content)
-
-              // Track this segment to prevent immediate duplicates
-              segmentHistoryRef.current.set(segmentKey, now)
-            }
-          }
-
-          // Clean old segment history (remove entries older than 30 seconds)
-          for (const [key, timestamp] of segmentHistoryRef.current.entries()) {
-            if (now - timestamp > 30000) {
-              segmentHistoryRef.current.delete(key)
-            }
-          }
-
-          if (newSegments.length > 0) {
-            setState(s => ({
-              ...s,
-              segments: [...s.segments, ...newSegments],
-              isTranscribing: true,
-            }))
-          }
-          return
-        }
-
-        // Handle partial transcription (keep separate, don't add to main transcript)
-        if (msg.type === 'partial') {
-          if (msg.text && msg.text.trim() && !isDuplicate(msg.text)) {
-            setState(s => ({
-              ...s,
-              isTranscribing: true,
-              currentPartial: msg.text.trim()
-            }))
-          }
-          return
-        }
-
-        // Handle final transcription
-        if (msg.type === 'final' || msg.type === 'transcript') {
-          if (msg.text && msg.text.trim() && !isDuplicate(msg.text)) {
-            const cleanText = msg.text.trim()
-            addToHistory(cleanText)
-
-            setState(s => ({
-              ...s,
-              isTranscribing: false,
-              transcript: s.transcript ? `${s.transcript} ${cleanText}` : cleanText,
-              currentPartial: ''
-            }))
-          }
-          return
-        }
-
-        // Enhanced fallback message handling
-        if (msg.message && msg.message !== 'SERVER_READY' && !isDuplicate(msg.message)) {
-          const cleanMessage = msg.message.trim()
-          addToHistory(cleanMessage)
-
-          setState(s => ({
-            ...s,
-            isTranscribing: true,
-            transcript: s.transcript ? `${s.transcript} ${cleanMessage}` : cleanMessage
-          }))
-        }
-
-      } catch (err) {
-        console.warn('[OptimizedWhisperLive] Failed to parse message:', err)
-      }
-    }
-
-    ws.onclose = (event) => {
-      console.log('[OptimizedWhisperLive] 🔴 WebSocket closed:', event.code, event.reason)
-      setState(s => ({ ...s, isConnected: false, isTranscribing: false }))
-
-      // Auto-reconnect logic with exponential backoff
-      if (event.code !== 1000 && connectionAttempts.current < 5) {
-        const delay = Math.min(30000, 1000 * 2 ** connectionAttempts.current);
-        console.warn(`[OptimizedWhisperLive] Reconnecting in ${delay / 1000}s...`);
-        connectionAttempts.current++;
-        reconnectTimeoutRef.current = setTimeout(connect, delay);
-      } else if (connectionAttempts.current >= 5) {
-        setState(s => ({ ...s, error: 'Connection failed after multiple attempts. Please refresh the page.' }))
-      }
-    }
-
-    ws.onerror = (err) => {
-      console.warn('[OptimizedWhisperLive] WebSocket error:', err)
-    }
   }, [config, toast, isDuplicate, addToHistory, normalizeText])
 
   // Optimized transcription start
   const startTranscription = useCallback(async () => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      setState(s => ({ ...s, error: 'Not connected to server' }))
-      return
-    }
-
     try {
-      // Enhanced system audio capture
-      let systemStream: MediaStream | null = null
+      // Capture mic
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+      micRef.current = micStream;
+
+      // Optionally capture system audio
+      let systemStream: MediaStream | null = null;
       if (config.audioSources?.systemAudio) {
         try {
-          systemStream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: {
-              sampleRate: 16000,
-              channelCount: 1,
-              echoCancellation: false, // Don't cancel interviewer voice
-              noiseSuppression: false,
-            },
-          })
-          systemRef.current = systemStream
+          systemStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+          systemRef.current = systemStream;
         } catch {
-          console.warn('[OptimizedWhisperLive] System audio denied, using microphone only')
+          console.warn('[OptimizedWhisperLive] System audio denied.');
         }
       }
 
-      // Enhanced microphone capture
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: 16000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: config.optimization?.enableNoiseReduction ?? true,
-          autoGainControl: true,
-        },
-      })
-      micRef.current = micStream
+      const ctx = new AudioContext({ sampleRate: 16000, latencyHint: 'interactive' });
+      ctxRef.current = ctx;
+      sampleRateRef.current = ctx.sampleRate;
 
-      const ctx = ctxRef.current!
-      const dest = ctx.createMediaStreamDestination()
+      // MIC
+      const micSrc = ctx.createMediaStreamSource(micStream);
+      const micProc = ctx.createScriptProcessor(config.optimization?.chunkSize || 2048, 1, 1);
+      micSrc.connect(micProc);
+      micProc.connect(ctx.destination);
+      micProc.onaudioprocess = (e: AudioProcessingEvent) => {
+        const buf = e.inputBuffer.getChannelData(0);
+        const clone = new Float32Array(buf);
+        if (wsMicRef.current?.readyState === WebSocket.OPEN) {
+          wsMicRef.current.send(clone.buffer);
+        }
+      };
+      micProcessorRef.current = micProc;
 
-      // Create optimized audio routing
-      const micSrc = ctx.createMediaStreamSource(micStream)
-      const micGain = ctx.createGain()
-      micGain.gain.value = 1.0
-      micSrc.connect(micGain).connect(dest)
-
+      // SYSTEM
       if (systemStream) {
-        const sysSrc = ctx.createMediaStreamSource(systemStream)
-        const sysGain = ctx.createGain()
-        sysGain.gain.value = 1.2 // Boost system audio slightly
-        sysSrc.connect(sysGain).connect(dest)
+        const sysSrc = ctx.createMediaStreamSource(systemStream);
+        const sysProc = ctx.createScriptProcessor(config.optimization?.chunkSize || 2048, 1, 1);
+        sysSrc.connect(sysProc);
+        sysProc.connect(ctx.destination);
+        sysProc.onaudioprocess = (e: AudioProcessingEvent) => {
+          const buf = e.inputBuffer.getChannelData(0);
+          const clone = new Float32Array(buf);
+          if (wsSysRef.current?.readyState === WebSocket.OPEN) {
+            wsSysRef.current.send(clone.buffer);
+          }
+        };
+        sysProcessorRef.current = sysProc;
       }
 
-      // Create optimized processor
-      const mixedSrc = ctx.createMediaStreamSource(dest.stream)
-      const chunkSize = config.optimization?.chunkSize || 2048
-      const processor = ctx.createScriptProcessor(chunkSize, 1, 1)
-
-      mixedSrc.connect(processor)
-
-      // Optimized audio processing
-      processor.onaudioprocess = (e) => {
-        const float32 = e.inputBuffer.getChannelData(0)
-        const float32Buffer = new Float32Array(float32)
-
-        // Save for recording if enabled
-        if (config.saveRecording) {
-          recordingBuffers.current.push(float32Buffer)
-        }
-
-        // Convert to Uint8Array for visualization (optimized)
-        const ui8 = new Uint8Array(float32Buffer.length)
-        for (let i = 0; i < float32Buffer.length; i++) {
-          ui8[i] = Math.min(255, Math.max(0, Math.floor((float32Buffer[i] + 1) * 127.5)))
-        }
-
-        // Send to server (only if connected)
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          wsRef.current.send(float32Buffer.buffer)
-        }
-
-        // Update visualizer
-        audioDataRef.current = ui8
-        setAudioData(ui8)
-        setDataUpdateTrigger(t => t + 1)
-      }
-
-      processor.connect(ctx.destination)
-      processorRef.current = processor
-
-      setState(s => ({ ...s, isTranscribing: true, error: null }))
+      setState(s => ({ ...s, isTranscribing: true, error: null }));
     } catch (err: any) {
-      setState(s => ({ ...s, error: `Failed to start transcription: ${err.message}` }))
-      toast({
-        title: 'Transcription Error',
-        description: err.message,
-        variant: 'destructive',
-      })
+      setState(s => ({ ...s, error: `Failed to start transcription: ${err.message}` }));
+      toast({ title: 'Transcription Error', description: err.message, variant: 'destructive' });
     }
-  }, [config, toast])
+  }, [config, toast]);
+
 
   // Optimized transcription stop
   const stopTranscription = useCallback(async () => {
     console.log('[OptimizedWhisperLive] Stopping transcription...')
 
-    // Send end signal
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(new TextEncoder().encode('END_OF_AUDIO'))
-    }
+
+    if (wsMicRef.current?.readyState === WebSocket.OPEN) wsMicRef.current.close(1000, 'Normal Closure');
+    wsMicRef.current = null;
+    if (wsSysRef.current?.readyState === WebSocket.OPEN) wsSysRef.current.close(1000, 'Normal Closure');
+    wsSysRef.current = null;
+
+    micProcessorRef.current?.disconnect();
+    sysProcessorRef.current?.disconnect();
+    micProcessorRef.current = null;
+    sysProcessorRef.current = null;
 
     // Clean up audio processing
     if (processorRef.current) {
@@ -655,22 +480,10 @@ export function useOptimizedWhisperLive(
     }
 
     // Close WebSocket
-    if (wsRef.current) {
-      try {
-        // ✅ Prevent invalid close codes like 45395
-        const safeCode = 1000
-        const reason = 'Normal Closure'
-        if (wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.close(safeCode, reason)
-        } else {
-          console.warn('[OptimizedWhisperLive] WebSocket already closed or not open:', wsRef.current.readyState)
-        }
-      } catch (err) {
-        console.warn('[OptimizedWhisperLive] Safe close failed:', err)
-      } finally {
-        wsRef.current = null
-      }
-    }
+    if (wsMicRef.current?.readyState === WebSocket.OPEN) wsMicRef.current.close(1000, 'Normal Closure');
+    wsMicRef.current = null;
+    if (wsSysRef.current?.readyState === WebSocket.OPEN) wsSysRef.current.close(1000, 'Normal Closure');
+    wsSysRef.current = null;
 
     // Stop transcription
     stopTranscription()

@@ -1,14 +1,9 @@
 // src/components/dialer/CallInterface.tsx
-// Fixed: Removed duplicate email useEffect (now handled in Provider).
-// Added analytics section using getCallStats.
-// Improved UI for emails (auto-set but editable).
-// Integrated Whisper segments handler properly.
-// Fixed key prop warning in call history table by using index fallback.
-// Added WhisperLiveRecorder below the dialer section.
+// FIXED: Recording playback and proper transcription display
 
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useDialer } from './TwilioProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,15 +12,11 @@ import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
 import {
   Phone, PhoneOff, Mic, MicOff, Pause, Play,
-  Square, Circle, MessageSquare, Volume2, VolumeX,
-  Signal, Wifi, AlertCircle, Info, Send, BarChart3
+  Volume2, VolumeX, Signal, Wifi, AlertCircle, Info, PlayCircle
 } from 'lucide-react'
-import { CallTranscription } from './call-transcription'
 import { useToast } from '@/hooks/use-toast'
 import PhoneInput from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
-
-import { WhisperLiveHandle, WhisperLiveRecorder } from '../notes/whisper-live-recorder'
 import type { Segment } from '@/types/transcription'
 
 const COUNTRY_CODES: Record<string, string> = {
@@ -54,9 +45,8 @@ export function CallInterface() {
     lastRecording,
     speakerVolume, setSpeakerVolume, micVolume, setMicVolume,
     isSpeakerOn, toggleSpeaker,
-    toggleRecording, toggleTranscription,
-    getCallStats, setLiveTranscription,
-
+    getCallStats,
+    liveSegments,
   } = useDialer()
 
   const { toast } = useToast()
@@ -65,10 +55,6 @@ export function CallInterface() {
   const [countryCode, setCountryCode] = useState('US')
   const [callerEmail, setCallerEmail] = useState('')
   const [receiverEmail, setReceiverEmail] = useState('')
-
-
-
-
 
   const formatTime = (seconds: number) =>
     `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`
@@ -82,22 +68,21 @@ export function CallInterface() {
 
   const handleCall = async () => {
     if (!phoneNumber || !callerEmail || !receiverEmail) {
-      toast({ title: 'Missing Fields', description: 'Please provide phone number and emails', variant: 'destructive' });
-      return;
+      toast({
+        title: 'Missing Fields',
+        description: 'Please provide phone number and emails',
+        variant: 'destructive'
+      })
+      return
     }
-    const normalizedNumber = normalizeInput(phoneNumber, countryCode);
-    await startCall(normalizedNumber, { callerEmail, receiverEmail }); // <— pass them
-  };
+    const normalizedNumber = normalizeInput(phoneNumber, countryCode)
+    await startCall(normalizedNumber, { callerEmail, receiverEmail })
+  }
 
   const stats = getCallStats()
 
-  const { liveSegments, liveTranscription, finalTranscript } = useDialer()
-
-
   return (
     <div className="flex flex-col gap-4 max-w-5xl mx-auto px-4 py-6 md:px-6 lg:px-8">
-
-
       <Card className="bg-gradient-to-br from-slate-900 to-slate-800 border-slate-700 shadow-xl rounded-2xl">
         <CardContent className="p-4 sm:p-6">
           {/* Status Header */}
@@ -121,7 +106,7 @@ export function CallInterface() {
             </div>
             {isCalling && (
               <div className="flex items-center space-x-2 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/30">
-                <Circle className="h-2 w-2 text-red-400 fill-current animate-pulse" />
+                <div className="h-2 w-2 bg-red-400 rounded-full animate-pulse" />
                 <span className="text-white font-mono text-sm">{formatTime(callSeconds)}</span>
               </div>
             )}
@@ -181,41 +166,46 @@ export function CallInterface() {
 
           {/* Call Controls */}
           {isCalling && (
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
-              <Button variant="outline" onClick={toggleMute}
-                className={`h-12 ${isMuted ? 'bg-red-500/20 text-red-300' : 'bg-slate-800/50 text-white'}`}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <Button
+                variant="outline"
+                onClick={toggleMute}
+                className={`h-12 ${isMuted ? 'bg-red-500/20 text-red-300' : 'bg-slate-800/50 text-white'}`}
+              >
                 {isMuted ? <MicOff className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
                 <span className="text-xs">{isMuted ? 'Unmute' : 'Mute'}</span>
               </Button>
 
-              <Button variant="outline" onClick={toggleSpeaker}
-                className={`h-12 ${isSpeakerOn ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-800/50 text-white'}`}>
+              <Button
+                variant="outline"
+                onClick={toggleSpeaker}
+                className={`h-12 ${isSpeakerOn ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-800/50 text-white'}`}
+              >
                 {isSpeakerOn ? <Volume2 className="h-4 w-4 mr-2" /> : <VolumeX className="h-4 w-4 mr-2" />}
                 <span className="text-xs">{isSpeakerOn ? 'Speaker Off' : 'Speaker On'}</span>
               </Button>
 
-              <Button variant="outline" onClick={toggleHold}
-                className={`h-12 ${isOnHold ? 'bg-yellow-500/20 text-yellow-300' : 'bg-slate-800/50 text-white'}`}>
+              <Button
+                variant="outline"
+                onClick={toggleHold}
+                className={`h-12 ${isOnHold ? 'bg-yellow-500/20 text-yellow-300' : 'bg-slate-800/50 text-white'}`}
+              >
                 {isOnHold ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
                 <span className="text-xs">{isOnHold ? 'Resume' : 'Hold'}</span>
               </Button>
-              {/*
-              <Button variant="outline" onClick={toggleRecording}
-                className={`h-12 ${isRecording ? 'bg-red-500/20 text-red-300' : 'bg-slate-800/50 text-white'}`}>
-                {isRecording ? <Square className="h-4 w-4 mr-2" /> : <Circle className="h-4 w-4 mr-2" />}
-                <span className="text-xs">{isRecording ? 'Stop Rec' : 'Record'}</span>
-              </Button>
 
-              <Button variant="outline" onClick={toggleTranscription}
-                className={`h-12 ${isTranscribing ? 'bg-green-500/20 text-green-300' : 'bg-slate-800/50 text-white'}`}>
-                <MessageSquare className="h-4 w-4 mr-2" />
-                <span className="text-xs">{isTranscribing ? 'Stop Txt' : 'Transcribe'}</span>
-              </Button>
-              */}
+              <Badge
+                variant="outline"
+                className={`h-12 flex items-center justify-center ${isRecording ? 'bg-red-500/20 text-red-300 border-red-500/30' : 'bg-slate-800/50 text-slate-400'
+                  }`}
+              >
+                {isRecording && <div className="h-2 w-2 bg-red-400 rounded-full animate-pulse mr-2" />}
+                <span className="text-xs">{isRecording ? 'Recording' : 'Not Recording'}</span>
+              </Badge>
             </div>
           )}
 
-          {/* Volume */}
+          {/* Volume Controls */}
           {isCalling && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
@@ -235,62 +225,92 @@ export function CallInterface() {
         </CardContent>
       </Card>
 
-
-      {/* Transcription */}
+      {/* Live Transcription with Speaker Tags */}
       <Card className="bg-slate-900 border-slate-700 rounded-2xl">
-        <CardContent className="p-4 sm:p-6">
-          <h3 className="text-lg text-white mb-3">Live Transcription</h3>
-          <div className="text-slate-300 whitespace-pre-wrap max-h-48 overflow-y-auto bg-slate-800 p-3 rounded">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center justify-between">
+            <span>Live Transcription</span>
+            {isTranscribing && (
+              <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+                <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse mr-2" />
+                Active
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-slate-800 p-4 rounded-lg max-h-64 overflow-y-auto">
             {liveSegments.length > 0 ? (
-              (liveSegments as Segment[]).map((seg, idx: number) => (
-                <div key={seg.id || `${seg.speaker}-${seg.content.slice(0, 10)}-${idx}`}>
-                  <span className={`font-bold ${seg.speaker === 'caller' ? 'text-blue-400' : 'text-green-400'
-                    }`}>
-                    {seg.speaker === 'caller' ? 'Caller' : 'Agent'}:
-                  </span>
-                  <span className="ml-2 text-slate-200">{seg.content}</span>
-                </div>
-              ))
+              <div className="space-y-2">
+                {(liveSegments as Segment[]).map((seg, idx: number) => (
+                  <div
+                    key={seg.id || `${seg.speaker}-${idx}`}
+                    className="flex items-start space-x-2"
+                  >
+                    <Badge
+                      variant="outline"
+                      className={`mt-0.5 ${seg.speaker === 'caller'
+                        ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+                        : 'bg-green-500/20 text-green-300 border-green-500/30'
+                        }`}
+                    >
+                      {seg.speaker === 'caller' ? '📞 Caller' : '👤 Agent'}
+                    </Badge>
+                    <span className="text-slate-200 flex-1">{seg.content}</span>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <span className="text-slate-500">No transcription available</span>
+              <p className="text-slate-500 text-center py-8">
+                {isCalling
+                  ? 'Waiting for transcription...'
+                  : 'Start a call to see live transcription'}
+              </p>
             )}
           </div>
-
-          {/* Completed transcript after call 
-          {!isCalling && finalTranscript && (
-            <div className="mt-4 p-3 bg-slate-700 rounded text-slate-200 whitespace-pre-wrap">
-              <h4 className="text-white mb-2">Final Transcript</h4>
-              <div>{finalTranscript}</div>
-            </div>
-          )}
-          */}
-
         </CardContent>
       </Card>
-
-      {/* Playback of Last Recording */}
-      {lastRecording && (
+      {/* Live Audio Playback */}
+      {isCalling && isRecording && (
         <Card className="bg-slate-900 border-slate-700 rounded-2xl">
-          <CardContent className="p-4 sm:p-6">
-            <h3 className="text-lg text-white mb-3">Last Call Recording</h3>
-            <audio controls src={lastRecording} className="w-full" />
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Volume2 className="h-5 w-5 mr-2 text-green-400" />
+              Live Call Audio
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <audio
+              src={lastRecording || undefined}
+              controls
+              className="w-full"
+              style={{ borderRadius: 8, filter: 'hue-rotate(200deg) saturate(1.2) brightness(1.1)' }}
+            />
           </CardContent>
         </Card>
       )}
 
+
+
       {/* Activity Log */}
       <Card className="bg-slate-900 border-slate-700 rounded-2xl">
-        <CardContent className="p-4 sm:p-6">
-          <h3 className="text-lg text-white mb-3">Activity Log</h3>
+        <CardHeader>
+          <CardTitle className="text-white">Activity Log</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {callLog.map((entry, i) => (
               <div key={i} className="flex items-start space-x-2 text-sm p-2 rounded bg-slate-800/30">
                 <span className="text-slate-500 font-mono text-xs">{entry.time}</span>
                 <div className="flex items-start space-x-1">
-                  {entry.type === 'error' && <AlertCircle className="h-3 w-3 text-red-400" />}
-                  {entry.type === 'warning' && <AlertCircle className="h-3 w-3 text-yellow-400" />}
-                  {entry.type === 'info' && <Info className="h-3 w-3 text-blue-400" />}
-                  <span className={entry.type === 'error' ? 'text-red-400' : entry.type === 'warning' ? 'text-yellow-400' : 'text-slate-300'}>
+                  {entry.type === 'error' && <AlertCircle className="h-3 w-3 text-red-400 mt-0.5" />}
+                  {entry.type === 'warning' && <AlertCircle className="h-3 w-3 text-yellow-400 mt-0.5" />}
+                  {entry.type === 'info' && <Info className="h-3 w-3 text-blue-400 mt-0.5" />}
+                  <span className={
+                    entry.type === 'error' ? 'text-red-400' :
+                      entry.type === 'warning' ? 'text-yellow-400' :
+                        'text-slate-300'
+                  }>
                     {entry.message}
                   </span>
                 </div>
@@ -300,7 +320,7 @@ export function CallInterface() {
         </CardContent>
       </Card>
 
-      {/* Call History Table */}
+      {/* Call History */}
       <Card className="bg-slate-900 border-slate-700 rounded-2xl">
         <CardHeader>
           <CardTitle className="text-white">Recent Calls ({callHistory.length})</CardTitle>
@@ -314,6 +334,7 @@ export function CallInterface() {
                   <th className="text-left py-2">Direction</th>
                   <th className="text-left py-2">Duration</th>
                   <th className="text-left py-2">Status</th>
+                  <th className="text-left py-2">Recording</th>
                   <th className="text-left py-2">Date</th>
                 </tr>
               </thead>
@@ -322,16 +343,40 @@ export function CallInterface() {
                   <tr key={call.id || index} className="border-b border-slate-800 hover:bg-slate-800/50">
                     <td className="py-2">{call.number}</td>
                     <td className="py-2">
-                      <Badge variant="outline" className={call.direction === 'outbound' ? 'bg-green-500/20 text-green-300' : 'bg-blue-500/20 text-blue-300'}>
+                      <Badge
+                        variant="outline"
+                        className={call.direction === 'outbound'
+                          ? 'bg-green-500/20 text-green-300'
+                          : 'bg-blue-500/20 text-blue-300'}
+                      >
                         {call.direction}
                       </Badge>
                     </td>
                     <td className="py-2">{formatTime(call.duration)}</td>
                     <td className="py-2">
-                      <Badge variant="outline" className={call.status === 'completed' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'}>
+                      <Badge
+                        variant="outline"
+                        className={call.status === 'completed'
+                          ? 'bg-green-500/20 text-green-300'
+                          : 'bg-red-500/20 text-red-300'}
+                      >
                         {call.status}
                       </Badge>
                     </td>
+                    <td className="py-2">
+                     {call.recording || (call.recordings?.length ?? 0) > 0 ?(
+                        <audio
+                          key={index}
+                          src={call.recording || call.recordings?.[0]}
+                          controls
+                          className="w-full h-8 rounded"
+                        />
+
+                      ) : (
+                        <span className="text-slate-600">No recording</span>
+                      )}
+                    </td>
+
                     <td className="py-2">{new Date(call.timestamp).toLocaleDateString()}</td>
                   </tr>
                 ))}

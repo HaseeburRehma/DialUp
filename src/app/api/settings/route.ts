@@ -25,7 +25,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const user = await reuqireAuth(req)
+  const user = await requireAuth(req)
+
   if (!user) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }

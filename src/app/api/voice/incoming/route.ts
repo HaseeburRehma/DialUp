@@ -15,29 +15,30 @@ export async function POST(req: Request) {
 
     const twiml = new VoiceResponse();
 
-    // 1️⃣ Attach Twilio Media Stream (real-time to Whisper)
+    // 🎧 Send both inbound & outbound audio tracks to your websocket
+    const protocol = process.env.NODE_ENV === "production" ? "wss" : "ws";
+    const host = req.headers.get("host") || "localhost:3000";
+    const wsUrl = `${protocol}://${host}/twilio-stream`;
+
     const start = twiml.start();
     start.stream({
       name: "voiceai-incoming-stream",
-      url: `wss://${process.env.PUBLIC_DOMAIN || "voiceai.wordpressstagingsite.com"}/twilio-stream`,
-      track: "both_tracks",
+      url: wsUrl,
+      track: "both_tracks", // inbound = caller, outbound = agent
     });
 
-    // 2️⃣ Attach Twilio Transcription (Twilio’s native STT)
-    twiml.append(`
-      <Start>
-        <Transcription 
-          name="voiceai-incoming-transcription"
-          track="both_tracks"
-          action="${process.env.PUBLIC_URL || "https://voiceai.wordpressstagingsite.com"}/api/send-automatic-transcript"
-          method="POST"
-          playBeep="false" />
-      </Start>
-    `);
+    // Optional Twilio-native transcription (not required if Whisper handles it)
+    // twiml.append(`
+    //   <Start>
+    //     <Transcription name="voiceai-incoming-transcription"
+    //       track="both_tracks"
+    //       action="${process.env.PUBLIC_URL}/api/send-automatic-transcript"
+    //       method="POST" playBeep="false" />
+    //   </Start>`);
 
-    console.log("🎙️ Media stream + transcription enabled (incoming)");
+    console.log("🎙️ Media stream connected to Whisper backend");
 
-    // 3️⃣ Greet and forward
+    // Greet + connect to internal web client
     twiml.say("You are now connected. The call will be transcribed.");
     const dial = twiml.dial();
     dial.client("web_dialer_user");

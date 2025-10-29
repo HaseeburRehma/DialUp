@@ -29,11 +29,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           ...prev,
           transcription: {
             transcriptionMode: db.transcriptionMode,
-            audioSources:    db.audioSources,
+            audioSources: db.audioSources,
             transcriptionModel: db.transcriptionModel,
-            language:        db.language,
+            language: db.language,
             autoPunctuation: db.autoPunctuation,
-            whisperlive:     db.whisperlive
+            whisperlive: db.whisperlive
           }
         }))
       })
@@ -52,11 +52,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         transcriptionMode: next.transcription.transcriptionMode,
-        audioSources:      next.transcription.audioSources,
+        audioSources: next.transcription.audioSources,
         transcriptionModel: next.transcription.transcriptionModel,
-        language:          next.transcription.language,
-        autoPunctuation:   next.transcription.autoPunctuation,
-        whisperlive:       next.transcription.whisperlive
+        language: next.transcription.language,
+        autoPunctuation: next.transcription.autoPunctuation,
+        whisperlive: next.transcription.whisperlive
       })
     }).then(r => {
       if (!r.ok) throw new Error('Save failed')
