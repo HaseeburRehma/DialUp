@@ -19,7 +19,7 @@ function trackToSpeaker(track) {
  * Add an SSE client connection.
  * @param {{ write: Function, close: Function }} client
  */
-export function addClient(client) {
+function addClient(client) {
   clients.push(client);
 }
 
@@ -27,7 +27,7 @@ export function addClient(client) {
  * Remove an SSE client connection.
  * @param {{ write: Function, close: Function }} client
  */
-export function removeClient(client) {
+function removeClient(client) {
   const i = clients.indexOf(client);
   if (i >= 0) clients.splice(i, 1);
 }
@@ -36,7 +36,7 @@ export function removeClient(client) {
  * Broadcast a transcript event to all connected SSE clients.
  * @param {{ text: string, track?: string, speaker?: string, final?: boolean }} payload
  */
-export function pushTranscript(payload) {
+function pushTranscript(payload) {
   const speaker = payload.speaker || trackToSpeaker(payload.track);
   const data = {
     id: Date.now().toString(),
@@ -57,3 +57,10 @@ export function pushTranscript(payload) {
     }
   }
 }
+
+// ✅ Export in CommonJS format
+module.exports = {
+  addClient,
+  removeClient,
+  pushTranscript,
+};
