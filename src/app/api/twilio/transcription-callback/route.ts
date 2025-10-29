@@ -1,6 +1,7 @@
 // src/app/api/twilio/transcription-callback/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { pushTranscript } from "../../voice/stream/route";
+
+import { pushTranscript } from "../../../../../server/utils/streamBus";
 
 export async function POST(req: NextRequest) {
   const form = await req.formData();
