@@ -464,7 +464,7 @@ export function useOptimizedWhisperLive(
         }
 
         const wavBytes = encodeWAVOptimized(interleaved, sampleRate)
-        const blob = new Blob([wavBytes], { type: 'audio/wav' })
+        const blob = new Blob([wavBytes], { type: 'audio/webm' })
         const formData = new FormData()
         formData.append('file', blob, config.outputFilename || `recording-${Date.now()}.wav`)
 

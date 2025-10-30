@@ -42,7 +42,8 @@ import { useCustomSession } from '@/hooks/use-custom-session'
 // (Removed mock signOut function to resolve import conflict)
 
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
-  const { data: session } = useCustomSession()
+  const { data: session, status } = useCustomSession()
+
   const pathname = usePathname() ?? ''
 
   const [isScrolled, setIsScrolled] = useState(false)
@@ -56,16 +57,19 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+
+
+  const dashboardPrefixes = ['/admin', '/notes', '/dialer', '/settings', '/answerai']
+  const isDashboardRoute = dashboardPrefixes.some((p) => pathname.startsWith(p))
+  const isAdmin = session?.user?.role === 'admin'
+  if (status === 'loading') return null
+  
+  if (isDashboardRoute && !session) return null
   const navigation = [
     { name: 'Features', href: '/#features' },
     { name: 'Pricing', href: '/pricing' },
     { name: 'About', href: '/about' },
   ]
-
-  const dashboardPrefixes = ['/admin', '/notes', '/dialer', '/settings', '/answerai']
-  const isDashboardRoute = dashboardPrefixes.some((p) => pathname.startsWith(p))
-  const isAdmin = session?.user?.role === 'admin'
-
   // If it's a dashboard route, use the dashboard header design
   if (isDashboardRoute) {
     return (
@@ -120,7 +124,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-gradient-to-br from-green-400 to-teal-400 text-black">
-                      {session?.user?.name?.charAt(0) ?? 'U'}
+                      {session?.user?.name?.charAt(0) ?? ''}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -135,7 +139,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 <div className="flex items-center gap-3 p-2 mb-2 rounded-lg bg-muted/50">
                   <Avatar className="h-10 w-10">
                     <AvatarFallback className="bg-gradient-to-br from-green-500 to-teal-500 text-white">
-                      {session?.user?.name?.charAt(0) ?? 'U'}
+                      {session?.user?.name?.charAt(0) ?? ''}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col leading-none">

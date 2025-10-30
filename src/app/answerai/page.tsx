@@ -12,6 +12,7 @@ import { AnswerAIDeleteModal } from '@/components/answerai/answerai-delete-modal
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { useToast } from '@/hooks/use-toast'
 import type { AnswerAISession } from '@/types/answerai'
+import { useAuthRedirect } from '@/hooks/useAuthRedirect'
 
 export default function AnswerAIPage() {
   const [sessions, setSessions] = useState<AnswerAISession[]>([])
@@ -33,6 +34,7 @@ export default function AnswerAIPage() {
         router.push('/auth/signin')
         return
       }
+      useAuthRedirect('/api/answerai')
 
       if (response.ok) {
         const data: AnswerAISession[] = await response.json()
@@ -118,7 +120,7 @@ export default function AnswerAIPage() {
           <Bot className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
           <h2 className="text-xl font-semibold mb-2">No AnswerAI sessions created</h2>
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            Create your first AI-powered interview session to get started with intelligent question detection 
+            Create your first AI-powered interview session to get started with intelligent question detection
             and instant answer generation for tech interviews.
           </p>
           <div className="space-y-2 mb-6">

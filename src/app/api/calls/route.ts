@@ -5,8 +5,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connect } from '../../../../server/utils/db'
 import Call from '../../../../server/models/Call'
 import { requireAuth } from '../../../../server/utils/requireAuth.js'
+import { getToken } from "next-auth/jwt"
 
 export async function POST(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+        if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     await connect()
     const user = await requireAuth(req)
@@ -26,6 +29,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+        if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   try {
     await connect()
     const user = await requireAuth(req)

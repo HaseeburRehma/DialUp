@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import { TranscriptionSettingsModal } from '@/components/notes/transcription-settings-modal'
 import { useSettings } from '@/hooks/SettingsContext'
 import { DEFAULT_SETTINGS } from '@/hooks/use-user-settings'
+import { useAuthRedirect } from '@/hooks/useAuthRedirect'
 
 export default function SettingsPage() {
   const { data: session } = useSession()
@@ -24,6 +25,7 @@ export default function SettingsPage() {
   // track whether the user has made changes yet
   const [hasChanges, setHasChanges] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  useAuthRedirect('/api/settings')
 
   // save all (context is already persisting to localStorage)
   function saveSettings() {

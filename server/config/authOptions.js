@@ -46,12 +46,21 @@ export const authOptions = {
       return token
     },
     async session({ session, token }) {
-      session.user.id = token.id
-      session.user.role = token.role
-      session.user.plan = token.plan
+      // ❗ Only return a session if a valid token exists
+      if (!token?.id) return null
+
+      session.user = {
+        id: token.id,
+        role: token.role,
+        plan: token.plan,
+        name: token.name || session.user?.name || '',
+        email: token.email || session.user?.email || '',
+      }
+
       return session
     },
   },
+
   session: { strategy: "jwt" },
   jwt: {
     secret: process.env.NEXTAUTH_SECRET,

@@ -1,13 +1,10 @@
-// src/hooks/use-custom-session.ts
 
+// src/hooks/use-custom-session.ts
+'use client'
 import { useEffect, useState } from 'react'
 
-interface SessionData {
-  user?: { sub: string; name: string; email?: string; role?: string }
-}
-
 export function useCustomSession() {
-  const [data, setData] = useState<SessionData | null>(null)
+  const [data, setData] = useState<any>(null)
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
 
   useEffect(() => {
@@ -15,7 +12,10 @@ export function useCustomSession() {
       try {
         const res = await fetch('/api/auth/session', { credentials: 'include' })
         if (!res.ok) throw new Error('Unauthenticated')
+
         const json = await res.json()
+        if (!json?.user?.id) throw new Error('Invalid session')
+
         setData(json)
         setStatus('authenticated')
       } catch {
@@ -23,8 +23,10 @@ export function useCustomSession() {
         setStatus('unauthenticated')
       }
     }
+
     fetchSession()
   }, [])
 
   return { data, status }
 }
+

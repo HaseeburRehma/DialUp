@@ -15,8 +15,11 @@ import { WebRTCCallInterface } from '@/components/dialer/WebRTCCallInterface'
 import { IncomingCallModalSIP } from '@/components/dialer/IncomingCallModalSIP'
 import { SIPServerSetup } from '@/components/dialer/SIPServerSetup'
 import { SIPConfigProvider } from '@/components/dialer/SIPConfigContext'
+import { useAuthRedirect } from '@/hooks/useAuthRedirect'
 
 export default function DialerPage() {
+  useAuthRedirect('/api/calls')
+
   return (
     <DashboardLayout>
       {/*      <SIPConfigProvider>

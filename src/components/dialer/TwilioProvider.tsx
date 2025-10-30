@@ -529,9 +529,16 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
 
     // --- Save to DB ---
-    const allRecordings = [recordingUrl, ...whisperUrls].filter(
-      (u): u is string => typeof u === 'string' && u.length > 0
-    );
+    const baseUrl =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXTAUTH_URL ||
+  "https://voiceai.wordpressstagingsite.com";
+
+const allRecordings = [...new Set(
+  [recordingUrl, ...whisperUrls]
+    .filter((u): u is string => typeof u === 'string' && u.length > 0)
+    .map(u => u.startsWith('http') ? u : `${baseUrl}${u.startsWith('/') ? u : `/${u}`}`)
+)];
 
     const callRecord: CallRecord = {
       id: callSid || Date.now().toString(),

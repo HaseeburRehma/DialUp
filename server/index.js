@@ -54,6 +54,14 @@ async function start() {
     console.log("🚀 Next.js prepared, creating Express app...");
     const app = express();
     app.set('trust proxy', 1);
+    const audioDir = path.join(__dirname, "../public/audio");
+app.use("/audio", express.static(audioDir, {
+  setHeaders: (res, path) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+  }
+}));
+
 
     if (!process.env.NEXTAUTH_URL) {
       const host = process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
@@ -80,9 +88,7 @@ async function start() {
     const urlParser = express.urlencoded({ extended: true, limit: "500mb" });
     const expressWs = require('express-ws')(app);
 
-    if (process.env.NODE_ENV === "development") {
-      app.use("/audio", express.static(path.join(__dirname, "../public/audio")));
-    }
+    
 
     try {
       app.use("/api/transcribe", jsonParser, urlParser, require("./routes/transcribe"));
