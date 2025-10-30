@@ -364,7 +364,7 @@ export function CallInterface() {
                       </Badge>
                     </td>
                     <td className="py-2">
-                     {call.recording || (call.recordings?.length ?? 0) > 0 ?(
+                     {call.recording || (call.recordings?.length ?? 0) > 0 ? (
                         <audio
                           key={index}
                           src={call.recording || call.recordings?.[0]}

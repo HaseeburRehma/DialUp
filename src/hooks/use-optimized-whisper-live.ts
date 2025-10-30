@@ -346,12 +346,31 @@ export function useOptimizedWhisperLive(
       micSrc.connect(micProc);
       micProc.connect(ctx.destination);
       micProc.onaudioprocess = (e: AudioProcessingEvent) => {
-        const buf = e.inputBuffer.getChannelData(0);
-        const clone = new Float32Array(buf);
-        if (wsMicRef.current?.readyState === WebSocket.OPEN) {
-          wsMicRef.current.send(clone.buffer);
-        }
-      };
+        // --- copy samples from input channel ---
+        const input = e.inputBuffer.getChannelData(0)
+        const clone = new Float32Array(input.length)
+        clone.set(input)
+
+        // ✅ sanity-check: ignore empty frames
+        const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length)
+        if (rms < 0.0005) return // skip near-silence
+
+        // ✅ keep for merged recording
+        if (config.saveRecording) recordingBuffers.current.push(clone)
+
+        // ✅ visualize
+        const ui8 = new Uint8Array(clone.length)
+        for (let i = 0; i < clone.length; i++)
+          ui8[i] = Math.min(255, Math.max(0, Math.floor((clone[i] + 1) * 127.5)))
+        audioDataRef.current = ui8
+        setAudioData(ui8)
+        setDataUpdateTrigger(t => t + 1)
+
+        // ✅ send binary to Whisper
+        if (wsMicRef.current?.readyState === WebSocket.OPEN)
+          wsMicRef.current.send(clone.buffer)
+      }
+
       micProcessorRef.current = micProc;
 
       // SYSTEM
@@ -360,13 +379,33 @@ export function useOptimizedWhisperLive(
         const sysProc = ctx.createScriptProcessor(config.optimization?.chunkSize || 2048, 1, 1);
         sysSrc.connect(sysProc);
         sysProc.connect(ctx.destination);
+
         sysProc.onaudioprocess = (e: AudioProcessingEvent) => {
-          const buf = e.inputBuffer.getChannelData(0);
-          const clone = new Float32Array(buf);
-          if (wsSysRef.current?.readyState === WebSocket.OPEN) {
-            wsSysRef.current.send(clone.buffer);
-          }
-        };
+          // --- copy samples from input channel ---
+          const input = e.inputBuffer.getChannelData(0)
+          const clone = new Float32Array(input.length)
+          clone.set(input)
+
+          // ✅ sanity-check: ignore empty frames
+          const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length)
+          if (rms < 0.0005) return // skip near-silence
+
+          // ✅ keep for merged recording
+          if (config.saveRecording) recordingBuffers.current.push(clone)
+
+          // ✅ visualize
+          const ui8 = new Uint8Array(clone.length)
+          for (let i = 0; i < clone.length; i++)
+            ui8[i] = Math.min(255, Math.max(0, Math.floor((clone[i] + 1) * 127.5)))
+          audioDataRef.current = ui8
+          setAudioData(ui8)
+          setDataUpdateTrigger(t => t + 1)
+
+          // ✅ send binary to Whisper
+          if (wsSysRef.current?.readyState === WebSocket.OPEN)
+            wsSysRef.current.send(clone.buffer)
+        }
+
         sysProcessorRef.current = sysProc;
       }
 
