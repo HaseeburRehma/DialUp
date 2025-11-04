@@ -1,8 +1,7 @@
 // src/app/api/voice/incoming/route.ts
+
 import { NextResponse } from "next/server";
 import twilio from "twilio";
-import { connect } from "../../../../../server/utils/db";
-import User from "../../../../../server/models/User";
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
 
@@ -14,14 +13,9 @@ export async function POST(req: Request) {
 
     console.log("📥 Incoming call:", { from, to });
 
-    await connect();
-
-    // ✅ Lookup user by phone number (Twilio sends +E.164 format)
-    const dbUser = await User.findOne({ phone: to });
-    const userClient = dbUser ? dbUser.email.split("@")[0] : "web_dialer_user";
-
     const twiml = new VoiceResponse();
 
+    // 🎧 Send both inbound & outbound audio tracks to your websocket
     const protocol = process.env.NODE_ENV === "production" ? "wss" : "ws";
     const host = req.headers.get("host") || "localhost:3000";
     const wsUrl = `${protocol}://${host}/twilio-stream`;
@@ -30,14 +24,24 @@ export async function POST(req: Request) {
     start.stream({
       name: "voiceai-incoming-stream",
       url: wsUrl,
-      track: "both_tracks",
+      track: "both_tracks", // inbound = caller, outbound = agent
     });
 
-    twiml.say(`Incoming call from ${from}. Connecting you now.`);
-    const dial = twiml.dial();
+    // Optional Twilio-native transcription (not required if Whisper handles it)
+    // twiml.append(`
+    //   <Start>
+    //     <Transcription name="voiceai-incoming-transcription"
+    //       track="both_tracks"
+    //       action="${process.env.PUBLIC_URL}/api/send-automatic-transcript"
+    //       method="POST" playBeep="false" />
+    //   </Start>`);
 
-    // ✅ Connect to the correct user’s client
-    dial.client(userClient);
+    console.log("🎙️ Media stream connected to Whisper backend");
+
+    // Greet + connect to internal web client
+    twiml.say("You are now connected. The call will be transcribed.");
+    const dial = twiml.dial();
+    dial.client("web_dialer_user");
 
     return new NextResponse(twiml.toString(), {
       status: 200,

@@ -83,7 +83,7 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
             speaker: 'mic',
             volume: 1,
             timestamp: i * 2,
-            isFinal: true,   
+            isFinal: true,
           }))
           : []
       );
@@ -153,8 +153,9 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
         (recs as Array<{ blob?: Blob; url?: string }>).map(async (rec) => {
           if (rec.blob) {
             const fd = new FormData();
-            fd.append('file', rec.blob);
+            fd.append('file', rec.blob, `${Date.now()}-blob.wav`);
             const resp = await fetch('/api/upload', { method: 'POST', body: fd });
+
             if (!resp.ok) throw new Error('Upload failed');
             const { url } = await resp.json();
             return url;

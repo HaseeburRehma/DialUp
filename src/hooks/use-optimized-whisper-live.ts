@@ -418,27 +418,29 @@ export function useOptimizedWhisperLive(
 
 
   // Optimized transcription stop
+  // Optimized transcription stop
   const stopTranscription = useCallback(async () => {
     console.log('[OptimizedWhisperLive] Stopping transcription...')
 
+    // 🔴 Close all WebSockets
+    if (wsMicRef.current?.readyState === WebSocket.OPEN) wsMicRef.current.close(1000, 'Normal Closure')
+    wsMicRef.current = null
+    if (wsSysRef.current?.readyState === WebSocket.OPEN) wsSysRef.current.close(1000, 'Normal Closure')
+    wsSysRef.current = null
 
-    if (wsMicRef.current?.readyState === WebSocket.OPEN) wsMicRef.current.close(1000, 'Normal Closure');
-    wsMicRef.current = null;
-    if (wsSysRef.current?.readyState === WebSocket.OPEN) wsSysRef.current.close(1000, 'Normal Closure');
-    wsSysRef.current = null;
+    // 🧹 Disconnect audio processors
+    micProcessorRef.current?.disconnect()
+    sysProcessorRef.current?.disconnect()
+    micProcessorRef.current = null
+    sysProcessorRef.current = null
 
-    micProcessorRef.current?.disconnect();
-    sysProcessorRef.current?.disconnect();
-    micProcessorRef.current = null;
-    sysProcessorRef.current = null;
-
-    // Clean up audio processing
+    // 🧹 Clean up extra processor
     if (processorRef.current) {
       processorRef.current.disconnect()
       processorRef.current = null
     }
 
-    // Stop tracks
+    // 🛑 Stop all input tracks
     if (micRef.current) {
       micRef.current.getTracks().forEach(t => t.stop())
       micRef.current = null
@@ -448,29 +450,49 @@ export function useOptimizedWhisperLive(
       systemRef.current = null
     }
 
-    // Handle recording upload
+    // 🎧 Handle recording upload
     if (config.saveRecording && recordingBuffers.current.length > 0) {
-      console.log('[OptimizedWhisperLive] Processing recording...', recordingBuffers.current.length, 'buffers')
+      console.log(
+        '[OptimizedWhisperLive] Processing recording...',
+        recordingBuffers.current.length,
+        'buffers'
+      )
 
       try {
         const sampleRate = sampleRateRef.current
         const totalLength = recordingBuffers.current.reduce((sum, buf) => sum + buf.length, 0)
         const interleaved = new Float32Array(totalLength)
-
         let offset = 0
+
         for (const buf of recordingBuffers.current) {
           interleaved.set(buf, offset)
           offset += buf.length
         }
 
+        // ✅ SAFE normalization (no Math.max spread)
+        let maxAmp = 0
+        for (let i = 0; i < interleaved.length; i++) {
+          const val = Math.abs(interleaved[i])
+          if (val > maxAmp) maxAmp = val
+        }
+        if (maxAmp === 0) maxAmp = 1
+        for (let i = 0; i < interleaved.length; i++) {
+          interleaved[i] /= maxAmp
+        }
+
+        // ✅ Encode as PCM WAV
         const wavBytes = encodeWAVOptimized(interleaved, sampleRate)
-        const blob = new Blob([wavBytes], { type: 'audio/webm' })
+        const blob = new Blob([wavBytes], { type: 'audio/wav' })
         const formData = new FormData()
         formData.append('file', blob, config.outputFilename || `recording-${Date.now()}.wav`)
 
-        const response = await fetch('/api/upload', {
+        const uploadUrl = process.env.NEXT_PUBLIC_APP_URL
+          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/upload`
+          : '/api/upload'
+
+        const response = await fetch(uploadUrl, {
           method: 'POST',
-          body: formData
+          body: formData,
         })
 
         if (!response.ok) {
@@ -482,7 +504,7 @@ export function useOptimizedWhisperLive(
         const recording: Recording = {
           id: Date.now().toString(),
           url,
-          blob
+          blob,
         }
 
         setRecordings(rs => [...rs, recording])
@@ -496,17 +518,21 @@ export function useOptimizedWhisperLive(
         })
       }
 
+      // Wait a tick before clearing
+      await new Promise(r => setTimeout(r, 400))
       recordingBuffers.current = []
     }
 
-    // Close AudioContext
+    // 🧠 Close AudioContext
     if (ctxRef.current && ctxRef.current.state !== 'closed') {
       await ctxRef.current.close()
       ctxRef.current = null
     }
 
+    // ✅ Update state
     setState(s => ({ ...s, isTranscribing: false }))
   }, [config, toast])
+
 
   // Enhanced disconnect with cleanup
   const disconnect = useCallback(() => {
@@ -518,33 +544,26 @@ export function useOptimizedWhisperLive(
       reconnectTimeoutRef.current = undefined
     }
 
-    // Close WebSocket
+    // Close WebSocket connections
     if (wsMicRef.current?.readyState === WebSocket.OPEN) wsMicRef.current.close(1000, 'Normal Closure');
     wsMicRef.current = null;
     if (wsSysRef.current?.readyState === WebSocket.OPEN) wsSysRef.current.close(1000, 'Normal Closure');
     wsSysRef.current = null;
 
-    // Stop transcription
-    stopTranscription()
+    // Stop transcription (but don’t clear transcript)
+    stopTranscription();
 
-    // Clear history
-    transcriptHistoryRef.current.clear()
-    segmentHistoryRef.current.clear()
-
-    // Reset state
+    // ✅ Don’t clear transcript or segments — just mark disconnected
     setState(s => ({
       ...s,
       isConnected: false,
       isTranscribing: false,
-      transcript: '',
-      error: null,
-      segments: [],
       connectionQuality: 'excellent',
       latency: 0,
-    }))
+    }));
 
-    connectionAttempts.current = 0
-  }, [stopTranscription])
+    connectionAttempts.current = 0;
+  }, [stopTranscription]);
 
   // Utility functions
   const clearTranscript = useCallback(() => {

@@ -40,7 +40,7 @@ async function start() {
     );
     const conn = await Promise.race([dbPromise, timeoutPromise]);
     console.log(
-      " MongoDB connected to",
+      "✅ MongoDB connected to",
       `${conn.connection.host}:${conn.connection.port}`,
       "/",
       conn.connection.name
@@ -53,16 +53,8 @@ async function start() {
 
     console.log("🚀 Next.js prepared, creating Express app...");
     const app = express();
-    app.set('trust proxy', 1);
-    const audioDir = path.join(__dirname, "../public/audio");
-app.use("/audio", express.static(audioDir, {
-  setHeaders: (res, path) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
-  }
-}));
 
-
+    // Ensure NEXTAUTH_URL in prod
     if (!process.env.NEXTAUTH_URL) {
       const host = process.env.RAILWAY_STATIC_URL || `localhost:${PORT}`;
       process.env.NEXTAUTH_URL = dev
@@ -87,12 +79,17 @@ app.use("/audio", express.static(audioDir, {
     const jsonParser = express.json({ limit: "500mb" });
     const urlParser = express.urlencoded({ extended: true, limit: "500mb" });
     const expressWs = require('express-ws')(app);
+    const sseClients = [];
 
-    
+    // Static files
+    if (process.env.NODE_ENV === "development") {
+      app.use("/audio", express.static(path.join(__dirname, "../public/audio")));
+    }
 
-    try {
+    // API routes
+    try { 
       app.use("/api/transcribe", jsonParser, urlParser, require("./routes/transcribe"));
-      app.use("/api/upload", jsonParser, urlParser, require("./routes/upload"));
+ //   app.use("/api/upload", jsonParser, urlParser, require("./routes/upload"));
       console.log("✅ API routes loaded");
     } catch (error) {
       console.error("❌ Failed to load API routes:", error);
@@ -100,36 +97,6 @@ app.use("/audio", express.static(audioDir, {
     }
 
 
-
-    // SSE endpoint for browser
-    app.get("/api/voice/stream", (req, res) => {
-      res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "Access-Control-Allow-Origin": "*",
-      });
-
-      // Wire Express response as a bus client
-      const client = {
-        write: (data) => res.write(data),
-        close: () => {
-          try { res.end(); } catch { }
-        },
-      };
-
-      // Register the client in the bus
-      const { addClient, removeClient } = require("./utils/streamBus");
-      addClient(client);
-
-      // heartbeat
-      const ka = setInterval(() => res.write(": keepalive\n\n"), 15000);
-
-      req.on("close", () => {
-        clearInterval(ka);
-        removeClient(client);
-      });
-    });
 
     // WebSocket proxy
     console.log(`🎤 Setting up WebSocket proxy to port ${whisperPort}`);

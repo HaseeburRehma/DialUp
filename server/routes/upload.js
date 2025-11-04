@@ -10,9 +10,11 @@ const storage = multer.diskStorage({
     cb(null, path.join(__dirname, '../../public/audio'));
   },
   filename: (_req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+    const baseName = path.parse(file.originalname).name; // remove any old extension
+    cb(null, `${Date.now()}-${baseName}.wav`);
   }
 });
+
 
 const upload = multer({
   storage,

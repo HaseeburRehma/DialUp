@@ -34,6 +34,13 @@ function normalizeInput(input: string, country: string = 'US'): string {
   }
   return (COUNTRY_CODES[country] || '+1') + num
 }
+// Ensure playback works for both full URLs and GridFS IDs
+function getPlaybackUrl(urlOrId?: string | null): string | undefined {
+  if (!urlOrId) return undefined;
+  if (urlOrId.startsWith('http')) return urlOrId;
+  const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+  return `${base}/api/uploads/${urlOrId}`;
+}
 
 export function CallInterface() {
   const {
@@ -364,18 +371,18 @@ export function CallInterface() {
                       </Badge>
                     </td>
                     <td className="py-2">
-                     {call.recording || (call.recordings?.length ?? 0) > 0 ? (
+                      {call.recording || (call.recordings?.length ?? 0) > 0 ? (
                         <audio
                           key={index}
-                          src={call.recording || call.recordings?.[0]}
+                          src={getPlaybackUrl(call.recording || call.recordings?.[0])}
                           controls
                           className="w-full h-8 rounded"
                         />
-
                       ) : (
                         <span className="text-slate-600">No recording</span>
                       )}
                     </td>
+
 
                     <td className="py-2">{new Date(call.timestamp).toLocaleDateString()}</td>
                   </tr>

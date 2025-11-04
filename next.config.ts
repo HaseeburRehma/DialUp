@@ -1,17 +1,26 @@
+// next.config.ts
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+
+  // ✅ Increase the default body-size limit for uploads (default is 1 MB)
+  api: {
+    bodyParser: {
+      sizeLimit: '500mb',
+    },
+  },
+
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', 'localhost:3001'],
     },
   },
+
   serverExternalPackages: ['fluent-ffmpeg'],
   output: 'standalone',
-
-  outputFileTracingRoot: __dirname, // ✅ valid replacement
+  outputFileTracingRoot: __dirname,
 
   async rewrites() {
     if (process.env.NODE_ENV === 'development') {

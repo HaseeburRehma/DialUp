@@ -6,6 +6,8 @@ import mongoose from 'mongoose'
 const callSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   number: String,
+  fromNumber: String,
+  toNumber: String,
   direction: { type: String, enum: ['inbound', 'outbound'] },
   duration: Number,
   status: { type: String, enum: ['completed', 'busy', 'no-answer', 'failed'], default: 'completed' },

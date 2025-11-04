@@ -16,40 +16,42 @@ export async function POST(req: Request) {
 
     const To = params.get("To")?.trim() || "";
     const Caller = params.get("Caller") || "";
-    const CallerNumber = params.get("CallerNumber") || "";
     const CallSid = params.get("CallSid") || "";
-    const From = params.get("From") || "";
 
-    console.log("📞 Outgoing call webhook:", { To, Caller, CallerNumber, CallSid, From });
+    console.log("📞 Outgoing call webhook received:", { To, Caller, CallSid });
 
     const protocol = process.env.NODE_ENV === "production" ? "wss" : "ws";
     const host = req.headers.get("host") || "localhost:3000";
     const wsUrl = `${protocol}://${host}/twilio-stream`;
 
+    // 🎧 Stream both tracks to the websocket handler
     const start = twiml.start();
     const stream = start.stream({
       name: "voiceai-outgoing-stream",
       url: wsUrl,
       track: "both_tracks",
     });
-
     stream.parameter({ name: "CallSid", value: CallSid });
     stream.parameter({ name: "Caller", value: Caller });
-    stream.parameter({ name: "CallerNumber", value: CallerNumber });
 
-    // ✅ Use the user's registered number as caller ID
-    const callerId = CallerNumber || process.env.TWILIO_CALLER_ID || "+10000000000";
+    const verifiedCallerId = process.env.TWILIO_CALLER_ID || "+447437985716";
 
     if (To && /^\+?\d+$/.test(To)) {
-      twiml.dial({ callerId }).number(To);
-      console.log(`📤 Dialing PSTN: ${To} from ${callerId}`);
+      // ✅ Outbound PSTN call
+      twiml.dial({ callerId: verifiedCallerId }).number(To);
+      console.log(`📤 Dialing PSTN number: ${To} (callerId: ${verifiedCallerId})`);
     } else if (To) {
-      twiml.dial({ callerId }).client(To);
-      console.log(`📤 Dialing client: ${To} from ${callerId}`);
+      // ✅ Outbound client call
+      twiml.dial({ callerId: verifiedCallerId }).client(To);
+      console.log(`📤 Dialing Twilio Client: ${To}`);
     } else {
-      twiml.say("No valid destination provided.");
-      console.warn("⚠️ Missing 'To' parameter");
+      // ⚠️ Invalid or missing number
+      twiml.say("No valid destination number provided.");
+      console.warn("⚠️ Missing or invalid 'To' parameter in request.");
     }
+
+    // Log final TwiML for debugging
+    console.log("🧾 Generated TwiML:\n", twiml.toString());
 
     return new NextResponse(twiml.toString(), {
       status: 200,
@@ -57,9 +59,11 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     console.error("❌ Outgoing route error:", err);
+
     const errorTwiml = new VoiceResponse();
     errorTwiml.say("An error occurred while processing your call.");
     errorTwiml.hangup();
+
     return new NextResponse(errorTwiml.toString(), {
       status: 200,
       headers: { "Content-Type": "text/xml" },

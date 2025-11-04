@@ -25,6 +25,8 @@ type Codec = "opus" | "pcmu"
 interface CallRecord {
   id: string;
   number: string;
+  fromNumber: string,
+  toNumber: string,
   direction: 'inbound' | 'outbound';
   duration: number;
   status: 'completed' | 'busy' | 'no-answer' | 'failed';
@@ -304,8 +306,12 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
 
 
-  const stopCallFeatures = async () => {
+  const stopCallFeatures = async (callId?: string) => {
     const blob = await stopRecording()
+    if (!blob || blob.size < 1000) {
+      log(" No audio data captured — skipping upload", "warning")
+      return { recordingUrl: null }
+    }
     if (whisperRef.current) {
       whisperRef.current.stopTranscription()
       whisperRef.current.disconnect()
@@ -320,8 +326,12 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (blob && !lastRecording) {
       try {
         const form = new FormData();
-        form.append("file", blob, `${Date.now()}.mp3`);
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: form });
+        form.append('file', blob, `${Date.now()}-blob.wav`);
+        if (callId) form.append('callId', callId);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: form
+        });
         const data = await uploadRes.json();
         recordingUrl = data.url;
         setLastRecording(recordingUrl);
@@ -482,7 +492,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     const receiverEmail = emailMetadata.receiverEmail || call.parameters?.ReceiverEmail || userProfile?.email;
 
     // --- Stop recording + transcription ---
-    const { recordingUrl } = await stopCallFeatures();
+    const { recordingUrl } = await stopCallFeatures((call as any)._dbId);
 
     // --- Grace delay to allow Whisper WebSocket close ---
     await new Promise(r => setTimeout(r, 1200));
@@ -494,6 +504,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (whisperRef.current) {
       try {
         await whisperRef.current.stopTranscription();
+
         const recs = await whisperRef.current.uploadRecordings();
 
         whisperUrls = recs.map((r: any) => (typeof r === 'string' ? r : r.url));
@@ -530,19 +541,21 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
     // --- Save to DB ---
     const baseUrl =
-  process.env.NEXT_PUBLIC_APP_URL ||
-  process.env.NEXTAUTH_URL ||
-  "https://voiceai.wordpressstagingsite.com";
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXTAUTH_URL ||
+      "https://voiceai.wordpressstagingsite.com";
 
-const allRecordings = [...new Set(
-  [recordingUrl, ...whisperUrls]
-    .filter((u): u is string => typeof u === 'string' && u.length > 0)
-    .map(u => u.startsWith('http') ? u : `${baseUrl}${u.startsWith('/') ? u : `/${u}`}`)
-)];
+    const allRecordings = [...new Set(
+      [recordingUrl, ...whisperUrls]
+        .filter((u): u is string => typeof u === 'string' && u.length > 0)
+        .map(u => u.startsWith('http') ? u : `${baseUrl}${u.startsWith('/') ? u : `/${u}`}`)
+    )];
 
     const callRecord: CallRecord = {
       id: callSid || Date.now().toString(),
       number: call.parameters?.To || call.parameters?.From || 'Unknown',
+      fromNumber: call.parameters?.From,
+      toNumber: call.parameters?.To,
       direction: call.parameters?.To ? 'outbound' : 'inbound',
       duration,
       status: 'completed',
@@ -939,7 +952,12 @@ const allRecordings = [...new Set(
           CallerNumber: userProfile.phone,
         }
       });
-
+      (call as any).parameters = {
+        ...call.parameters,
+        To: cleanNumber,
+        From: userProfile?.phone || "Unknown",
+        CallerNumber: userProfile.phone,
+      }
       setCurrentConnection(call as TwilioConnection);
       setIsCalling(true);
       setCallSeconds(0);
@@ -953,6 +971,7 @@ const allRecordings = [...new Set(
         setIsCalling(false);
         setCurrentConnection(null);
       });
+
 
       // Store emails in connection object for later use
       (call as any)._emailMetadata = {
@@ -1154,6 +1173,8 @@ const allRecordings = [...new Set(
             const normalized: CallRecord[] = history.map((c: any) => ({
               id: c.id ?? c._id ?? String(c.callSid ?? Date.now()),
               number: c.number ?? 'Unknown',
+              fromNumber: c.parameters?.From,
+              toNumber: c.parameters?.To,
               direction: c.direction ?? 'outbound',
               duration: Number(c.duration ?? 0),
               status: c.status ?? 'completed',

@@ -49,13 +49,10 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const token = req.cookies.get('next-auth.session-token')?.value
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const secret = new TextEncoder().encode(process.env.NEXTAUTH_SECRET)
-    const { payload } = await jwtVerify(token, secret)
-
-    const userId = payload.sub
+    const userId = token.id || token.sub
     const data = await req.json()
     const { text, audioUrls, callerName, callerEmail, callerLocation, callerAddress, callReason } = data
 
@@ -90,11 +87,11 @@ export async function POST(req: NextRequest) {
     if (userEmail) {
       await sendNoteNotification({ to: userEmail, subject, html: body })
     }
+
     if (callerEmail) {
       await sendNoteNotification({
         to: callerEmail,
-          from: process.env.SMTP_USER,
-
+        from: process.env.SMTP_USER,
         subject: 'Copy of Your Submitted Note',
         html: body,
       })
