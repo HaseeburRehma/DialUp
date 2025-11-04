@@ -63,3 +63,7 @@ server/WhisperLive/.venv/
 .next/
 
 setup_venv.sh
+server/bin/ffmpeg.exe
+server/bin/ffplay.exe
+server/bin/ffprobe.exe
+server/bin/yt-dlp.exe
