@@ -151,6 +151,6 @@ docker-compose*
 # python/ffmpeg extras you listed
 server/.venv
 server/venv
-server/utils/ffmpeg.exe
-server/utils/ffplay.exe
-server/utils/ffprobe.exe
+server/bin/ffmpeg.exe
+server/bin/ffplay.exe
+server/bin/ffprobe.exe
