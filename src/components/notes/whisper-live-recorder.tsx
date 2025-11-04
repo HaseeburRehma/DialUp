@@ -39,9 +39,9 @@ interface Props {
 export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
   function WhisperLiveRecorder({ onSegments }, ref) {
     const { settings, setSettings } = useSettings();
-    const { transcription } = settings;
+    const { transcription } = settings;    
     const whisperliveSettings = transcription.whisperlive;
-
+ 
     const config = useMemo<WhisperLiveConfig>(() => ({
       serverUrl: whisperliveSettings.serverUrl,
       port: whisperliveSettings.port,

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getBucket } from "@/lib/mongo"
 import { Readable } from "stream"
 import { connect } from '../../../../server/utils/db.js'
-import Call from '../../../../server/models/Call.js'
+import Call from '../../../../server/models/Call'
 
 export const config = { api: { bodyParser: false } }
 

@@ -127,9 +127,9 @@ async function start() {
     function decodeMuLaw(buffer) {
       const out = new Int16Array(buffer.length);
       for (let i = 0; i < buffer.length; i++) {
-        out[i] = decodeMuLawSample(buffer[i]);
+        out[i] = decodeMuLawSample(buffer[i]);     
       }
-      return Buffer.from(out.buffer);
+      return Buffer.from(out.buffer);    
     }
 
     //  Twilio WebSocket with proper speaker tracking
