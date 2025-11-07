@@ -52,7 +52,7 @@
     "gsap": "^3.13.0",
     "http-errors": "^2.0.0",
     "http-proxy-middleware": "^3.0.5",
-    "libphonenumber-js": "^1.12.10",
+    "libphonenumber-js": "^1.12.25",
     "lucide-react": "^0.468.0",
     "mongodb": "^5.9.2",
     "mongoose": "^8.16.2",

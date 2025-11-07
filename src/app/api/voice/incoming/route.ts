@@ -1,21 +1,30 @@
-// src/app/api/voice/incoming/route.ts
-
 import { NextResponse } from "next/server";
 import twilio from "twilio";
+import { connect } from "../../../../../server/utils/db.js";
+
+import User from "../../../../../server/models/User.js"; // adjust if your user model path differs
 
 const VoiceResponse = twilio.twiml.VoiceResponse;
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const from = formData.get("From");
-    const to = formData.get("To");
+    const from = formData.get("From")?.toString();
+    const to = formData.get("To")?.toString();
 
     console.log("📥 Incoming call:", { from, to });
 
+    // --- Find which verified user this number belongs to ---
+    await connect();
+    const user = await User.findOne({ phone: to }); // user.phone = verified number used at signup
+    console.log("👤 Matched incoming number to user:", user?.email);
+
     const twiml = new VoiceResponse();
 
-    // 🎧 Send both inbound & outbound audio tracks to your websocket
+    // --- Start Whisper or your transcription backend ---
     const protocol = process.env.NODE_ENV === "production" ? "wss" : "ws";
     const host = req.headers.get("host") || "localhost:3000";
     const wsUrl = `${protocol}://${host}/twilio-stream`;
@@ -24,24 +33,31 @@ export async function POST(req: Request) {
     start.stream({
       name: "voiceai-incoming-stream",
       url: wsUrl,
-      track: "both_tracks", // inbound = caller, outbound = agent
+      track: "both_tracks",
     });
-
-    // Optional Twilio-native transcription (not required if Whisper handles it)
-    // twiml.append(`
-    //   <Start>
-    //     <Transcription name="voiceai-incoming-transcription"
-    //       track="both_tracks"
-    //       action="${process.env.PUBLIC_URL}/api/send-automatic-transcript"
-    //       method="POST" playBeep="false" />
-    //   </Start>`);
 
     console.log("🎙️ Media stream connected to Whisper backend");
 
-    // Greet + connect to internal web client
-    twiml.say("You are now connected. The call will be transcribed.");
-    const dial = twiml.dial();
-    dial.client("web_dialer_user");
+    // --- Build call routing ---
+    // If user exists, ring both:
+    // 1️⃣ Their web dialer client
+    // 2️⃣ Their real verified phone number
+    const dial = twiml.dial({
+      callerId: from || process.env.TWILIO_CALLER_ID || "+447437985716",
+      answerOnBridge: true,
+    });
+
+    if (user) {
+      // 🔔 Ring the web dialer client (popup)
+      dial.client(user.email); // or use user._id or user Twilio identity
+      // ☎️ Also forward to their verified real number
+      dial.number(user.phone);
+    } else {
+      // Default fallback if no user found
+      twiml.say("Thanks for calling. No agent is available right now.");
+    }
+
+    console.log("📡 Dual-ring TwiML generated");
 
     return new NextResponse(twiml.toString(), {
       status: 200,

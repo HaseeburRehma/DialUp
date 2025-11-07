@@ -63,7 +63,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const isDashboardRoute = dashboardPrefixes.some((p) => pathname.startsWith(p))
   const isAdmin = session?.user?.role === 'admin'
   if (status === 'loading') return null
-  
+
   if (isDashboardRoute && !session) return null
   const navigation = [
     { name: 'Features', href: '/#features' },
@@ -209,19 +209,14 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
 
                 <DropdownMenuItem
                   onClick={async () => {
-                    try {
-                      await fetch('/api/auth/logout', { method: 'POST' })
-                      // Redirect manually after cookie is cleared
-                      window.location.href = '/'
-                    } catch (err) {
-                      console.error('Logout failed:', err)
-                    }
+                    await signOut({ callbackUrl: '/' })
                   }}
                   className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
                 >
                   <LogOut className="mr-3 h-4 w-4" />
                   Sign out
                 </DropdownMenuItem>
+
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

@@ -258,10 +258,10 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           const data = await res.json()
 
           setUserProfile({ email: data.email, phone: data.phone })
-          log(`👤 Loaded user profile: ${data.email}`, "info")
+          log(` Loaded user profile: ${data.email}`, "info")
         }
       } catch (err: any) {
-        log("❌ Failed to load user profile", "error")
+        log(" Failed to load user profile", "error")
       }
     }
     loadProfile()
@@ -277,7 +277,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       const { text } = await r.json()
       return text
     } catch (e) {
-      log('❌ Whisper transcription failed', 'error')
+      log(' Whisper transcription failed', 'error')
       return ''
     }
   }
@@ -294,13 +294,13 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       if (whisperRef.current) {
         whisperRef.current.connect();
         whisperRef.current.startTranscription();
-        log('🧠 WhisperLive connected + transcription started (mic + system audio)', 'info');
+        log(' WhisperLive connected + transcription started (mic + system audio)', 'info');
       }
 
       setIsRecording(true);
       setIsTranscribing(true);
     } catch (err: any) {
-      log(`❌ startCallFeatures failed: ${err.message}`, 'error');
+      log(` startCallFeatures failed: ${err.message}`, 'error');
     }
   };
 
@@ -335,9 +335,9 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         const data = await uploadRes.json();
         recordingUrl = data.url;
         setLastRecording(recordingUrl);
-        log('📁 Recording uploaded successfully', 'info');
+        log(' Recording uploaded successfully', 'info');
       } catch (err: any) {
-        log(`❌ Recording upload failed: ${err.message}`, 'error');
+        log(` Recording upload failed: ${err.message}`, 'error');
       }
     }
 
@@ -357,7 +357,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     receiverEmail?: string
   ) => {
     if (!transcript || !transcript.trim()) {
-      log('⚠️ Skipping email — no transcript available', 'warning');
+      log(' Skipping email — no transcript available', 'warning');
       return;
     }
     try {
@@ -393,14 +393,14 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       const body = await res.json().catch(() => ({}))
 
       if (!res.ok) {
-        log(`❌ Email API failed [${res.status}]: ${body?.error || 'unknown error'}`, 'error')
-        if (body?.failed?.length) log(`⚠️ Failed recipients: ${body.failed.join(', ')}`, 'warning')
+        log(` Email API failed [${res.status}]: ${body?.error || 'unknown error'}`, 'error')
+        if (body?.failed?.length) log(` Failed recipients: ${body.failed.join(', ')}`, 'warning')
       } else {
         const sentTo = body?.sent?.length ? body.sent.join(', ') : 'unknown'
-        log(`📧 Transcript emailed successfully to: ${sentTo}`, 'info')
+        log(` Transcript emailed successfully to: ${sentTo}`, 'info')
       }
     } catch (error: any) {
-      log(`❌ Error sending automatic emails: ${error.message}`, 'error')
+      log(` Error sending automatic emails: ${error.message}`, 'error')
     }
   }
 
@@ -411,33 +411,33 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   const toggleSpeaker = () => {
     setIsSpeakerOn(!isSpeakerOn)
-    log(isSpeakerOn ? '📱 Switched to handset' : '🔊 Switched to speaker', 'info')
+    log(isSpeakerOn ? ' Switched to handset' : ' Switched to speaker', 'info')
   }
 
   async function fetchToken() {
     try {
       const url = "/api/twilio-token"
-      console.log("🔄 Fetching Twilio token from:", url)
+      console.log(" Fetching Twilio token from:", url)
       const res = await fetch(url)
-      console.log("🔄 Response status:", res.status)
+      console.log(" Response status:", res.status)
 
       if (!res.ok) {
         const errText = await res.text()
-        console.error("❌ Token fetch failed:", res.status, errText)
+        console.error(" Token fetch failed:", res.status, errText)
         return null
       }
 
       const data = await res.json()
-      console.log("✅ Token received")
+      console.log(" Token received")
 
       if (!data.token) {
-        console.error("❌ No token field in response:", data)
+        console.error(" No token field in response:", data)
         return null
       }
 
       return data.token
     } catch (err: any) {
-      console.error("❌ Token fetch error:", err)
+      console.error(" Token fetch error:", err)
       return null
     }
   }
@@ -447,17 +447,17 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     if (!device) return
 
     try {
-      log("🔄 Refreshing Twilio token...", "info")
+      log(" Refreshing Twilio token...", "info")
       const newToken = await fetchToken()
 
       if (newToken) {
         await device.updateToken(newToken)
-        log("✅ Twilio token refreshed", "info")
+        log(" Twilio token refreshed", "info")
       } else {
-        log("❌ Failed to refresh Twilio token", "error")
+        log(" Failed to refresh Twilio token", "error")
       }
     } catch (err: any) {
-      log(`❌ Token refresh error: ${err.message}`, "error")
+      log(` Token refresh error: ${err.message}`, "error")
     }
   }
 
@@ -476,7 +476,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
   async function finalizeCall(call: any) {
     // --- Guard: prevent double-finalization ---
     if ((call as any)._finalized) {
-      log("⚠️ finalizeCall() skipped — already finalized", "warning");
+      log(" finalizeCall() skipped — already finalized", "warning");
       return;
     }
     (call as any)._finalized = true;
@@ -512,9 +512,9 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         const texts = recs.map((r: any) => r.transcription || r.text || '').filter(Boolean);
         if (texts.length) transcriptText = texts.join('\n');
 
-        log(`📝 Final transcript built: ${transcriptText.split('\n').length} lines`, 'info');
+        log(` Final transcript built: ${transcriptText.split('\n').length} lines`, 'info');
       } catch (e: any) {
-        log(`❌ Whisper upload failed: ${e.message}`, 'error');
+        log(` Whisper upload failed: ${e.message}`, 'error');
       }
     }
 
@@ -534,9 +534,9 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         callerEmail,
         receiverEmail
       );
-      log('📧 Transcript emailed successfully', 'info');
+      log(' Transcript emailed successfully', 'info');
     } catch (e: any) {
-      log(`⚠️ Email send failed: ${e.message}`, 'warning');
+      log(` Email send failed: ${e.message}`, 'warning');
     }
 
     // --- Save to DB ---
@@ -581,19 +581,19 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
                 transcription: formattedTranscript,
               },
             });
-            log(`💾 Whisper recordings linked to call ${(call as any)._dbId}`, 'info');
+            log(` Whisper recordings linked to call ${(call as any)._dbId}`, 'info');
           } catch (err: any) {
-            log(`❌ Failed to link Whisper recordings: ${err.message}`, 'error');
+            log(` Failed to link Whisper recordings: ${err.message}`, 'error');
           }
         }
 
-        log('💾 Call updated in DB', 'info');
+        log(' Call updated in DB', 'info');
       } else {
         const res = await axios.post('/api/calls', callRecord, { withCredentials: true });
-        log(`💾 Call saved to DB: ${res.data.call._id}`, 'info');
+        log(` Call saved to DB: ${res.data.call._id}`, 'info');
       }
     } catch (err: any) {
-      log(`❌ DB save failed: ${err.message}`, 'error');
+      log(` DB save failed: ${err.message}`, 'error');
     }
 
     // --- Cleanup AFTER saving ---
@@ -618,22 +618,22 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
     const initializeDevice = async () => {
       try {
-        log('🔄 Starting Twilio Device initialization...', 'info')
+        log(' Starting Twilio Device initialization...', 'info')
 
         // Wait for Twilio SDK to load
         if (!Device) {
-          log("❌ Twilio Voice SDK not available", "error")
+          log(" Twilio Voice SDK not available", "error")
           return
         }
 
         // 1. Fetch Token
         const token = await fetchToken()
         if (!token || !mounted) {
-          log("❌ Failed to fetch token or component unmounted", "error")
+          log(" Failed to fetch token or component unmounted", "error")
           return
         }
 
-        log('✅ Token fetched successfully', 'info')
+        log(' Token fetched successfully', 'info')
 
         // 2. Create Device
         let dev: any
@@ -643,9 +643,9 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
             edge: "roaming",
             logLevel: 5,
           })
-          log('✅ Device object created', 'info')
+          log(' Device object created', 'info')
         } catch (err: any) {
-          log(`❌ Device creation failed: ${err.message}`, 'error')
+          log(` Device creation failed: ${err.message}`, 'error')
           return
         }
 
@@ -655,49 +655,50 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
         dev.on("registered", () => {
           if (!mounted) return
-          log("✅ Device REGISTERED", "info")
+          log(" Device REGISTERED", "info")
           setIsReady(true)
         })
         dev.on("ready", () => {
           if (!mounted) return
-          log("✅ Device READY", "info")
+          log(" Device READY", "info")
           setIsReady(true)
         })
 
         dev.on("error", (e: any) => {
           if (!mounted) return
-          log(`❌ Device error: ${e.message}`, 'error')
+          log(` Device error: ${e.message}`, 'error')
           setIsReady(false)
         })
 
         dev.on('unregistered', () => {
           if (!mounted) return
-          log('❌ Device unregistered', 'error')
+          log(' Device unregistered', 'error')
           setIsReady(false)
         })
 
         // --- Handle Outgoing / Active Call ---
         dev.on('connect', async (call: any) => {
           if (!mounted) return
-          log('📞 Call connected successfully', 'info')
+          log(' Call connected successfully', 'info')
           setIsCalling(true)
           setCurrentConnection(call as TwilioConnection)
+
           const newCall = {
             number: call.parameters?.To || call.parameters?.From || 'Unknown',
             direction: call.parameters?.To ? 'outbound' : 'inbound',
             status: 'in-progress',
             duration: 0,
             timestamp: new Date(),
-          };
+          }
 
           try {
-            const res = await axios.post('/api/calls', newCall, { withCredentials: true });
-
-            log(`💾 Call started and saved to DB: ${res.data.call._id}`, 'info');
-            (call as any)._dbId = res.data.call._id; // keep ref for update later
+            const res = await axios.post('/api/calls', newCall, { withCredentials: true })
+            log(` Call started and saved to DB: ${res.data.call._id}`, 'info')
+              ; (call as any)._dbId = res.data.call._id // keep ref for update later
           } catch (err: any) {
-            log(`❌ Failed to save initial call: ${err.message}`, 'error');
+            log(` Failed to save initial call: ${err.message}`, 'error')
           }
+
           // Start call timer
           setCallSeconds(0)
           currentCallStartTime.current = new Date()
@@ -711,18 +712,37 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
           call.on('warning', (name: string) => {
             if (name === 'high-rtt') setConnectionQuality('fair')
             else if (name === 'high-packet-loss') setConnectionQuality('poor')
-            log(`⚠️ Call quality warning: ${name}`, 'warning')
+            log(` Call quality warning: ${name}`, 'warning')
           })
 
           call.on('warning-cleared', () => {
             setConnectionQuality('excellent')
-            log('✅ Call quality improved', 'info')
+            log(' Call quality improved', 'info')
           })
+
+          // ✅ Handle when remote or local party hangs up
           call.on('disconnect', async () => {
-            log('📴 Connection disconnect detected — finalizing...', 'info')
+            log(' Call disconnected (remote or local) — finalizing...', 'info')
             await finalizeCall(call)
+            setIsCalling(false)
+            setCurrentConnection(null)
+          })
+
+          // (Optional) Handle if remote cancels before pickup
+          call.on('cancel', () => {
+            log(' Remote canceled before answer', 'info')
+            setIsCalling(false)
+            setCurrentConnection(null)
+          })
+
+          // (Optional) Handle if call fails to connect
+          call.on('error', (err: any) => {
+            log(` Call error: ${err.message}`, 'error')
+            setIsCalling(false)
+            setCurrentConnection(null)
           })
         })
+
 
         {/*}
         // --- Handle Call Disconnect (SINGLE POINT FOR HANGUP LOGIC) ---
@@ -947,6 +967,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
       const call = await device.connect({
         params: {
           To: cleanNumber,
+           From: userProfile.phone,  
           CallerEmail: callerEmail,
           ReceiverEmail: receiverEmail,
           CallerNumber: userProfile.phone,
