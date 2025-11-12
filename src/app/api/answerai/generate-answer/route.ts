@@ -1,3 +1,5 @@
+// src/app/api/answerai/generate-answer/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from 'server/config/authOptions.js'
@@ -49,14 +51,16 @@ async function generateAnswer({ question, context, position, company }: PromptIn
     `Give a relevant, structured, concise response.`
   ].filter(Boolean).join('\n')
 
-  const res = await fetch('https://api.together.xyz/v1/chat/completions', {
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.TOGETHER_API_KEY}`,
-      'Content-Type': 'application/json'
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY || 'sk-or-v158b52a65c4a359a89665321240e6ffc8239956b3b1dbbcc9c9d8aeaee865c393'}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.com',
+      'X-Title': 'AnswerAI Interview Assistant'
     },
     body: JSON.stringify({
-      model: 'mistralai/Mistral-7B-Instruct-v0.1',
+      model: 'kwaipilot/kat-coder-pro:free',
       messages: [
         { role: 'system', content: 'You are a helpful and concise AI assistant.' },
         { role: 'user', content: prompt }
@@ -68,8 +72,8 @@ async function generateAnswer({ question, context, position, company }: PromptIn
 
   if (!res.ok) {
     const errorText = await res.text()
-    console.error('Together.ai API error:', res.status, errorText)
-    throw new Error(`Together.ai API returned ${res.status}`)
+    console.error('OpenRouter API error:', res.status, errorText)
+    throw new Error(`OpenRouter API returned ${res.status}`)
   }
 
   const data = await res.json()

@@ -19,7 +19,7 @@ export interface Answer {
   confidence: number
   generatedAt: number
   isAiGenerated: boolean
-   metadata?: {
+  metadata?: {
     detectionMethod?: string
     context?: string
     processingTime?: number
@@ -39,6 +39,7 @@ export interface AnswerAISession {
   answers: Answer[]
   audioUrls: string[]
   status: 'active' | 'paused' | 'completed'
+  transcript?: string
   createdAt: string
   updatedAt: string
   totalDuration: number

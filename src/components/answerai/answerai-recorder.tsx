@@ -47,7 +47,6 @@ export interface AnswerAIRecorderHandle {
   forceQuestionDetection: () => void;
   addManualQuestion: (content: string) => void;
 }
-
 interface AnswerAIRecorderProps {
   sessionId?: string;
   onSegments: (segments: AnswerAISegment[]) => void;
@@ -55,6 +54,9 @@ interface AnswerAIRecorderProps {
   onAnswerGenerated: (answer: Answer) => void;
   position?: string;
   company?: string;
+  initialQuestions?: Question[];
+  initialAnswers?: Answer[];
+  initialTranscript?: string;
 }
 
 type ConnectionQuality = 'excellent' | 'good' | 'poor' | 'unknown';
@@ -113,7 +115,7 @@ const ConnectionStatus = React.memo(function ConnectionStatus({
 
 export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecorderProps>(
   function AnswerAIRecorder(
-    { sessionId, onSegments, onQuestionDetected, onAnswerGenerated, position, company },
+    { sessionId, onSegments, onQuestionDetected, onAnswerGenerated, position, company, initialQuestions, initialTranscript },
     ref
   ) {
     const { toast } = useToast();
@@ -166,6 +168,10 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       };
     }, []);
     const bcRef = useRef<BroadcastChannel | null>(null);
+    useEffect(() => {
+      if (initialQuestions?.length) setAllQuestions(initialQuestions);
+      if (initialTranscript) setTranscriptText(initialTranscript);
+    }, [initialQuestions, initialTranscript]);
 
     useEffect(() => {
       bcRef.current = new BroadcastChannel('answerai_questions');
@@ -292,7 +298,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
     );
 
 
-    
+
     // Detection
     const detectQuestions = useCallback(
       async (segments: AnswerAISegment[]) => {
@@ -798,7 +804,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
                     placeholder="Type a question manually to generate an AI answer..."
                     value={manualQuestion}
                     onChange={(e) => setManualQuestion(e.target.value)}
-                    className="flex-1 min-h-[60px] resize-none"
+                    className="flex-1 w-full min-h-[80px] resize-none overflow-hidden"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();

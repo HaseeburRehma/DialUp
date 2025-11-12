@@ -64,6 +64,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
     url
   })) ?? []
 
+  
   useEffect(() => {
     if (open && session) {
       setFormData({
@@ -209,6 +210,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
       // Prepare payload
       const payload = {
+        sessionId: session?.id,
         ...formData,
         questions,
         answers,
@@ -219,7 +221,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
       // Save session
       const url = session ? `/api/answerai/${session.id}` : '/api/answerai'
-      const method = session ? 'PATCH' : 'POST'
+      const method = session ? 'PUT' : 'POST'
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -269,7 +271,11 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
               onAnswerGenerated={handleAnswerGenerated}
               position={formData.position}
               company={formData.company}
+              initialQuestions={session?.questions}
+              initialAnswers={session?.answers}
+              initialTranscript={session?.transcript}
             />
+
 
             {savedRecs.length > 0 && (
               <RecordingsList

@@ -133,8 +133,7 @@ export function useOptimizedWhisperLive(
   const systemRef = useRef<MediaStream | null>(null)
   const wsMicRef = useRef<WebSocket | null>(null);
   const wsSysRef = useRef<WebSocket | null>(null);
-  const micProcessorRef = useRef<ScriptProcessorNode | null>(null);
-  const sysProcessorRef = useRef<ScriptProcessorNode | null>(null);
+
   const ctxRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
@@ -211,6 +210,10 @@ export function useOptimizedWhisperLive(
         chunk_size: config.optimization?.chunkSize || 2048
       }));
     };
+
+    setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }));
+    }, 10000);
 
     ws.onmessage = (e: MessageEvent) => {
       if (typeof e.data !== 'string') return;
@@ -319,13 +322,11 @@ export function useOptimizedWhisperLive(
   // Optimized transcription start
   const startTranscription = useCallback(async () => {
     try {
-      // Capture mic
       const micStream = await navigator.mediaDevices.getUserMedia({
         audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
       micRef.current = micStream;
 
-      // Optionally capture system audio
       let systemStream: MediaStream | null = null;
       if (config.audioSources?.systemAudio) {
         try {
@@ -340,78 +341,50 @@ export function useOptimizedWhisperLive(
       ctxRef.current = ctx;
       sampleRateRef.current = ctx.sampleRate;
 
-      // MIC
-      const micSrc = ctx.createMediaStreamSource(micStream);
-      const micProc = ctx.createScriptProcessor(config.optimization?.chunkSize || 2048, 1, 1);
-      micSrc.connect(micProc);
-      micProc.connect(ctx.destination);
-      micProc.onaudioprocess = (e: AudioProcessingEvent) => {
-        // --- copy samples from input channel ---
-        const input = e.inputBuffer.getChannelData(0)
-        const clone = new Float32Array(input.length)
-        clone.set(input)
+      // ✅ Add the combined block here
+      const destination = ctx.createMediaStreamDestination();
 
-        // ✅ sanity-check: ignore empty frames
-        const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length)
-        if (rms < 0.0005) return // skip near-silence
-
-        // ✅ keep for merged recording
-        if (config.saveRecording) recordingBuffers.current.push(clone)
-
-        // ✅ visualize
-        const ui8 = new Uint8Array(clone.length)
-        for (let i = 0; i < clone.length; i++)
-          ui8[i] = Math.min(255, Math.max(0, Math.floor((clone[i] + 1) * 127.5)))
-        audioDataRef.current = ui8
-        setAudioData(ui8)
-        setDataUpdateTrigger(t => t + 1)
-
-        // ✅ send binary to Whisper
-        if (wsMicRef.current?.readyState === WebSocket.OPEN)
-          wsMicRef.current.send(clone.buffer)
+      if (micStream) {
+        const micSource = ctx.createMediaStreamSource(micStream);
+        micSource.connect(destination);
       }
-
-      micProcessorRef.current = micProc;
-
-      // SYSTEM
       if (systemStream) {
-        const sysSrc = ctx.createMediaStreamSource(systemStream);
-        const sysProc = ctx.createScriptProcessor(config.optimization?.chunkSize || 2048, 1, 1);
-        sysSrc.connect(sysProc);
-        sysProc.connect(ctx.destination);
-
-        sysProc.onaudioprocess = (e: AudioProcessingEvent) => {
-          // --- copy samples from input channel ---
-          const input = e.inputBuffer.getChannelData(0)
-          const clone = new Float32Array(input.length)
-          clone.set(input)
-
-          // ✅ sanity-check: ignore empty frames
-          const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length)
-          if (rms < 0.0005) return // skip near-silence
-
-          // ✅ keep for merged recording
-          if (config.saveRecording) recordingBuffers.current.push(clone)
-
-          // ✅ visualize
-          const ui8 = new Uint8Array(clone.length)
-          for (let i = 0; i < clone.length; i++)
-            ui8[i] = Math.min(255, Math.max(0, Math.floor((clone[i] + 1) * 127.5)))
-          audioDataRef.current = ui8
-          setAudioData(ui8)
-          setDataUpdateTrigger(t => t + 1)
-
-          // ✅ send binary to Whisper
-          if (wsSysRef.current?.readyState === WebSocket.OPEN)
-            wsSysRef.current.send(clone.buffer)
-        }
-
-        sysProcessorRef.current = sysProc;
+        const sysSource = ctx.createMediaStreamSource(systemStream);
+        sysSource.connect(destination);
       }
 
-      setState(s => ({ ...s, isTranscribing: true, error: null }));
+      const mixSource = ctx.createMediaStreamSource(destination.stream);
+      const processor = ctx.createScriptProcessor(config.optimization?.chunkSize || 4096, 1, 1);
+      mixSource.connect(processor);
+      processor.connect(ctx.destination);
+
+      processor.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        const clone = new Float32Array(input);
+        const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length);
+        if (rms < 0.0001) return;
+        if (performanceRef.current.messageCount++ % 20 === 0)
+          console.debug('RMS:', rms.toFixed(6));
+        if (config.saveRecording) recordingBuffers.current.push(clone);
+
+        // visualize
+        const ui8 = new Uint8Array(clone.length);
+        for (let i = 0; i < clone.length; i++)
+          ui8[i] = Math.min(255, Math.max(0, Math.floor((clone[i] + 1) * 127.5)));
+        audioDataRef.current = ui8;
+        setAudioData(ui8);
+        setDataUpdateTrigger((t) => t + 1);
+
+        if (wsMicRef.current?.readyState === WebSocket.OPEN) {
+          wsMicRef.current.send(clone.buffer);
+        }
+      };
+
+      processorRef.current = processor;
+
+      setState((s) => ({ ...s, isTranscribing: true, error: null }));
     } catch (err: any) {
-      setState(s => ({ ...s, error: `Failed to start transcription: ${err.message}` }));
+      setState((s) => ({ ...s, error: `Failed to start transcription: ${err.message}` }));
       toast({ title: 'Transcription Error', description: err.message, variant: 'destructive' });
     }
   }, [config, toast]);
@@ -422,25 +395,22 @@ export function useOptimizedWhisperLive(
   const stopTranscription = useCallback(async () => {
     console.log('[OptimizedWhisperLive] Stopping transcription...')
 
-    // 🔴 Close all WebSockets
+    //  Close all WebSockets
     if (wsMicRef.current?.readyState === WebSocket.OPEN) wsMicRef.current.close(1000, 'Normal Closure')
     wsMicRef.current = null
     if (wsSysRef.current?.readyState === WebSocket.OPEN) wsSysRef.current.close(1000, 'Normal Closure')
     wsSysRef.current = null
 
-    // 🧹 Disconnect audio processors
-    micProcessorRef.current?.disconnect()
-    sysProcessorRef.current?.disconnect()
-    micProcessorRef.current = null
-    sysProcessorRef.current = null
-
-    // 🧹 Clean up extra processor
+    //  Disconnect processor
     if (processorRef.current) {
-      processorRef.current.disconnect()
-      processorRef.current = null
+      processorRef.current.disconnect();
+      processorRef.current = null;
     }
 
-    // 🛑 Stop all input tracks
+
+
+
+    //  Stop all input tracks
     if (micRef.current) {
       micRef.current.getTracks().forEach(t => t.stop())
       micRef.current = null
@@ -450,7 +420,7 @@ export function useOptimizedWhisperLive(
       systemRef.current = null
     }
 
-    // 🎧 Handle recording upload
+    //  Handle recording upload
     if (config.saveRecording && recordingBuffers.current.length > 0) {
       console.log(
         '[OptimizedWhisperLive] Processing recording...',
@@ -469,7 +439,7 @@ export function useOptimizedWhisperLive(
           offset += buf.length
         }
 
-        // ✅ SAFE normalization (no Math.max spread)
+        // SAFE normalization (no Math.max spread)
         let maxAmp = 0
         for (let i = 0; i < interleaved.length; i++) {
           const val = Math.abs(interleaved[i])
@@ -480,7 +450,7 @@ export function useOptimizedWhisperLive(
           interleaved[i] /= maxAmp
         }
 
-        // ✅ Encode as PCM WAV
+        // Encode as PCM WAV
         const wavBytes = encodeWAVOptimized(interleaved, sampleRate)
         const blob = new Blob([wavBytes], { type: 'audio/wav' })
         const formData = new FormData()

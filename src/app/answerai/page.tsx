@@ -34,7 +34,6 @@ export default function AnswerAIPage() {
         router.push('/auth/signin')
         return
       }
-      useAuthRedirect('/api/answerai')
 
       if (response.ok) {
         const data: AnswerAISession[] = await response.json()
