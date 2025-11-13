@@ -25,12 +25,12 @@ class ServeClientFasterWhisper(ServeClientBase):
         model="small.en",
         initial_prompt=None,
         vad_parameters=None,
-        use_vad=True,
+        use_vad=False,
         single_model=False,
         send_last_n_segments=10,
-        no_speech_thresh=0.45,
+        no_speech_thresh=0.25,
         clip_audio=False,
-        same_output_threshold=7,
+        same_output_threshold=0.92,
         cache_path="~/.cache/whisper-live/",
         translation_queue=None,
     ):
@@ -76,7 +76,13 @@ class ServeClientFasterWhisper(ServeClientBase):
         self.language = "en" if self.model_size_or_path.endswith("en") else language
         self.task = task
         self.initial_prompt = initial_prompt
-        self.vad_parameters = vad_parameters or {"onset": 0.5}
+        self.vad_parameters = vad_parameters or {
+        "onset": 0.35,                      # 🔥 less aggressive, keeps more voice
+        "offset": 0.25,
+        "min_speech_duration_ms": 150,
+        "min_silence_duration_ms": 400,
+        "speech_pad_ms": 120
+        }
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
         if device == "cuda":
@@ -229,17 +235,43 @@ class ServeClientFasterWhisper(ServeClientBase):
             duration (float): Duration of the transcribed audio chunk.
         """
         segments = []
+        
         if len(result):
             self.t_start = None
             last_segment = self.update_segments(result, duration)
             segments = self.prepare_segments(last_segment)
 
-        if len(segments):
-            speaker = getattr(self, "current_speaker", "unknown")
-            track = getattr(self, "current_track", "unknown_track")
-            for seg in segments:
-                seg["speaker"] = speaker
-                seg["track"] = track
-                seg["final"] = seg.get("final", False) 
+        if not segments:
+           return
+        
+        merged_segments = []
+        buffer = ""
+        for seg in segments:
+            text = seg["text"].strip()
 
-            self.send_transcription_to_client(segments)
+           # Small fragment → buffer it
+            if len(text) < 4:
+                buffer += " " + text
+                continue
+
+           # Apply buffer if exists
+            if buffer:
+                seg["text"] = (buffer + " " + text).strip()
+                buffer = ""
+
+            merged_segments.append(seg)
+       
+          # If buffer remains at end, attach to last segment
+        if buffer and merged_segments:
+            merged_segments[-1]["text"] += " " + buffer.strip()
+
+          # 3) Attach metadata and send to client
+        speaker = getattr(self, "current_speaker", "unknown")
+        track = getattr(self, "current_track", "unknown_track")
+
+        for seg in merged_segments:
+            seg["speaker"] = speaker
+            seg["track"] = track
+            seg["final"] = seg.get("final", False)
+
+        self.send_transcription_to_client(merged_segments)

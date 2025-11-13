@@ -164,12 +164,7 @@ export function useOptimizedWhisperLive(
       return true
     }
 
-    // Check for substring matches in recent history
-    for (const historical of transcriptHistoryRef.current) {
-      if (historical.includes(normalized) || normalized.includes(historical)) {
-        return true
-      }
-    }
+
 
     return false
   }, [normalizeText])
@@ -202,13 +197,16 @@ export function useOptimizedWhisperLive(
         uid: `${uidRef.current}-${role}`,
         language: config.language,
         model: config.model,
-        use_vad: config.vad,
+        use_vad: false,                     //  IMPORTANT
         stream: true,
         save_recording: config.saveRecording,
-        output_filename: `${config.outputFilename || 'recording'}-${role}.wav`,
+        output_filename: `${config.outputFilename}-${role}.wav`,
         sample_rate: sampleRateRef.current,
-        chunk_size: config.optimization?.chunkSize || 2048
+        same_output_threshold: 0.92,        //  reduce repetition
+        no_speech_thresh: 0.25,             //  don’t ignore quiet speech
+        chunk_size: 16384                   //  smoother context flow
       }));
+
     };
 
     setInterval(() => {
@@ -228,7 +226,7 @@ export function useOptimizedWhisperLive(
             if (!text) continue;
             const norm = normalizeText(text);
             if (segmentHistoryRef.current.has(norm)) continue;
-
+            segmentHistoryRef.current.set(norm, now);
             newSegments.push({
               id: `${role}-${now}-${Math.random().toString(36).slice(2, 6)}`,
               speaker: role,
@@ -354,7 +352,7 @@ export function useOptimizedWhisperLive(
       }
 
       const mixSource = ctx.createMediaStreamSource(destination.stream);
-      const processor = ctx.createScriptProcessor(config.optimization?.chunkSize || 4096, 1, 1);
+      const processor = ctx.createScriptProcessor(config.optimization?.chunkSize || 16384, 1, 1);
       mixSource.connect(processor);
       processor.connect(ctx.destination);
 
@@ -362,7 +360,7 @@ export function useOptimizedWhisperLive(
         const input = e.inputBuffer.getChannelData(0);
         const clone = new Float32Array(input);
         const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length);
-        if (rms < 0.0001) return;
+        if (rms < 0.0002) return;
         if (performanceRef.current.messageCount++ % 20 === 0)
           console.debug('RMS:', rms.toFixed(6));
         if (config.saveRecording) recordingBuffers.current.push(clone);

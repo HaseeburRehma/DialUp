@@ -158,7 +158,7 @@ export function NoteEditorModal({ open, note, onClose, onSave }: NoteEditorModal
 
             if (!resp.ok) throw new Error('Upload failed');
             const { url } = await resp.json();
-            return url;
+            return url; 
           }
           return rec.url as string;
         })

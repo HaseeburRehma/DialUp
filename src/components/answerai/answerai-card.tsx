@@ -1,5 +1,4 @@
 // src/components/answerai/answerai-card.tsx
-
 'use client'
 
 import { useState } from 'react'
@@ -24,138 +23,149 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800'
-      case 'paused': return 'bg-yellow-100 text-yellow-800'
-      case 'completed': return 'bg-blue-100 text-blue-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'active': return 'bg-green-500/10 text-green-400 border border-green-500/20'
+      case 'paused': return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+      case 'completed': return 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+      default: return 'bg-slate-700/50 text-slate-300 border border-slate-600'
     }
   }
 
   const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`
-    } else if (minutes > 0) {
-      return `${minutes}m ${secs}s`
-    } else {
-      return `${secs}s`
-    }
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    if (h > 0) return `${h}h ${m}m ${s}s`
+    if (m > 0) return `${m}m ${s}s`
+    return `${s}s`
   }
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardContent className="p-6">
+    <Card className="rounded-xl border border-slate-700 bg-slate-900 shadow-xl hover:shadow-2xl transition-all">
+      <CardContent className="p-5">
+
+        {/* Header */}
         <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h3 className="text-xl font-semibold mb-2">{session.sessionName}</h3>
-            <Badge className={getStatusColor(session.status)}>
-              {session.status === 'active' && <Play className="w-3 h-3 mr-1" />}
-              {session.status === 'paused' && <Pause className="w-3 h-3 mr-1" />}
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1 leading-tight">
+              {session.sessionName}
+            </h3>
+
+            <Badge className={`${getStatusColor(session.status)} flex items-center gap-1`}>
+              {session.status === 'active' && <Play className="w-3 h-3" />}
+              {session.status === 'paused' && <Pause className="w-3 h-3" />}
               {session.status}
             </Badge>
           </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={onEdit}>
+
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEdit}
+              className="text-slate-300 hover:bg-slate-800 rounded-md"
+            >
               <Edit className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={onDelete}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDelete}
+              className="text-red-400 hover:bg-red-500/10 rounded-md"
+            >
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">
-                <strong>Candidate:</strong> {session.candidateName}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Building className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">
-                <strong>Position:</strong> {session.position} at {session.company}
-              </span>
-            </div>
+        {/* Candidate & Position */}
+        <div className="space-y-3 mb-4">
+          <div className="flex items-center gap-2 text-sm text-slate-300">
+            <Users className="w-4 h-4 text-slate-400" />
+            <span><strong>Candidate:</strong> {session.candidateName}</span>
           </div>
-          
-          <div className="space-y-2">
-            <div className="text-sm">
-              <strong>Questions:</strong> {session.questions.length}
-            </div>
-            <div className="text-sm">
-              <strong>Answers:</strong> {session.answers.length}
-            </div>
-            <div className="text-sm">
-              <strong>Duration:</strong> {formatDuration(session.totalDuration)}
-            </div>
+
+          <div className="flex items-center gap-2 text-sm text-slate-300">
+            <Building className="w-4 h-4 text-slate-400" />
+            <span>
+              <strong>Position:</strong> {session.position} @ {session.company}
+            </span>
           </div>
         </div>
 
+        {/* Stats Row */}
+        <div className="grid grid-cols-3 text-sm mb-4">
+          <div className="text-slate-300">
+            <span className="text-slate-400 block">Questions</span>
+            <span className="font-semibold text-white">{session.questions.length}</span>
+          </div>
+
+          <div className="text-slate-300">
+            <span className="text-slate-400 block">Answers</span>
+            <span className="font-semibold text-white">{session.answers.length}</span>
+          </div>
+
+          <div className="text-slate-300">
+            <span className="text-slate-400 block">Duration</span>
+            <span className="font-semibold text-white">{formatDuration(session.totalDuration)}</span>
+          </div>
+        </div>
+
+        {/* "Details" Toggle */}
+        {session.audioUrls.length > 0 && (
+          <Button
+            variant="link"
+            size="sm"
+            onClick={() => setShowFullDetails(!showFullDetails)}
+            className="text-blue-400 px-0"
+          >
+            {showFullDetails ? 'Hide details' : 'Show details'}
+          </Button>
+        )}
+
+        {/* Full Details Section */}
         {showFullDetails && (
-          <div className="mb-4 p-3 bg-muted rounded-lg">
-            <h4 className="font-medium mb-2">Session Details:</h4>
+          <div className="mt-3 p-3 bg-slate-800/50 rounded-lg">
             {session.interviewerName && (
-              <p className="text-sm mb-1">
+              <p className="text-sm text-slate-300 mb-1">
                 <strong>Interviewer:</strong> {session.interviewerName}
               </p>
             )}
             {session.candidateEmail && (
-              <p className="text-sm mb-1">
+              <p className="text-sm text-slate-300 mb-1">
                 <strong>Email:</strong> {session.candidateEmail}
               </p>
             )}
-            <p className="text-sm">
-              <strong>Audio Files:</strong> {session.audioUrls.length} recordings
+            <p className="text-sm text-slate-300">
+              <strong>Audio Files:</strong> {session.audioUrls.length}
             </p>
+
+            {/* Audio Clips */}
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-2">
+              {session.audioUrls.slice(0, 3).map((url, i) => (
+                <audio
+                  key={i}
+                  src={url}
+                  controls
+                  className="h-10 w-56 rounded bg-slate-900"
+                />
+              ))}
+              {session.audioUrls.length > 3 && (
+                <div className="text-sm text-slate-500 self-center">
+                  +{session.audioUrls.length - 3} more
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {session.audioUrls.length > 0 && (
-          <div className="mb-4">
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => setShowFullDetails(!showFullDetails)}
-              className="p-0 h-auto"
-            >
-              {showFullDetails ? 'Show less' : 'Show details'}
-            </Button>
-          </div>
-        )}
-
-        {session.audioUrls.length > 0 && showFullDetails && (
-          <div className="mb-4 flex gap-2 overflow-x-auto">
-            {session.audioUrls.slice(0, 3).map((url, index) => (
-              <audio
-                key={index}
-                src={url}
-                controls
-                className="w-60 shrink-0 h-10"
-              />
-            ))}
-            {session.audioUrls.length > 3 && (
-              <span className="text-sm text-muted-foreground self-center">
-                +{session.audioUrls.length - 3} more
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="flex items-center text-sm text-muted-foreground gap-2">
-          <Clock className="w-4 h-4" />
-          <span>
-            {session.updatedAt !== session.createdAt
-              ? `Updated ${updated}`
-              : `Created ${created}`
-            }
-          </span>
+        {/* Timestamp */}
+        <div className="flex items-center text-sm text-slate-500 mt-4">
+          <Clock className="w-4 h-4 mr-2" />
+          {session.updatedAt !== session.createdAt
+            ? `Updated ${updated}`
+            : `Created ${created}`}
         </div>
       </CardContent>
-    </Card> 
+    </Card>
   )
 }
