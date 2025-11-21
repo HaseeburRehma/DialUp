@@ -50,6 +50,8 @@ export function Sidebar({
     { href: '/notes', icon: FileText, label: 'Notes', color: 'text-emerald-400' },
     { href: '/answerai', icon: Brain, label: 'AnswerAI', color: 'text-cyan-400' },
     { href: '/dialer', icon: Phone, label: 'Dialer', color: 'text-pink-400' },
+    { href: '/ai-agents', icon: Brain, label: 'AIAgents', color: 'text-slate-400' },
+
     { href: '/settings', icon: Settings, label: 'Settings', color: 'text-slate-400' },
   ]
 

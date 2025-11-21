@@ -1,10 +1,11 @@
 // src/components/layout/dashboard-layout.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Header } from './header'
 import { Sidebar } from './../sidebar'
 import { useCustomSession } from '@/hooks/use-custom-session'
+import { cn } from '@/lib/utils'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -13,73 +14,60 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: session, status } = useCustomSession()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  /* ---------------------------------------------
-   * LOADING STATE
-   * -------------------------------------------*/
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-teal-500 rounded-full blur-xl opacity-20 animate-pulse"></div>
-          <div className="relative bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8 shadow-xl">
-            <div className="flex items-center space-x-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-transparent border-t-blue-400 border-r-teal-400"></div>
-              <span className="text-white/90 font-medium">Loading your workspace...</span>
-            </div>
+          <div className="absolute inset-0 bg-emerald-300/40 rounded-full blur-3xl opacity-40 animate-pulse" />
+          <div className="relative bg-white border border-slate-200 rounded-2xl px-6 py-4 shadow-lg flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-transparent border-t-emerald-500 border-r-sky-500" />
+            <span className="text-slate-800 font-medium">
+              Loading your workspace…
+            </span>
           </div>
         </div>
       </div>
     )
   }
 
-  /* ---------------------------------------------
-   * NOT SIGNED IN
-   * -------------------------------------------*/
   if (!session) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900">
-        <div className="text-white/90 text-lg font-medium">
-          Please sign in to continue
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="bg-white border border-slate-200 rounded-xl px-6 py-4 shadow-sm">
+          <p className="text-slate-800 font-medium">
+            Please sign in to continue.
+          </p>
         </div>
       </div>
     )
   }
 
-  /* ---------------------------------------------
-   * MAIN LAYOUT
-   * -------------------------------------------*/
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-white ">
-
-      {/* Ambient Background Blur Elements */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-48 -right-32 w-[32rem] h-[32rem] bg-blue-300/20 rounded-full blur-[120px]"></div>
-        <div className="absolute top-48 -left-44 w-[28rem] h-[28rem] bg-purple-200/20 rounded-full blur-[100px]"></div>
-        <div className="absolute bottom-0 -left-32 w-[34rem] h-[34rem] bg-pink-300/10 rounded-full blur-[120px]"></div>
-      </div>
-
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* Header */}
       <Header onMenuClick={() => setSidebarOpen(true)} />
 
-      <div className="flex pt-20 relative z-10">
-        
+      <div className="flex pt-16 md:pt-20 relative">
         {/* Sidebar */}
-        <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} />
+        <Sidebar
+          open={sidebarOpen}
+          setOpen={setSidebarOpen}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+        />
 
-        {/* Main Content */}
-        <main className="
-          flex-1 
-          md:ml-72 
-          p-4 md:p-8 
-          transition-all duration-300 ease-in-out
-        ">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
+        {/* Main content */}
+        <main
+          className={cn(
+            'flex-1 px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8 transition-all duration-300',
+            sidebarCollapsed ? 'md:ml-20' : 'md:ml-72'
+          )}
+        >
+          <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
-
     </div>
   )
 }
