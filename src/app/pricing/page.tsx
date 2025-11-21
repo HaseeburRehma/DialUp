@@ -31,7 +31,6 @@ import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 import { Canvas } from '@react-three/fiber'
 import { MeshDistortMaterial, OrbitControls, Sphere } from '@react-three/drei'
-import { VoiceAIVisual } from '@/components/3d/VoiceVisual'
 
 export default function PricingPage() {
   const { data: session } = useSession()
@@ -245,9 +244,7 @@ export default function PricingPage() {
                 </p>
               </motion.div>
 
-              {/* 3D Visual */}
 
-              <VoiceAIVisual />
               {/* Billing Toggle */}
               <motion.div
                 className="inline-flex items-center bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-1 rounded-full mt-8"

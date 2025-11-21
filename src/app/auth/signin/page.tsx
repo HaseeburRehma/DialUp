@@ -24,28 +24,28 @@ export default function SignInPage() {
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setLoading(true)
+    e.preventDefault()
+    setLoading(true)
 
-  const res = await signIn("credentials", {
-    redirect: false,
-    username: formData.username,
-    password: formData.password,
-  })
-
-  if (res?.error) {
-    toast({
-      title: "Error",
-      description: res.error,
-      variant: "destructive",
+    const res = await signIn("credentials", {
+      redirect: false,
+      username: formData.username,
+      password: formData.password,
     })
-  } else {
-    toast({ title: "Success", description: "Signed in successfully." })
-    router.push("/notes")
-  }
 
-  setLoading(false)
-}
+    if (res?.error) {
+      toast({
+        title: "Error",
+        description: res.error,
+        variant: "destructive",
+      })
+    } else {
+      toast({ title: "Success", description: "Signed in successfully." })
+      router.push("/notes")
+    }
+
+    setLoading(false)
+  }
 
   const benefits = [
     'Unlimited voice recordings',
@@ -77,7 +77,7 @@ export default function SignInPage() {
       <div className="flex items-start justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-5xl grid lg:grid-cols-2 gap-6 md:gap-8 items-start">
           {/* Benefits Section */}
-          <motion.div 
+          <motion.div
             className="hidden lg:block space-y-8"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -94,7 +94,7 @@ export default function SignInPage() {
 
             <div className="space-y-4">
               {benefits.map((benefit, index) => (
-                <motion.div 
+                <motion.div
                   key={index}
                   className="flex items-center space-x-3"
                   initial={{ opacity: 0, y: 20 }}
@@ -109,7 +109,7 @@ export default function SignInPage() {
               ))}
             </div>
 
-            <motion.div 
+            <motion.div
               className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-6 rounded-2xl shadow-sm"
               whileHover={{ scale: 1.02 }}
             >
@@ -119,39 +119,18 @@ export default function SignInPage() {
               </p>
             </motion.div>
 
-            {/* 3D Visual */}
-            <motion.div 
-              className="h-64"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-            >
-              <Canvas>
-                <OrbitControls enableZoom={false} enablePan={false} />
-                <ambientLight intensity={0.6} />
-                <directionalLight position={[10, 10, 5]} intensity={1.5} />
-                <Sphere args={[1, 64, 64]} scale={1.5}>
-                  <MeshDistortMaterial
-                    color="#3b82f6"
-                    attach="material"
-                    distort={0.4}
-                    speed={1.5}
-                    roughness={0.5}
-                  />
-                </Sphere>
-              </Canvas>
-            </motion.div>
+
           </motion.div>
 
           {/* Sign In Form */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
           >
             <Card className="shadow-2xl border-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm w-full max-w-md mx-auto">
               <CardHeader className="text-center space-y-4">
-                <motion.div 
+                <motion.div
                   className="mx-auto w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-2xl flex items-center justify-center"
                   whileHover={{ scale: 1.1 }}
                 >
