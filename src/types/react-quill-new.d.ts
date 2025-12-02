@@ -1,5 +1,6 @@
-declare module 'react-quill' {
+declare module 'react-quill-new' {
     import React from 'react';
+
     export interface ReactQuillProps {
         theme?: string;
         modules?: any;
@@ -8,9 +9,15 @@ declare module 'react-quill' {
         defaultValue?: string;
         placeholder?: string;
         readOnly?: boolean;
-        onChange?: (content: string, delta: any, source: string, editor: any) => void;
+        onChange?: (
+            content: string,
+            delta: any,
+            source: string,
+            editor: any
+        ) => void;
         className?: string;
         style?: React.CSSProperties;
     }
+
     export default class ReactQuill extends React.Component<ReactQuillProps> { }
 }
