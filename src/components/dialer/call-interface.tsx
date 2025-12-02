@@ -90,7 +90,7 @@ export function CallInterface() {
 
   return (
     <div className="flex flex-col gap-4 max-w-5xl mx-auto px-4 py-6 md:px-6 lg:px-8">
-      <Card className="bg-gradient-to-br from-slate-900 to-slate-800 border-slate-700 shadow-xl rounded-2xl">
+      <Card className="bg-white border-slate-200 shadow-xl rounded-2xl">
         <CardContent className="p-4 sm:p-6">
           {/* Status Header */}
           <div className="flex items-center justify-between mb-4">
@@ -98,23 +98,23 @@ export function CallInterface() {
               <Badge
                 variant={isReady ? "default" : "secondary"}
                 className={isReady
-                  ? 'bg-green-500/20 text-green-300 border-green-500/30 px-3 py-1'
-                  : 'bg-gray-500/20 text-gray-300 px-3 py-1'}
+                  ? 'bg-green-100 text-green-700 border-green-200 px-3 py-1'
+                  : 'bg-slate-100 text-slate-600 px-3 py-1'}
               >
                 <Wifi className="h-3 w-3 mr-2" />
                 {isReady ? 'Connected' : 'Connecting...'}
               </Badge>
               {isReady && (
-                <Badge variant="outline" className="border-slate-600 text-slate-300 px-3 py-1">
+                <Badge variant="outline" className="border-slate-200 text-slate-600 px-3 py-1">
                   <Signal className={`h-3 w-3 mr-2 ${getQualityColor(connectionQuality)}`} />
                   {connectionQuality}
                 </Badge>
               )}
             </div>
             {isCalling && (
-              <div className="flex items-center space-x-2 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/30">
-                <div className="h-2 w-2 bg-red-400 rounded-full animate-pulse" />
-                <span className="text-white font-mono text-sm">{formatTime(callSeconds)}</span>
+              <div className="flex items-center space-x-2 bg-red-50 px-3 py-1 rounded-full border border-red-200">
+                <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-red-700 font-mono text-sm">{formatTime(callSeconds)}</span>
               </div>
             )}
           </div>
@@ -129,7 +129,7 @@ export function CallInterface() {
               defaultCountry="US"
               international
               countryCallingCodeEditable={false}
-              className="text-center h-12 bg-slate-800/50 border border-slate-600 text-black placeholder-slate-400 rounded-lg px-3"
+              className="text-center h-12 bg-white border border-slate-200 text-slate-900 placeholder-slate-400 rounded-lg px-3"
             />
             <Input
               type="email"
@@ -137,7 +137,7 @@ export function CallInterface() {
               value={callerEmail}
               onChange={(e) => setCallerEmail(e.target.value)}
               disabled={isCalling}
-              className="h-12 bg-slate-800/50 border-slate-600 text-white placeholder-slate-400"
+              className="h-12 bg-white border-slate-200 text-slate-900 placeholder-slate-400"
             />
             <Input
               type="email"
@@ -145,7 +145,7 @@ export function CallInterface() {
               value={receiverEmail}
               onChange={(e) => setReceiverEmail(e.target.value)}
               disabled={isCalling}
-              className="h-12 bg-slate-800/50 border-slate-600 text-white placeholder-slate-400"
+              className="h-12 bg-white border-slate-200 text-slate-900 placeholder-slate-400"
             />
           </div>
 
@@ -177,7 +177,7 @@ export function CallInterface() {
               <Button
                 variant="outline"
                 onClick={toggleMute}
-                className={`h-12 ${isMuted ? 'bg-red-500/20 text-red-300' : 'bg-slate-800/50 text-white'}`}
+                className={`h-12 ${isMuted ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
               >
                 {isMuted ? <MicOff className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
                 <span className="text-xs">{isMuted ? 'Unmute' : 'Mute'}</span>
@@ -186,7 +186,7 @@ export function CallInterface() {
               <Button
                 variant="outline"
                 onClick={toggleSpeaker}
-                className={`h-12 ${isSpeakerOn ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-800/50 text-white'}`}
+                className={`h-12 ${isSpeakerOn ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
               >
                 {isSpeakerOn ? <Volume2 className="h-4 w-4 mr-2" /> : <VolumeX className="h-4 w-4 mr-2" />}
                 <span className="text-xs">{isSpeakerOn ? 'Speaker Off' : 'Speaker On'}</span>
@@ -195,7 +195,7 @@ export function CallInterface() {
               <Button
                 variant="outline"
                 onClick={toggleHold}
-                className={`h-12 ${isOnHold ? 'bg-yellow-500/20 text-yellow-300' : 'bg-slate-800/50 text-white'}`}
+                className={`h-12 ${isOnHold ? 'bg-yellow-50 text-yellow-600 border-yellow-200' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
               >
                 {isOnHold ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
                 <span className="text-xs">{isOnHold ? 'Resume' : 'Hold'}</span>
@@ -203,10 +203,10 @@ export function CallInterface() {
 
               <Badge
                 variant="outline"
-                className={`h-12 flex items-center justify-center ${isRecording ? 'bg-red-500/20 text-red-300 border-red-500/30' : 'bg-slate-800/50 text-slate-400'
+                className={`h-12 flex items-center justify-center ${isRecording ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-500 border-slate-200'
                   }`}
               >
-                {isRecording && <div className="h-2 w-2 bg-red-400 rounded-full animate-pulse mr-2" />}
+                {isRecording && <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse mr-2" />}
                 <span className="text-xs">{isRecording ? 'Recording' : 'Not Recording'}</span>
               </Badge>
             </div>
@@ -216,16 +216,16 @@ export function CallInterface() {
           {isCalling && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
               <div>
-                <div className="flex justify-between text-xs text-slate-300 mb-2">
+                <div className="flex justify-between text-xs text-slate-600 mb-2">
                   <span>Speaker</span><span>{Math.round(speakerVolume * 100)}%</span>
                 </div>
-                <Slider value={[speakerVolume]} onValueChange={(v) => setSpeakerVolume(v[0])} max={1} step={0.1} />
+                <Slider value={[speakerVolume]} onValueChange={(v) => setSpeakerVolume(v[0])} max={1} step={0.1} className="[&>.relative>.absolute]:bg-blue-600" />
               </div>
               <div>
-                <div className="flex justify-between text-xs text-slate-300 mb-2">
+                <div className="flex justify-between text-xs text-slate-600 mb-2">
                   <span>Mic</span><span>{Math.round(micVolume * 100)}%</span>
                 </div>
-                <Slider value={[micVolume]} onValueChange={(v) => setMicVolume(v[0])} max={1} step={0.1} />
+                <Slider value={[micVolume]} onValueChange={(v) => setMicVolume(v[0])} max={1} step={0.1} className="[&>.relative>.absolute]:bg-blue-600" />
               </div>
             </div>
           )}
@@ -233,20 +233,20 @@ export function CallInterface() {
       </Card>
 
       {/* Live Transcription with Speaker Tags */}
-      <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+      <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle className="text-white flex items-center justify-between">
+          <CardTitle className="text-slate-900 flex items-center justify-between">
             <span>Live Transcription</span>
             {isTranscribing && (
-              <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
-                <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse mr-2" />
+              <Badge className="bg-green-100 text-green-700 border-green-200">
+                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse mr-2" />
                 Active
               </Badge>
             )}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="bg-slate-800 p-4 rounded-lg max-h-64 overflow-y-auto">
+          <div className="bg-slate-50 p-4 rounded-lg max-h-64 overflow-y-auto border border-slate-100">
             {liveSegments.length > 0 ? (
               <div className="space-y-2">
                 {(liveSegments as Segment[]).map((seg, idx: number) => (
@@ -257,13 +257,13 @@ export function CallInterface() {
                     <Badge
                       variant="outline"
                       className={`mt-0.5 ${seg.speaker === 'caller'
-                        ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                        : 'bg-green-500/20 text-green-300 border-green-500/30'
+                        ? 'bg-blue-100 text-blue-700 border-blue-200'
+                        : 'bg-green-100 text-green-700 border-green-200'
                         }`}
                     >
                       {seg.speaker === 'caller' ? '📞 Caller' : '👤 Agent'}
                     </Badge>
-                    <span className="text-slate-200 flex-1">{seg.content}</span>
+                    <span className="text-slate-700 flex-1">{seg.content}</span>
                   </div>
                 ))}
               </div>
@@ -279,10 +279,10 @@ export function CallInterface() {
       </Card>
       {/* Live Audio Playback */}
       {isCalling && isRecording && (
-        <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+        <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">
           <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Volume2 className="h-5 w-5 mr-2 text-green-400" />
+            <CardTitle className="text-slate-900 flex items-center">
+              <Volume2 className="h-5 w-5 mr-2 text-green-600" />
               Live Call Audio
             </CardTitle>
           </CardHeader>
@@ -300,23 +300,23 @@ export function CallInterface() {
 
 
       {/* Activity Log */}
-      <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+      <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle className="text-white">Activity Log</CardTitle>
+          <CardTitle className="text-slate-900">Activity Log</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {callLog.map((entry, i) => (
-              <div key={i} className="flex items-start space-x-2 text-sm p-2 rounded bg-slate-800/30">
+              <div key={i} className="flex items-start space-x-2 text-sm p-2 rounded bg-slate-50">
                 <span className="text-slate-500 font-mono text-xs">{entry.time}</span>
                 <div className="flex items-start space-x-1">
-                  {entry.type === 'error' && <AlertCircle className="h-3 w-3 text-red-400 mt-0.5" />}
-                  {entry.type === 'warning' && <AlertCircle className="h-3 w-3 text-yellow-400 mt-0.5" />}
-                  {entry.type === 'info' && <Info className="h-3 w-3 text-blue-400 mt-0.5" />}
+                  {entry.type === 'error' && <AlertCircle className="h-3 w-3 text-red-500 mt-0.5" />}
+                  {entry.type === 'warning' && <AlertCircle className="h-3 w-3 text-yellow-500 mt-0.5" />}
+                  {entry.type === 'info' && <Info className="h-3 w-3 text-blue-500 mt-0.5" />}
                   <span className={
-                    entry.type === 'error' ? 'text-red-400' :
-                      entry.type === 'warning' ? 'text-yellow-400' :
-                        'text-slate-300'
+                    entry.type === 'error' ? 'text-red-600' :
+                      entry.type === 'warning' ? 'text-yellow-600' :
+                        'text-slate-700'
                   }>
                     {entry.message}
                   </span>
@@ -328,33 +328,33 @@ export function CallInterface() {
       </Card>
 
       {/* Call History */}
-      <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+      <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle className="text-white">Recent Calls ({callHistory.length})</CardTitle>
+          <CardTitle className="text-slate-900">Recent Calls ({callHistory.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-slate-300">
+            <table className="w-full text-sm text-slate-600">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left py-2">Number</th>
-                  <th className="text-left py-2">Direction</th>
-                  <th className="text-left py-2">Duration</th>
-                  <th className="text-left py-2">Status</th>
-                  <th className="text-left py-2">Recording</th>
-                  <th className="text-left py-2">Date</th>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-2 font-medium text-slate-900">Number</th>
+                  <th className="text-left py-2 font-medium text-slate-900">Direction</th>
+                  <th className="text-left py-2 font-medium text-slate-900">Duration</th>
+                  <th className="text-left py-2 font-medium text-slate-900">Status</th>
+                  <th className="text-left py-2 font-medium text-slate-900">Recording</th>
+                  <th className="text-left py-2 font-medium text-slate-900">Date</th>
                 </tr>
               </thead>
               <tbody>
                 {callHistory.slice(0, 10).map((call, index) => (
-                  <tr key={call.id || index} className="border-b border-slate-800 hover:bg-slate-800/50">
+                  <tr key={call.id || index} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="py-2">{call.number}</td>
                     <td className="py-2">
                       <Badge
                         variant="outline"
                         className={call.direction === 'outbound'
-                          ? 'bg-green-500/20 text-green-300'
-                          : 'bg-blue-500/20 text-blue-300'}
+                          ? 'bg-green-100 text-green-700 border-green-200'
+                          : 'bg-blue-100 text-blue-700 border-blue-200'}
                       >
                         {call.direction}
                       </Badge>
@@ -364,8 +364,8 @@ export function CallInterface() {
                       <Badge
                         variant="outline"
                         className={call.status === 'completed'
-                          ? 'bg-green-500/20 text-green-300'
-                          : 'bg-red-500/20 text-red-300'}
+                          ? 'bg-green-100 text-green-700 border-green-200'
+                          : 'bg-red-100 text-red-700 border-red-200'}
                       >
                         {call.status}
                       </Badge>

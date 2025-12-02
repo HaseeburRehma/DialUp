@@ -44,75 +44,133 @@ export function InteractiveBackground({ children, className }: { children: React
 }
 
 export function HeroBackground() {
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const canvasRef = useRef<HTMLCanvasElement>(null)
+    const mouseRef = useRef({ x: 0, y: 0 })
+    const containerRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
-        const handleMouseMove = (event: MouseEvent) => {
-            setMousePosition({ x: event.clientX, y: event.clientY });
-        };
+        const canvas = canvasRef.current
+        if (!canvas) return
 
-        window.addEventListener("mousemove", handleMouseMove);
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+
+        let animationFrameId: number
+        let particles: Array<{
+            x: number
+            y: number
+            baseX: number
+            baseY: number
+            size: number
+            color: string
+            density: number
+        }> = []
+
+        const colors = ['#3b82f6', '#6366f1', '#8b5cf6']
+
+        const init = () => {
+            particles = []
+            const width = canvas.width
+            const height = canvas.height
+
+            // Create a grid of particles
+            const columns = Math.floor(width / 40) // Adjust spacing
+            const rows = Math.floor(height / 40)
+
+            for (let i = 0; i < columns; i++) {
+                for (let j = 0; j < rows; j++) {
+                    const x = (i * 40) + (Math.random() * 10 - 5)
+                    const y = (j * 40) + (Math.random() * 10 - 5)
+
+                    particles.push({
+                        x,
+                        y,
+                        baseX: x,
+                        baseY: y,
+                        size: Math.random() * 2 + 1,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        density: (Math.random() * 30) + 1
+                    })
+                }
+            }
+        }
+
+        const animate = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+            for (let i = 0; i < particles.length; i++) {
+                let p = particles[i]
+
+                // Mouse interaction
+                const dx = mouseRef.current.x - p.x
+                const dy = mouseRef.current.y - p.y
+                const distance = Math.sqrt(dx * dx + dy * dy)
+                const forceDirectionX = dx / distance
+                const forceDirectionY = dy / distance
+                const maxDistance = 150 // Interaction radius
+                const force = (maxDistance - distance) / maxDistance
+                const directionX = forceDirectionX * force * p.density
+                const directionY = forceDirectionY * force * p.density
+
+                if (distance < maxDistance) {
+                    p.x -= directionX
+                    p.y -= directionY
+                } else {
+                    if (p.x !== p.baseX) {
+                        const dx = p.x - p.baseX
+                        p.x -= dx / 10
+                    }
+                    if (p.y !== p.baseY) {
+                        const dy = p.y - p.baseY
+                        p.y -= dy / 10
+                    }
+                }
+
+                ctx.fillStyle = p.color
+                ctx.beginPath()
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+                ctx.fill()
+            }
+            animationFrameId = requestAnimationFrame(animate)
+        }
+
+        const handleResize = () => {
+            if (containerRef.current && canvas) {
+                canvas.width = containerRef.current.offsetWidth
+                canvas.height = containerRef.current.offsetHeight
+                init()
+            }
+        }
+
+        const handleMouseMove = (e: MouseEvent) => {
+            if (canvas) {
+                const rect = canvas.getBoundingClientRect()
+                mouseRef.current = {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                }
+            }
+        }
+
+        window.addEventListener('resize', handleResize)
+        window.addEventListener('mousemove', handleMouseMove)
+
+        handleResize()
+        animate()
 
         return () => {
-            window.removeEventListener("mousemove", handleMouseMove);
-        };
-    }, []);
+            window.removeEventListener('resize', handleResize)
+            window.removeEventListener('mousemove', handleMouseMove)
+            cancelAnimationFrame(animationFrameId)
+        }
+    }, [])
 
     return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Animated particles in organized formations */}
-            {[...Array(375)].map((_, i) => {
-                // Create grid-based positioning with slight randomness for organized formations
-                const gridCols = 25;
-                const gridRows = 15;
-                const col = i % gridCols;
-                const row = Math.floor(i / gridCols);
-
-                // Base grid position with random offset for organic feel
-                const baseX = (col / gridCols) * 100;
-                const baseY = (row / gridRows) * 100;
-                const randomOffsetX = (Math.random() - 0.3) * 2; // Small random offset
-                const randomOffsetY = (Math.random() - 0.3) * 2;
-
-                const randomX = baseX + randomOffsetX;
-                const randomY = baseY + randomOffsetY;
-                const size = Math.random() * 2 + 1.5;
-                const delay = Math.random() * 4;
-
-                return (
-                    <motion.div
-                        key={i}
-                        className="absolute rounded-full"
-                        style={{
-                            width: size,
-                            height: size,
-                            left: `${randomX}%`,
-                            top: `${randomY}%`,
-                            background: i % 3 === 0 ? '#3b82f6' : i % 3 === 1 ? '#6366f1' : '#8b5cf6',
-                        }}
-                        animate={{
-                            x: [
-                                0,
-                                (mousePosition.x - (typeof window !== 'undefined' ? window.innerWidth / 2 : 500)) * 0.002,
-                                0
-                            ],
-                            y: [
-                                0,
-                                (mousePosition.y - (typeof window !== 'undefined' ? window.innerHeight / 2 : 500)) * 0.002,
-                                0
-                            ],
-                            scale: [1, 1.05, 1],
-
-                        }}
-                        transition={{
-                            duration: 10 + delay,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: delay,
-                        }}
-                    />
-                );
-            })}
+        <div ref={containerRef} className="absolute inset-0 overflow-hidden pointer-events-none">
+            <canvas
+                ref={canvasRef}
+                className="w-full h-full opacity-60"
+            />
         </div>
-    );
+    )
 }

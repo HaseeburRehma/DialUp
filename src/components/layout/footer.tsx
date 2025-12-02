@@ -13,7 +13,6 @@ import {
   MapPin,
   ArrowRight,
   Mic2,
-  Heart
 } from 'lucide-react'
 
 export function Footer() {
@@ -53,24 +52,24 @@ export function Footer() {
   ]
 
   return (
-    <footer className="bg-gradient-to-b from-background to-muted/20 border-t">
+    <footer className="bg-white border-t border-slate-200">
       {/* Newsletter Section */}
-      <div className="border-b bg-gradient-to-r from-green-50/50 to-green-50/50 dark:from-green-950/20 dark:to-green-950/20">
+      <div className="border-b border-slate-200 bg-slate-50">
         <div className="container mx-auto px-4 py-12">
           <div className="max-w-2xl mx-auto text-center">
-            <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-green-600 to-green-600 bg-clip-text text-transparent">
+            <h3 className="text-2xl font-bold mb-4 text-slate-900">
               Stay Updated
             </h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-slate-600 mb-6">
               Get the latest features, tips, and updates delivered to your inbox.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
               <Input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1"
+                className="flex-1 bg-white border-slate-300"
               />
-              <Button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 group">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white group">
                 Subscribe
                 <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Button>
@@ -85,26 +84,28 @@ export function Footer() {
           {/* Brand Section */}
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center space-x-3 mb-4 group">
+
               <div className="relative">
-                <div className="h-10 w-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg rotate-6 group-hover:rotate-12 transition-transform duration-300" />
-                <Mic2 className="absolute inset-0 h-10 w-10 text-white p-2" />
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-sky-500 flex items-center justify-center shadow-sm">
+                  <Mic2 className="h-5 w-5 text-white" />
+                </div>
               </div>
-              <span className="font-bold text-2xl bg-gradient-to-r from-green-600 to-green-600 bg-clip-text text-transparent">
+              <span className="font-bold text-2xl text-slate-900">
                 Vhisper
               </span>
             </Link>
-            
-            <p className="text-muted-foreground mb-6 max-w-sm">
+
+            <p className="text-slate-600 mb-6 max-w-sm">
               Transform your voice into powerful notes with AI-driven transcription and enhancement. Perfect for professionals, students, and creatives.
             </p>
-            
+
             <div className="flex space-x-4">
               {socialLinks.map((social) => (
                 <Button
                   key={social.name}
                   variant="ghost"
                   size="sm"
-                  className="h-10 w-10 p-0 hover:bg-primary/10 hover:text-primary transition-colors"
+                  className="h-10 w-10 p-0 hover:bg-slate-100 hover:text-blue-600 transition-colors"
                   asChild
                 >
                   <Link href={social.href} target="_blank">
@@ -118,13 +119,13 @@ export function Footer() {
 
           {/* Product Links */}
           <div>
-            <h4 className="font-semibold mb-4 text-foreground">Product</h4>
+            <h4 className="font-semibold mb-4 text-slate-900">Product</h4>
             <ul className="space-y-3">
               {footerLinks.product.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-muted-foreground hover:text-primary transition-colors text-sm hover:underline"
+                    className="text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors text-sm hover:underline"
                   >
                     {link.name}
                   </Link>
@@ -135,13 +136,13 @@ export function Footer() {
 
           {/* Company Links */}
           <div>
-            <h4 className="font-semibold mb-4 text-foreground">Company</h4>
+            <h4 className="font-semibold mb-4 text-slate-900">Company</h4>
             <ul className="space-y-3">
               {footerLinks.company.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-muted-foreground hover:text-primary transition-colors text-sm hover:underline"
+                    className="text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors text-sm hover:underline"
                   >
                     {link.name}
                   </Link>
@@ -152,13 +153,13 @@ export function Footer() {
 
           {/* Support Links */}
           <div>
-            <h4 className="font-semibold mb-4 text-foreground">Support</h4>
+            <h4 className="font-semibold mb-4 text-slate-900">Support</h4>
             <ul className="space-y-3">
               {footerLinks.support.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-muted-foreground hover:text-primary transition-colors text-sm hover:underline"
+                    className="text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors text-sm hover:underline"
                   >
                     {link.name}
                   </Link>
@@ -169,13 +170,13 @@ export function Footer() {
 
           {/* Legal Links */}
           <div>
-            <h4 className="font-semibold mb-4 text-foreground">Legal</h4>
+            <h4 className="font-semibold mb-4 text-slate-900">Legal</h4>
             <ul className="space-y-3">
               {footerLinks.legal.map((link) => (
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-muted-foreground hover:text-primary transition-colors text-sm hover:underline"
+                    className="text-slate-500 hover:text-slate-900 transition-colors text-sm hover:underline"
                   >
                     {link.name}
                   </Link>
@@ -186,36 +187,34 @@ export function Footer() {
         </div>
 
         {/* Contact Information */}
-        <div className="mt-12 pt-8 border-t">
+        <div className="mt-12 pt-8 border-t border-slate-200">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-              <Mail className="h-4 w-4 text-primary" />
+            <div className="flex items-center space-x-3 text-sm text-slate-500 hover:text-slate-900 ">
+              <Mail className="h-4 w-4 text-slate-500 hover:text-slate-900 " />
               <span>support@vhisper.com</span>
             </div>
-            <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-              <Phone className="h-4 w-4 text-primary" />
+            <div className="flex items-center space-x-3 text-sm text-slate-500 hover:text-slate-900 ">
+              <Phone className="h-4 w-4 text-slate-500 hover:text-slate-900 " />
               <span>+1 (555) 123-4567</span>
             </div>
-            <div className="flex items-center space-x-3 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4 text-primary" />
+            <div className="flex items-center space-x-3 text-sm text-slate-500 hover:text-slate-900 ">
+              <MapPin className="h-4 w-4 text-slate-500 hover:text-slate-900 " />
               <span>San Francisco, CA</span>
             </div>
           </div>
         </div>
       </div>
 
-      <Separator />
+      <Separator className="bg-slate-200" />
 
       {/* Bottom Footer */}
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <div className="flex items-center space-x-2 text-sm text-slate-600">
             <span>© {currentYear} Vhisper. All rights reserved.</span>
           </div>
-          
-          
-          
-          <div className="text-sm text-muted-foreground">
+
+          <div className="text-sm text-slate-600">
             <span>Version 2.1.0</span>
           </div>
         </div>

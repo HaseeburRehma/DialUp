@@ -33,7 +33,7 @@ export function Sidebar({
 }: {
   open: boolean
   setOpen: (val: boolean) => void
-}){
+}) {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
@@ -72,14 +72,14 @@ export function Sidebar({
         className={`
           fixed top-20 bottom-0 left-0 z-40
           ${collapsed ? 'w-20' : 'w-72'}
-          bg-white/10 backdrop-blur-md border-r border-white/20 flex flex-col transition-all duration-300
+          bg-white border-r border-slate-200 flex flex-col transition-all duration-300 shadow-sm
           ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
         {/* Collapse / Close */}
         <button
           onClick={() => (window.innerWidth < 768 ? setOpen(false) : setCollapsed(!collapsed))}
-          className="p-2 m-2 rounded-lg bg-white/20 hover:bg-white/30 transition"
+          className="p-2 m-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition"
         >
           {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
         </button>
@@ -90,7 +90,7 @@ export function Sidebar({
             {session?.user?.role === 'admin' && (
               <div>
                 {!collapsed && (
-                  <h3 className="text-xs font-semibold text-black/60 uppercase tracking-wider mb-2">
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                     Administration
                   </h3>
                 )}
@@ -98,8 +98,8 @@ export function Sidebar({
                   <Link key={item.href} href={item.href}>
                     <div
                       className={`group flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 ${isActive(item.href)
-                        ? 'bg-white/20 text-black shadow-lg shadow-blue-500/20'
-                        : 'text-black/70 hover:bg-black/10'
+                        ? 'bg-emerald-50 text-emerald-700 shadow-sm'
+                        : 'text-slate-700 hover:bg-slate-100'
                         }`}
                     >
                       <item.icon className={`h-5 w-5 ${item.color}`} />
@@ -112,7 +112,7 @@ export function Sidebar({
 
             <div>
               {!collapsed && (
-                <h3 className="text-xs font-semibold text-black/60 uppercase tracking-wider mb-2">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                   Workspace
                 </h3>
               )}
@@ -120,8 +120,8 @@ export function Sidebar({
                 <Link key={item.href} href={item.href}>
                   <div
                     className={`group flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 ${isActive(item.href)
-                      ? 'bg-white/20 text-black shadow-lg shadow-blue-500/20'
-                      : 'text-black/70 hover:bg-black/10'
+                      ? 'bg-emerald-50 text-emerald-700 shadow-sm'
+                      : 'text-slate-700 hover:bg-slate-100'
                       }`}
                   >
                     <item.icon className={`h-5 w-5 ${item.color}`} />
@@ -135,12 +135,12 @@ export function Sidebar({
 
         {/* Footer: user info + logout */}
         {!collapsed && session?.user && (
-          <div className="p-4 border-t border-white/20">
-            <p className="text-sm font-medium">{session.user.name}</p>
-            <p className="text-xs text-black/60">{session.user.email}</p>
+          <div className="p-4 border-t border-slate-200">
+            <p className="text-sm font-medium text-slate-900">{session.user.name}</p>
+            <p className="text-xs text-slate-500">{session.user.email}</p>
             <button
               onClick={() => signOut()}
-              className="mt-2 flex items-center gap-2 text-sm text-red-500 hover:underline"
+              className="mt-2 flex items-center gap-2 text-sm text-red-600 hover:text-red-700 hover:underline"
             >
               <LogOut className="h-4 w-4" /> Logout
             </button>
@@ -150,7 +150,7 @@ export function Sidebar({
       {/* Dark backdrop for mobile */}
       {open && (
         <div
-          className="fixed inset-0 bg-black/40 z-30 md:hidden"
+          className="fixed inset-0 bg-black/20 z-30 md:hidden"
           onClick={() => setOpen(false)}
         />
       )}

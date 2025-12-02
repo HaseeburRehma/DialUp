@@ -42,7 +42,7 @@ export const StickyScroll = ({
 
     return (
         <motion.div
-            className="h-screen overflow-y-auto flex flex-col lg:flex-row justify-center relative lg:space-x-16  scrollbar-hide"
+            className="h-screen overflow-y-auto flex flex-col lg:flex-row justify-center relative lg:space-x-16 scrollbar-hide bg-white"
             ref={ref}
             style={{
                 scrollbarWidth: 'none',
@@ -53,7 +53,7 @@ export const StickyScroll = ({
             <div className="relative flex items-start w-full lg:w-1/2">
                 <div className="max-w-2xl w-full">
                     {content.map((item, index) => (
-                        <div key={item.title + index} className="min-h-screen flex flex-col justify-start">
+                        <div key={item.title + index} className="min-h-screen flex flex-col justify-start pt-20">
                             <motion.h2
                                 initial={{
                                     opacity: 0,
@@ -61,7 +61,7 @@ export const StickyScroll = ({
                                 animate={{
                                     opacity: activeCard === index ? 1 : 0.3,
                                 }}
-                                className="text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white"
+                                className="text-4xl lg:text-5xl font-bold text-slate-900"
                             >
                                 {item.title}
                             </motion.h2>
@@ -72,7 +72,7 @@ export const StickyScroll = ({
                                 animate={{
                                     opacity: activeCard === index ? 1 : 0.3,
                                 }}
-                                className="text-lg text-slate-600 dark:text-slate-400 max-w-lg mt-8 leading-relaxed"
+                                className="text-lg text-slate-600 max-w-lg mt-8 leading-relaxed"
                             >
                                 {item.description}
                             </motion.p>
@@ -82,10 +82,10 @@ export const StickyScroll = ({
             </div>
 
             {/* Sticky Image */}
-            <div className="hidden lg:flex lg:w-1/2 items-start justify-start sticky top-0 h-screen pb-10">
+            <div className="hidden lg:flex lg:w-1/2 items-start justify-start sticky top-0 h-screen pb-10 pt-20">
                 <motion.div
                     className={cn(
-                        'relative w-full h-full rounded-2xl overflow-hidden shadow-2xl',
+                        'relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl bg-slate-100',
                         contentClassName
                     )}
                     initial={{ opacity: 0 }}

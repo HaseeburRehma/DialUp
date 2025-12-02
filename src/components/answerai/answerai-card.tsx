@@ -1,7 +1,7 @@
 // src/components/answerai/answerai-card.tsx
 'use client'
 
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +15,7 @@ interface AnswerAICardProps {
   onDelete: () => void
 }
 
-export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
+function AnswerAICardComponent({ session, onEdit, onDelete }: AnswerAICardProps) {
   const [showFullDetails, setShowFullDetails] = useState(false)
 
   const created = formatDistanceToNow(new Date(session.createdAt), { addSuffix: true })
@@ -23,10 +23,10 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-green-500/10 text-green-400 border border-green-500/20'
-      case 'paused': return 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-      case 'completed': return 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-      default: return 'bg-slate-700/50 text-slate-300 border border-slate-600'
+      case 'active': return 'bg-green-100 text-green-700 border border-green-200'
+      case 'paused': return 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+      case 'completed': return 'bg-blue-100 text-blue-700 border border-blue-200'
+      default: return 'bg-slate-100 text-slate-700 border border-slate-200'
     }
   }
 
@@ -40,13 +40,13 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
   }
 
   return (
-    <Card className="rounded-xl border border-slate-700 bg-slate-900 shadow-xl hover:shadow-2xl transition-all">
+    <Card className="rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all">
       <CardContent className="p-5">
 
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-lg font-semibold text-white mb-1 leading-tight">
+            <h3 className="text-lg font-semibold text-slate-900 mb-1 leading-tight">
               {session.sessionName}
             </h3>
 
@@ -62,7 +62,7 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
               variant="ghost"
               size="sm"
               onClick={onEdit}
-              className="text-slate-300 hover:bg-slate-800 rounded-md"
+              className="text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-md"
             >
               <Edit className="w-4 h-4" />
             </Button>
@@ -70,7 +70,7 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
               variant="ghost"
               size="sm"
               onClick={onDelete}
-              className="text-red-400 hover:bg-red-500/10 rounded-md"
+              className="text-red-600 hover:bg-red-50 hover:text-red-700 rounded-md"
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -79,13 +79,13 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
 
         {/* Candidate & Position */}
         <div className="space-y-3 mb-4">
-          <div className="flex items-center gap-2 text-sm text-slate-300">
-            <Users className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center gap-2 text-sm text-slate-700">
+            <Users className="w-4 h-4 text-slate-500" />
             <span><strong>Candidate:</strong> {session.candidateName}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm text-slate-300">
-            <Building className="w-4 h-4 text-slate-400" />
+          <div className="flex items-center gap-2 text-sm text-slate-700">
+            <Building className="w-4 h-4 text-slate-500" />
             <span>
               <strong>Position:</strong> {session.position} @ {session.company}
             </span>
@@ -94,19 +94,19 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
 
         {/* Stats Row */}
         <div className="grid grid-cols-3 text-sm mb-4">
-          <div className="text-slate-300">
-            <span className="text-slate-400 block">Questions</span>
-            <span className="font-semibold text-white">{session.questions.length}</span>
+          <div className="text-slate-700">
+            <span className="text-slate-500 block">Questions</span>
+            <span className="font-semibold text-slate-900">{session.questions.length}</span>
           </div>
 
-          <div className="text-slate-300">
-            <span className="text-slate-400 block">Answers</span>
-            <span className="font-semibold text-white">{session.answers.length}</span>
+          <div className="text-slate-700">
+            <span className="text-slate-500 block">Answers</span>
+            <span className="font-semibold text-slate-900">{session.answers.length}</span>
           </div>
 
-          <div className="text-slate-300">
-            <span className="text-slate-400 block">Duration</span>
-            <span className="font-semibold text-white">{formatDuration(session.totalDuration)}</span>
+          <div className="text-slate-700">
+            <span className="text-slate-500 block">Duration</span>
+            <span className="font-semibold text-slate-900">{formatDuration(session.totalDuration)}</span>
           </div>
         </div>
 
@@ -116,7 +116,7 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
             variant="link"
             size="sm"
             onClick={() => setShowFullDetails(!showFullDetails)}
-            className="text-blue-400 px-0"
+            className="text-emerald-600 hover:text-emerald-700 px-0"
           >
             {showFullDetails ? 'Hide details' : 'Show details'}
           </Button>
@@ -124,18 +124,18 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
 
         {/* Full Details Section */}
         {showFullDetails && (
-          <div className="mt-3 p-3 bg-slate-800/50 rounded-lg">
+          <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
             {session.interviewerName && (
-              <p className="text-sm text-slate-300 mb-1">
+              <p className="text-sm text-slate-700 mb-1">
                 <strong>Interviewer:</strong> {session.interviewerName}
               </p>
             )}
             {session.candidateEmail && (
-              <p className="text-sm text-slate-300 mb-1">
+              <p className="text-sm text-slate-700 mb-1">
                 <strong>Email:</strong> {session.candidateEmail}
               </p>
             )}
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-slate-700">
               <strong>Audio Files:</strong> {session.audioUrls.length}
             </p>
 
@@ -146,7 +146,7 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
                   key={i}
                   src={url}
                   controls
-                  className="h-10 w-56 rounded bg-slate-900"
+                  className="h-10 w-56 rounded bg-white border border-slate-200"
                 />
               ))}
               {session.audioUrls.length > 3 && (
@@ -169,3 +169,5 @@ export function AnswerAICard({ session, onEdit, onDelete }: AnswerAICardProps) {
     </Card>
   )
 }
+
+export const AnswerAICard = memo(AnswerAICardComponent)

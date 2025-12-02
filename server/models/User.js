@@ -14,7 +14,8 @@ const userSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   lastLogin: Date,
-  loginCount: { type: Number, default: 0 }
+  loginCount: { type: Number, default: 0 },
+  folders: { type: [String], default: ['General', 'Personal', 'Work'] }
 });
 
 userSchema.methods.verifyPassword = function (raw) {

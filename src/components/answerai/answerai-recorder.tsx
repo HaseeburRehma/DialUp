@@ -798,31 +798,43 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
                   Manual Question Input
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex gap-2">
+              <CardContent>
+                <div className="flex flex-col gap-3">
                   <Textarea
                     placeholder="Type a question manually to generate an AI answer..."
                     value={manualQuestion}
                     onChange={(e) => setManualQuestion(e.target.value)}
-                    className="flex-1 w-full min-h-[80px] resize-none overflow-hidden"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        if (manualQuestion.trim()) addManualQuestion(manualQuestion);
+                        if (manualQuestion.trim()) {
+                          addManualQuestion(manualQuestion);
+                          setManualQuestion('');
+                        }
                       }
                     }}
+                    className="min-h-[80px] bg-white w-full"
                   />
-                  <Button
-                    onClick={() => addManualQuestion(manualQuestion)}
-                    disabled={!manualQuestion.trim() || isGeneratingAnswer}
-                    className="self-end"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-muted-foreground">
+                      Press Enter to add question, Shift+Enter for new line
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (manualQuestion.trim()) {
+                          addManualQuestion(manualQuestion);
+                          setManualQuestion('');
+                        }
+                      }}
+                      disabled={!manualQuestion.trim()}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      Add Question
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Press Enter to add question, Shift+Enter for new line
-                </p>
               </CardContent>
             </Card>
 

@@ -24,7 +24,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Edit, Trash2, CreditCard, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Plan {
@@ -81,69 +81,84 @@ export default function ManagePlansPage() {
 
     if (status === 'loading' || loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="w-12 h-12 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-slate-50">
             <main className="flex-1 pt-16">
                 <div className="container mx-auto px-4 py-8">
 
                     {/* Header and New Plan Button */}
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center justify-between mb-8">
                         <div>
-                            <h2 className="text-2xl font-bold">Manage Plans</h2>
-                            <p className="text-muted-foreground">Configure pricing tiers and features</p>
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="p-3 bg-purple-600 rounded-xl shadow-lg">
+                                    <CreditCard className="h-7 w-7 text-white" />
+                                </div>
+                                <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                                    Manage Plans
+                                </h1>
+                            </div>
+                            <p className="text-slate-600 text-lg">Configure pricing tiers and features</p>
                         </div>
-                        <Button onClick={() => router.push('/admin/plans/new')}>+ New Plan</Button>
+                        <Button
+                            onClick={() => router.push('/admin/plans/new')}
+                            className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm"
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Plan
+                        </Button>
                     </div>
 
-                    <Card>
+                    <Card className="bg-white border-slate-200 shadow-sm">
                         <CardHeader>
-                            <CardTitle>Plans ({plans.length})</CardTitle>
+                            <CardTitle className="text-2xl text-slate-900">Plans ({plans.length})</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Name</TableHead>
-                                            <TableHead>Price</TableHead>
-                                            <TableHead>Features</TableHead>
-                                            <TableHead>Created</TableHead>
-                                            <TableHead className="w-12">Actions</TableHead>
+                                        <TableRow className="border-slate-200 hover:bg-slate-50">
+                                            <TableHead className="font-semibold text-slate-700">Name</TableHead>
+                                            <TableHead className="font-semibold text-slate-700">Price</TableHead>
+                                            <TableHead className="font-semibold text-slate-700">Features</TableHead>
+                                            <TableHead className="font-semibold text-slate-700">Created</TableHead>
+                                            <TableHead className="w-12 font-semibold text-slate-700">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {plans.map(plan => (
-                                            <TableRow key={plan.id}>
+                                            <TableRow key={plan.id} className="border-slate-100 hover:bg-slate-50/50 transition-colors">
                                                 <TableCell>
-                                                    <span className="font-medium">{plan.name}</span>
+                                                    <span className="font-semibold text-slate-900">{plan.name}</span>
                                                 </TableCell>
-                                                <TableCell>${plan.price.toFixed(2)}</TableCell>
                                                 <TableCell>
-                                                    <div className="flex flex-wrap gap-1">
+                                                    <span className="font-semibold text-green-600">${plan.price.toFixed(2)}</span>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex flex-wrap gap-2">
                                                         {plan.features.map(feature => (
-                                                            <Badge key={feature} variant="outline">
+                                                            <Badge key={feature} className="bg-blue-100 text-blue-700 border-blue-200 border font-medium">
                                                                 {feature}
                                                             </Badge>
                                                         ))}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
+                                                <TableCell className="text-sm text-slate-600">
                                                     {new Date(plan.createdAt).toLocaleDateString()}
                                                 </TableCell>
                                                 <TableCell>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon">
+                                                            <Button variant="ghost" size="icon" className="hover:bg-slate-100">
                                                                 <MoreHorizontal />
                                                             </Button>
                                                         </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
+                                                        <DropdownMenuContent align="end" className="bg-white border-slate-200">
                                                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                                             <DropdownMenuItem onClick={() => router.push(`/admin/plans/${plan.id}/edit`)}>
                                                                 <Edit className="mr-2 h-4 w-4" />Edit
@@ -160,7 +175,7 @@ export default function ManagePlansPage() {
                                     </TableBody>
                                 </Table>
                                 {plans.length === 0 && (
-                                    <div className="py-8 text-center text-muted-foreground">
+                                    <div className="py-12 text-center text-slate-500">
                                         No plans found. Create one to get started.
                                     </div>
                                 )}

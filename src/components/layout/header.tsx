@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -83,19 +84,21 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
               <Menu className="h-5 w-5 text-slate-800" />
             </button>
 
-            <div className="relative">
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-sky-500 flex items-center justify-center shadow-sm">
-                <Mic2 className="h-5 w-5 text-white" />
+            <Link href="/" className="flex items-center space-x-3">
+              <div className="relative">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-sky-500 flex items-center justify-center shadow-sm">
+                  <Mic2 className="h-5 w-5 text-white" />
+                </div>
               </div>
-            </div>
-            <div>
-              <h1 className="font-semibold text-base md:text-lg text-slate-900">
-                Vhisper
-              </h1>
-              <p className="text-xs text-slate-500">
-                Voice Intelligence Workspace
-              </p>
-            </div>
+              <div>
+                <h1 className="font-semibold text-base md:text-lg text-slate-900">
+                  Vhisper
+                </h1>
+                <p className="text-xs text-slate-500">
+                  Voice Intelligence Workspace
+                </p>
+              </div>
+            </Link>
           </div>
 
           {/* Search */}
@@ -134,7 +137,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
               </DropdownMenuTrigger>
 
               <DropdownMenuContent
-                className="w-64 p-2 bg-white/95 backdrop-blur-md border border-slate-200 text-slate-900 shadow-lg"
+                className="w-64 p-2 bg-white border border-slate-200 text-slate-900 shadow-lg"
                 align="end"
                 sideOffset={10}
               >
@@ -387,12 +390,22 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/auth/signin">
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Sign in
-                </Link>
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  asChild
+                  className="relative overflow-hidden bg-gradient-to-r from-emerald-500 to-sky-500 hover:from-emerald-600 hover:to-sky-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 group"
+                >
+                  <Link href="/auth/signin" className="flex items-center">
+                    <span className="relative z-10 flex items-center">
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Sign in
+                    </span>
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                    </div>
+                  </Link>
+                </Button>
+              </motion.div>
             )}
 
             <Button

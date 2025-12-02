@@ -24,7 +24,7 @@ export function RecordingsList({ recordings, onDelete }: RecordingsListProps) {
     <ul className="space-y-2">
       {recordings.map(rec => (
         <li key={rec.id} className="flex items-center justify-between">
-          <audio controls src={rec.url} className="flex-1 mr-2" />
+          <audio controls src={rec.url} className="flex-1 mr-2 [&]:outline-none [&]:border-0" style={{ outline: 'none', border: 'none' }} />
           <div className="flex items-center gap-2">
             <Button
               variant="outline"

@@ -1,6 +1,7 @@
 // src/components/ai-agents/AiAgentCallDetail.tsx
 'use client';
 
+import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { RetellCallSummary } from './AiAgentCallsTable';
@@ -9,12 +10,12 @@ interface Props {
   call?: RetellCallSummary | null;
 }
 
-export function AiAgentCallDetail({ call }: Props) {
+function AiAgentCallDetailComponent({ call }: Props) {
   if (!call) {
     return (
-      <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+      <Card className="bg-white border border-slate-200 rounded-2xl shadow-sm">
         <CardHeader>
-          <CardTitle className="text-white">Call Details</CardTitle>
+          <CardTitle className="text-slate-900">Call Details</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-slate-500 text-sm">
@@ -43,67 +44,67 @@ export function AiAgentCallDetail({ call }: Props) {
   const lines = (call.transcript || '').split('\n').filter(Boolean);
 
   return (
-    <Card className="bg-slate-900 border-slate-700 rounded-2xl">
+    <Card className="bg-white border border-slate-200 rounded-2xl shadow-sm">
       <CardHeader>
-        <CardTitle className="text-white flex justify-between items-center">
+        <CardTitle className="text-slate-900 flex justify-between items-center">
           <span>Call Details</span>
           <Badge
             variant="outline"
-            className="bg-slate-800 border-slate-600 text-slate-200"
+            className="bg-slate-100 border-slate-200 text-slate-700"
           >
             {call.call_id.slice(0, 8)}…
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 text-sm text-slate-100">
+      <CardContent className="space-y-4 text-sm text-slate-700">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <div className="text-xs text-slate-400">Caller</div>
+            <div className="text-xs text-slate-500">Caller</div>
             <div>{call.from_number ?? 'Unknown'}</div>
           </div>
           <div>
-            <div className="text-xs text-slate-400">To</div>
+            <div className="text-xs text-slate-500">To</div>
             <div>{call.to_number ?? '—'}</div>
           </div>
           <div>
-            <div className="text-xs text-slate-400">Direction</div>
+            <div className="text-xs text-slate-500">Direction</div>
             <div>{call.direction ?? '—'}</div>
           </div>
           <div>
-            <div className="text-xs text-slate-400">Agent</div>
+            <div className="text-xs text-slate-500">Agent</div>
             <div>{call.agent_name ?? call.agent_id}</div>
           </div>
           <div>
-            <div className="text-xs text-slate-400">Started</div>
+            <div className="text-xs text-slate-500">Started</div>
             <div>{formatDate(call.start_timestamp)}</div>
           </div>
           <div>
-            <div className="text-xs text-slate-400">Duration</div>
+            <div className="text-xs text-slate-500">Duration</div>
             <div>{formatDuration()}</div>
           </div>
         </div>
 
         {call.recording_url && (
           <div>
-            <div className="text-xs text-slate-400 mb-1">Recording</div>
+            <div className="text-xs text-slate-500 mb-1">Recording</div>
             <audio
               controls
-              className="w-full h-9 rounded bg-slate-800"
+              className="w-full h-9 rounded bg-white border border-slate-200"
               src={call.recording_url}
             />
           </div>
         )}
 
         <div>
-          <div className="text-xs text-slate-400 mb-1">Transcript</div>
+          <div className="text-xs text-slate-500 mb-1">Transcript</div>
           {lines.length === 0 ? (
             <p className="text-slate-500 text-sm">
               Transcript not available yet.
             </p>
           ) : (
-            <div className="bg-slate-800/80 rounded-lg p-3 max-h-72 overflow-y-auto space-y-1">
+            <div className="bg-slate-50 rounded-lg p-3 max-h-72 overflow-y-auto space-y-1 border border-slate-200">
               {lines.map((line, idx) => (
-                <div key={idx} className="text-slate-200 text-sm">
+                <div key={idx} className="text-slate-700 text-sm">
                   {line}
                 </div>
               ))}
@@ -114,3 +115,5 @@ export function AiAgentCallDetail({ call }: Props) {
     </Card>
   );
 }
+
+export const AiAgentCallDetail = memo(AiAgentCallDetailComponent);

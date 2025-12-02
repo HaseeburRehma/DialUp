@@ -1,13 +1,13 @@
 // src/components/ai-agents/AiAgentOutboundCallForm.tsx
 'use client';
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export function AiAgentOutboundCallForm() {
+function AiAgentOutboundCallFormComponent() {
     const [fromNumber, setFromNumber] = useState('');
     const [toNumber, setToNumber] = useState('');
     const [agentId, setAgentId] = useState('');
@@ -56,9 +56,9 @@ export function AiAgentOutboundCallForm() {
     };
 
     return (
-        <Card className="bg-slate-900 border-slate-700 rounded-2xl mb-6">
+        <Card className="bg-white border border-slate-200 rounded-2xl mb-6 shadow-sm">
             <CardHeader>
-                <CardTitle className="text-white text-base">
+                <CardTitle className="text-slate-900 text-base">
                     Start AI Agent Phone Call (Retell)
                 </CardTitle>
             </CardHeader>
@@ -68,48 +68,54 @@ export function AiAgentOutboundCallForm() {
                     className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end"
                 >
                     <div>
-                        <Label className="text-xs text-slate-300">From Number</Label>
+                        <Label className="text-xs text-slate-700">From Number</Label>
                         <Input
-                            className="mt-1 bg-slate-800 border-slate-700 text-slate-100"
+                            className="mt-1 bg-white border-slate-200 text-slate-900"
                             placeholder="+1XXXXXXXXXX (Retell number)"
                             value={fromNumber}
                             onChange={(e) => setFromNumber(e.target.value)}
                         />
                     </div>
                     <div>
-                        <Label className="text-xs text-slate-300">To Number</Label>
+                        <Label className="text-xs text-slate-700">To Number</Label>
                         <Input
-                            className="mt-1 bg-slate-800 border-slate-700 text-slate-100"
+                            className="mt-1 bg-white border-slate-200 text-slate-900"
                             placeholder="+1XXXXXXXXXX (Customer)"
                             value={toNumber}
                             onChange={(e) => setToNumber(e.target.value)}
                         />
                     </div>
                     <div>
-                        <Label className="text-xs text-slate-300">
+                        <Label className="text-xs text-slate-700">
                             Agent ID (optional)
                         </Label>
                         <Input
-                            className="mt-1 bg-slate-800 border-slate-700 text-slate-100"
+                            className="mt-1 bg-white border-slate-200 text-slate-900"
                             placeholder="Use phone number default if empty"
                             value={agentId}
                             onChange={(e) => setAgentId(e.target.value)}
                         />
                     </div>
                     <div className="flex">
-                        <Button type="submit" className="ml-auto" disabled={loading}>
+                        <Button
+                            type="submit"
+                            className="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white"
+                            disabled={loading}
+                        >
                             {loading ? 'Starting…' : 'Start Call'}
                         </Button>
                     </div>
                 </form>
 
                 {statusMsg && (
-                    <p className="mt-3 text-xs text-emerald-300">{statusMsg}</p>
+                    <p className="mt-3 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-3 py-2">{statusMsg}</p>
                 )}
                 {errorMsg && (
-                    <p className="mt-3 text-xs text-red-400">{errorMsg}</p>
+                    <p className="mt-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{errorMsg}</p>
                 )}
             </CardContent>
         </Card>
     );
 }
+
+export const AiAgentOutboundCallForm = memo(AiAgentOutboundCallFormComponent);

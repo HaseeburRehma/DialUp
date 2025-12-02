@@ -16,6 +16,7 @@ import { IncomingCallModalSIP } from '@/components/dialer/IncomingCallModalSIP'
 import { SIPServerSetup } from '@/components/dialer/SIPServerSetup'
 import { SIPConfigProvider } from '@/components/dialer/SIPConfigContext'
 import { useAuthRedirect } from '@/hooks/useAuthRedirect'
+import { Phone } from 'lucide-react'
 
 export default function DialerPage() {
   useAuthRedirect('/api/calls')
@@ -49,6 +50,17 @@ export default function DialerPage() {
 
       <TwilioProvider>
         <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
+          {/* Page Header */}
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Phone className="w-6 h-6 text-green-600" />
+              </div>
+              <h1 className="text-3xl font-bold text-slate-900">Voice Dialer</h1>
+            </div>
+            <p className="text-slate-600">Make and receive calls with advanced analytics</p>
+          </div>
+
           {/* Overlay modal for ringing calls */}
 
           {/* Main interface */}
@@ -63,7 +75,7 @@ export default function DialerPage() {
           <CallHistory />
           */}
         </div>
-     {/*   <VapiWidget /> */}
+        {/*   <VapiWidget /> */}
       </TwilioProvider>
     </DashboardLayout>
   )

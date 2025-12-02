@@ -34,7 +34,7 @@ export const SelectTrigger = React.forwardRef<
     <motion.button
       className={cn(
         'group relative flex items-center justify-between w-full h-11 px-4',
-        'text-sm font-medium leading-tight',
+        'text-sm font-medium leading-tight text-slate-900 dark:text-slate-100',
         'bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border border-gray-300 dark:border-gray-600',
         'rounded-lg shadow-sm',
         'cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2',
@@ -73,7 +73,7 @@ export const SelectContent = React.forwardRef<
         align={align}
         className={cn(
           'min-w-[var(--radix-select-trigger-width)]',
-          'bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm text-foreground border-0',
+          'bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm text-slate-900 dark:text-slate-100 border-0',
           'rounded-lg shadow-lg z-50 overflow-hidden',
           className
         )}
@@ -96,17 +96,17 @@ SelectContent.displayName = 'SelectContent'
 export const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, ...props }, ref) => (
+>(({ className, children, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'flex items-center px-3 py-2 text-sm cursor-pointer rounded-md',
+      'flex items-center px-3 py-2 text-sm cursor-pointer rounded-md text-slate-900 dark:text-slate-100',
       'hover:bg-gradient-to-r hover:from-green-500/20 hover:to-blue-500/20 focus:bg-gradient-to-r focus:from-green-500/20 focus:to-blue-500/20',
       className
     )}
     {...props}
   >
-    <SelectPrimitive.ItemText />
+    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
 ))
 SelectItem.displayName = 'SelectItem'

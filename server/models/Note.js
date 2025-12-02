@@ -9,6 +9,11 @@ const noteSchema = new mongoose.Schema({
   callerLocation: String,
   callerAddress: String,
   callReason: String,
+  folder: { type: String, default: 'General' },
+  tags: [String],
+  summary: String,
+  shareToken: String,
+  isShared: { type: Boolean, default: false },
 }, { timestamps: true });
 
 export default mongoose.models.Note || mongoose.model('Note', noteSchema);

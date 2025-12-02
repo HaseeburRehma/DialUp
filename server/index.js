@@ -51,6 +51,12 @@ async function start() {
     const handle = nextApp.getRequestHandler();
     await nextApp.prepare();
 
+    // Give Next.js time to write all build artifacts in development
+    if (dev) {
+      console.log("⏳ Waiting for build artifacts to be written...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
     console.log("🚀 Next.js prepared, creating Express app...");
     const app = express();
 
@@ -87,9 +93,9 @@ async function start() {
     }
 
     // API routes
-    try { 
+    try {
       app.use("/api/transcribe", jsonParser, urlParser, require("./routes/transcribe"));
- //   app.use("/api/upload", jsonParser, urlParser, require("./routes/upload"));
+      //   app.use("/api/upload", jsonParser, urlParser, require("./routes/upload"));
       console.log("✅ API routes loaded");
     } catch (error) {
       console.error("❌ Failed to load API routes:", error);
@@ -127,9 +133,9 @@ async function start() {
     function decodeMuLaw(buffer) {
       const out = new Int16Array(buffer.length);
       for (let i = 0; i < buffer.length; i++) {
-        out[i] = decodeMuLawSample(buffer[i]);     
+        out[i] = decodeMuLawSample(buffer[i]);
       }
-      return Buffer.from(out.buffer);    
+      return Buffer.from(out.buffer);
     }
 
     //  Twilio WebSocket with proper speaker tracking

@@ -31,6 +31,11 @@ export async function GET(req: NextRequest) {
       callerLocation: doc.callerLocation,
       callerAddress: doc.callerAddress,
       callReason: doc.callReason,
+      folder: doc.folder || 'General',
+      tags: doc.tags || [],
+      summary: doc.summary,
+      shareToken: doc.shareToken,
+      isShared: doc.isShared,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     }))
@@ -54,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     const userId = token.id || token.sub
     const data = await req.json()
-    const { text, audioUrls, callerName, callerEmail, callerLocation, callerAddress, callReason } = data
+    const { text, audioUrls, callerName, callerEmail, callerLocation, callerAddress, callReason, folder, tags, summary, shareToken, isShared } = data
 
     if (!text) return NextResponse.json({ error: 'Missing note text' }, { status: 400 })
 
@@ -72,6 +77,11 @@ export async function POST(req: NextRequest) {
       callerLocation,
       callerAddress,
       callReason,
+      folder: folder || 'General',
+      tags: tags || [],
+      summary,
+      shareToken,
+      isShared: isShared || false,
       createdAt: now,
       updatedAt: now,
     })
