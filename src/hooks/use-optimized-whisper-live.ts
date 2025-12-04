@@ -4,6 +4,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import type { Segment } from '@/types/transcription'
+import { logger, logError, logWarn } from '@/lib/logger'
 
 export interface Recording {
   id: string
@@ -259,15 +260,17 @@ export function useOptimizedWhisperLive(
             }));
           }
         }
-      } catch { }
+      } catch (error) {
+        logError('[OptimizedWhisperLive] Message parsing error', error)
+      }
     };
 
     ws.onclose = (event: CloseEvent) => {
-      console.warn(`[OptimizedWhisperLive] 🔴 ${role} socket closed:`, event.code, event.reason);
+      logWarn(`[OptimizedWhisperLive] ${role} socket closed:`, { code: event.code, reason: event.reason });
     };
 
     ws.onerror = (event: Event) => {
-      console.warn(`[OptimizedWhisperLive] WebSocket error for ${role}:`, event);
+      logWarn(`[OptimizedWhisperLive] WebSocket error for ${role}`);
     };
 
     return ws;
@@ -275,7 +278,7 @@ export function useOptimizedWhisperLive(
 
   // Enhanced connection with retry logic
   const connect = useCallback(async () => {
-    console.log('[OptimizedWhisperLive] Connecting with enhanced performance...')
+    logger.log('[OptimizedWhisperLive] Connecting with enhanced performance...')
 
     // Clear history on new connection
     transcriptHistoryRef.current.clear()
@@ -330,8 +333,8 @@ export function useOptimizedWhisperLive(
         try {
           systemStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
           systemRef.current = systemStream;
-        } catch {
-          console.warn('[OptimizedWhisperLive] System audio denied.');
+        } catch (error) {
+          logWarn('[OptimizedWhisperLive] System audio denied', error);
         }
       }
 
@@ -391,7 +394,7 @@ export function useOptimizedWhisperLive(
   // Optimized transcription stop
   // Optimized transcription stop
   const stopTranscription = useCallback(async () => {
-    console.log('[OptimizedWhisperLive] Stopping transcription...')
+    logger.log('[OptimizedWhisperLive] Stopping transcription...')
 
     //  Close all WebSockets
     if (wsMicRef.current?.readyState === WebSocket.OPEN) wsMicRef.current.close(1000, 'Normal Closure')
@@ -476,9 +479,9 @@ export function useOptimizedWhisperLive(
         }
 
         setRecordings(rs => [...rs, recording])
-        console.log('[OptimizedWhisperLive] ✅ Recording uploaded successfully:', url)
+        logger.info('[OptimizedWhisperLive] Recording uploaded successfully:', url)
       } catch (err: any) {
-        console.error('[OptimizedWhisperLive] Upload error:', err)
+        logError('[OptimizedWhisperLive] Upload error', err)
         toast({
           title: 'Upload Error',
           description: `Failed to save recording: ${err.message}`,
@@ -504,7 +507,7 @@ export function useOptimizedWhisperLive(
 
   // Enhanced disconnect with cleanup
   const disconnect = useCallback(() => {
-    console.log('[OptimizedWhisperLive] Disconnecting...')
+    logger.log('[OptimizedWhisperLive] Disconnecting...')
 
     // Clear reconnection timeout
     if (reconnectTimeoutRef.current) {

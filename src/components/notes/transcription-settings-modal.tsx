@@ -74,31 +74,31 @@ export function TranscriptionSettingsModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-visible">
-                <DialogHeader>
-                    <DialogTitle>Transcription Settings</DialogTitle>
+            <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogHeader className="flex-shrink-0">
+                    <DialogTitle className="text-lg md:text-xl">Transcription Settings</DialogTitle>
                 </DialogHeader>
 
-                <Tabs defaultValue="general" className="w-full">
-                    <TabsList className="grid grid-cols-3 border-b border-border">
-                        <TabsTrigger value="general">General</TabsTrigger>
-                        <TabsTrigger value="whisperlive">WhisperLive</TabsTrigger>
-                        <TabsTrigger value="advanced">Advanced</TabsTrigger>
+                <Tabs defaultValue="general" className="w-full flex-1 overflow-hidden flex flex-col">
+                    <TabsList className="grid grid-cols-3 border-b border-border flex-shrink-0">
+                        <TabsTrigger value="general" className="text-xs md:text-sm">General</TabsTrigger>
+                        <TabsTrigger value="whisperlive" className="text-xs md:text-sm">WhisperLive</TabsTrigger>
+                        <TabsTrigger value="advanced" className="text-xs md:text-sm">Advanced</TabsTrigger>
                     </TabsList>
 
                     {/* ─── GENERAL ─────────────────────────────────────────── */}
-                    <TabsContent value="general" className="pt-4 space-y-6">
+                    <TabsContent value="general" className="pt-3 md:pt-4 space-y-4 md:space-y-6 overflow-y-auto flex-1">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Basic</CardTitle>
-                                <CardDescription>
+                            <CardHeader className="p-4 md:p-6">
+                                <CardTitle className="text-base md:text-lg">Basic</CardTitle>
+                                <CardDescription className="text-xs md:text-sm">
                                     Set transcription mode and sources
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <CardContent className="grid grid-cols-1 gap-4 md:gap-6 p-4 md:p-6 pt-0">
                                 {/* Mode */}
                                 <div className="flex flex-col">
-                                    <Label htmlFor="mode">Mode</Label>
+                                    <Label htmlFor="mode" className="text-xs md:text-sm mb-1">Mode</Label>
                                     <select
                                         id="mode"
                                         value={local.transcriptionMode}
@@ -106,7 +106,7 @@ export function TranscriptionSettingsModal({
                                             update('transcriptionMode', e.target
                                                 .value as 'live' | 'batch')
                                         }
-                                        className="mt-1 w-full rounded-md border border-border bg-popover px-3 py-2 text-sm"
+                                        className="w-full rounded-md border border-border bg-popover px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
                                         <option value="live">Live</option>
                                         <option value="batch">Batch</option>
@@ -115,12 +115,12 @@ export function TranscriptionSettingsModal({
 
                                 {/* Language */}
                                 <div className="flex flex-col">
-                                    <Label htmlFor="language">Language</Label>
+                                    <Label htmlFor="language" className="text-xs md:text-sm mb-1">Language</Label>
                                     <select
                                         id="language"
                                         value={local.language}
                                         onChange={e => update('language', e.target.value)}
-                                        className="mt-1 w-full rounded-md border border-border bg-popover px-3 py-2 text-sm"
+                                        className="w-full rounded-md border border-border bg-popover px-2 md:px-3 py-1.5 md:py-2 text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
                                         <option value="en">English</option>
                                         <option value="es">Spanish</option>
@@ -134,7 +134,7 @@ export function TranscriptionSettingsModal({
 
                                 {/* Audio Sources */}
                                 <div className="col-span-full space-y-2">
-                                    <Label>Audio Sources</Label>
+                                    <Label className="text-xs md:text-sm">Audio Sources</Label>
                                     <div className="flex items-center justify-between">
                                         <span>Microphone</span>
                                         <Switch
@@ -169,7 +169,7 @@ export function TranscriptionSettingsModal({
 
                                 {/* Auto Punctuation */}
                                 <div className="col-span-full flex items-center justify-between">
-                                    <Label>Auto Punctuation</Label>
+                                    <Label className="text-xs md:text-sm">Auto Punctuation</Label>
                                     <Switch
                                         checked={local.autoPunctuation}
                                         onCheckedChange={v => update('autoPunctuation', v)}
@@ -180,7 +180,7 @@ export function TranscriptionSettingsModal({
                     </TabsContent>
 
                     {/* ─── WHISPERLIVE ─────────────────────────────────────── */}
-                    <TabsContent value="whisperlive" className="pt-4 space-y-6">
+                    <TabsContent value="whisperlive" className="pt-3 md:pt-4 space-y-4 md:space-y-6 overflow-y-auto flex-1">
                         <Card>
                             <CardHeader>
                                 <CardTitle>WhisperLive</CardTitle>
@@ -271,7 +271,7 @@ export function TranscriptionSettingsModal({
                     </TabsContent>
 
                     {/* ─── ADVANCED ────────────────────────────────────────── */}
-                    <TabsContent value="advanced" className="pt-4 space-y-6">
+                    <TabsContent value="advanced" className="pt-3 md:pt-4 space-y-4 md:space-y-6 overflow-y-auto flex-1">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Advanced</CardTitle>
@@ -387,16 +387,17 @@ export function TranscriptionSettingsModal({
                     </TabsContent>
                 </Tabs>
 
-                <DialogFooter className="mt-4">
+                <DialogFooter className="mt-3 md:mt-4 flex-shrink-0 gap-2">
                     <Button
                         variant="outline"
                         onClick={() => onOpenChange(false)}
                         disabled={isSaving}
+                        className="text-xs md:text-sm"
                     >
                         Cancel
                     </Button>
-                    <Button onClick={handleSave} disabled={isSaving}>
-                        {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    <Button onClick={handleSave} disabled={isSaving} className="text-xs md:text-sm">
+                        {isSaving && <Loader2 className="w-3 h-3 md:w-4 md:h-4 mr-2 animate-spin" />}
                         Save Settings
                     </Button>
                 </DialogFooter>

@@ -64,7 +64,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
     url
   })) ?? []
 
-  
+
   useEffect(() => {
     if (open && session) {
       setFormData({
@@ -252,17 +252,17 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
   return (
     <Dialog open={open} onOpenChange={(val) => { if (!val) onClose() }}>
-      <DialogContent className="max-w-7xl max-h-[95vh] flex flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Bot className="w-5 h-5" />
+      <DialogContent className="max-w-7xl h-[100vh] md:h-[95vh] w-full md:w-[95vw] lg:w-full flex flex-col overflow-hidden p-3 md:p-6 gap-3 md:gap-4">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-base md:text-lg">
+            <Bot className="w-4 h-4 md:w-5 md:h-5" />
             {session ? 'Edit AnswerAI Session' : 'Create AnswerAI Session'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex gap-6 flex-1 overflow-auto">
+        <div className="flex flex-col lg:flex-row gap-3 md:gap-4 lg:gap-6 flex-1 overflow-hidden">
           {/* Left: Recording & Q&A */}
-          <div className="flex-1 space-y-4 overflow-auto">
+          <div className="flex-1 flex flex-col space-y-3 md:space-y-4 overflow-auto">
             <AnswerAIRecorder
               ref={recorderRef}
               sessionId={session?.id}
@@ -293,76 +293,82 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
           </div>
 
           {/* Right: Form */}
-          <div className="w-1/3 space-y-4 overflow-auto">
-            <div className="grid grid-cols-1 gap-4 p-4 bg-muted rounded-lg">
+          <div className="w-full lg:w-1/3 space-y-3 md:space-y-4 overflow-auto flex-shrink-0">
+            <div className="grid grid-cols-1 gap-2 md:gap-3 p-3 md:p-4 bg-muted/50 rounded-lg">
               <div>
-                <Label htmlFor="sessionName">Session Name *</Label>
+                <Label htmlFor="sessionName" className="text-xs md:text-sm">Session Name *</Label>
                 <Input
                   id="sessionName"
                   value={formData.sessionName}
                   onChange={(e) => setFormData(prev => ({ ...prev, sessionName: e.target.value }))}
                   placeholder="Senior Developer Interview"
+                  className="h-9 text-sm"
                 />
               </div>
 
               <div>
-                <Label htmlFor="candidateName">Candidate Name *</Label>
+                <Label htmlFor="candidateName" className="text-xs md:text-sm">Candidate Name *</Label>
                 <Input
                   id="candidateName"
                   value={formData.candidateName}
                   onChange={(e) => setFormData(prev => ({ ...prev, candidateName: e.target.value }))}
                   placeholder="John Doe"
+                  className="h-9 text-sm"
                 />
               </div>
 
               <div>
-                <Label htmlFor="candidateEmail">Candidate Email</Label>
+                <Label htmlFor="candidateEmail" className="text-xs md:text-sm">Candidate Email</Label>
                 <Input
                   id="candidateEmail"
                   type="email"
                   value={formData.candidateEmail}
                   onChange={(e) => setFormData(prev => ({ ...prev, candidateEmail: e.target.value }))}
                   placeholder="john@example.com"
+                  className="h-9 text-sm"
                 />
               </div>
 
               <div>
-                <Label htmlFor="position">Position *</Label>
+                <Label htmlFor="position" className="text-xs md:text-sm">Position *</Label>
                 <Input
                   id="position"
                   value={formData.position}
                   onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
                   placeholder="Senior Frontend Developer"
+                  className="h-9 text-sm"
                 />
               </div>
 
               <div>
-                <Label htmlFor="company">Company *</Label>
+                <Label htmlFor="company" className="text-xs md:text-sm">Company *</Label>
                 <Input
                   id="company"
                   value={formData.company}
                   onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
                   placeholder="TechCorp Inc."
+                  className="h-9 text-sm"
                 />
               </div>
 
               <div>
-                <Label htmlFor="interviewerName">Interviewer Name</Label>
+                <Label htmlFor="interviewerName" className="text-xs md:text-sm">Interviewer Name</Label>
                 <Input
                   id="interviewerName"
                   value={formData.interviewerName}
                   onChange={(e) => setFormData(prev => ({ ...prev, interviewerName: e.target.value }))}
                   placeholder="Jane Smith"
+                  className="h-9 text-sm"
                 />
               </div>
 
               <div>
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status" className="text-xs md:text-sm">Status</Label>
                 <select
                   id="status"
                   value={formData.status}
                   onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
-                  className="w-full rounded-md border border-border bg-popover px-3 py-2 text-sm"
+                  className="w-full h-9 rounded-md border border-border bg-popover px-3 py-2 text-sm"
                 >
                   <option value="active">Active</option>
                   <option value="paused">Paused</option>
@@ -371,23 +377,43 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
               </div>
 
               <div className="pt-2 border-t">
-                <div className="text-sm space-y-1">
-                  <div><strong>Questions:</strong> {questions.length}</div>
-                  <div><strong>Answers:</strong> {answers.length}</div>
-                  <div><strong>Duration:</strong> {Math.floor(totalDuration / 60)}m {totalDuration % 60}s</div>
+                <div className="text-xs md:text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Questions:</span>
+                    <span>{questions.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Answers:</span>
+                    <span>{answers.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Duration:</span>
+                    <span>{Math.floor(totalDuration / 60)}m {totalDuration % 60}s</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={resetSession} disabled={isSaving}>
-            <RotateCcw className="w-4 h-4 mr-2" />
+        <DialogFooter className="flex-shrink-0 flex-col sm:flex-row gap-2 pt-2 border-t">
+          <Button
+            variant="outline"
+            onClick={resetSession}
+            disabled={isSaving}
+            className="w-full sm:w-auto h-9 text-sm"
+            size="sm"
+          >
+            <RotateCcw className="w-3 h-3 md:w-4 md:h-4 mr-2" />
             Reset
           </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            <Save className="w-4 h-4 mr-2" />
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="w-full sm:w-auto h-9 text-sm"
+            size="sm"
+          >
+            <Save className="w-3 h-3 md:w-4 md:h-4 mr-2" />
             {session ? 'Save Changes' : 'Create Session'}
           </Button>
         </DialogFooter>

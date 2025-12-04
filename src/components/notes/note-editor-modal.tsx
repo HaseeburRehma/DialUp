@@ -358,23 +358,23 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
 
   return (
     <Dialog open={open} onOpenChange={val => { if (!val) onClose() }}>
-      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>{note ? 'Edit Note' : 'Create Note'}</DialogTitle>
+      <DialogContent className="max-w-6xl h-[100vh] md:h-[90vh] w-full md:w-[95vw] lg:w-full flex flex-col overflow-hidden p-3 md:p-6 gap-3 md:gap-4">
+        <DialogHeader className="flex-shrink-0">
+          <DialogTitle className="text-base md:text-lg lg:text-xl">{note ? 'Edit Note' : 'Create Note'}</DialogTitle>
         </DialogHeader>
-        <div className="flex gap-6 flex-1 overflow-auto">
-          <div className="flex-1 space-y-4">
+        <div className="flex flex-col lg:flex-row gap-3 md:gap-4 lg:gap-6 flex-1 overflow-hidden">
+          <div className="flex-1 flex flex-col space-y-3 md:space-y-4 overflow-hidden">
             {transcriptionMode === 'live' && whisperlive?.enabled ? (
-              <>
+              <div className="flex-1 flex flex-col gap-3 overflow-auto">
                 <TranscriptSegmentsDisplay segments={liveSegments} />
                 {savedRecs.length > 0 && (
                   <RecordingsList recordings={recordings} onDelete={rec => setRecordings(prev => prev.filter(r => r.id !== rec.id))} />
                 )}
                 <WhisperLiveRecorder ref={liveRef} onSegments={handleLiveTranscription} />
-              </>
+              </div>
             ) : (
-              <div className="flex flex-col h-full gap-4">
-                <div className="flex-1 min-h-[300px] bg-white rounded-md border border-input">
+              <div className="flex-1 flex flex-col gap-3 md:gap-4 overflow-hidden">
+                <div className="flex-1 min-h-0 bg-white rounded-md border border-input overflow-hidden">
                   <ReactQuill
                     theme="snow"
                     value={noteText}
@@ -383,41 +383,43 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
                     modules={{
                       toolbar: [
                         [{ header: [1, 2, false] }],
-                        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+                        ['bold', 'italic', 'underline'],
                         [{ list: 'ordered' }, { list: 'bullet' }],
-                        ['link', 'image'],
                         ['clean'],
                       ],
                     }}
                   />
                 </div>
-                <NoteRecorder ref={recorderRef} audioUrls={note?.audioUrls} onTranscription={handleTranscription} />
+                <div className="flex-shrink-0">
+                  <NoteRecorder ref={recorderRef} audioUrls={note?.audioUrls} onTranscription={handleTranscription} />
+                </div>
               </div>
             )}
           </div>
           {/* Right: Form */}
-          <div className="w-1/3 space-y-4 overflow-y-auto pr-2">
+          <div className="w-full lg:w-1/3 space-y-3 md:space-y-4 overflow-y-auto lg:pr-2 flex-shrink-0">
 
             {/* AI Actions */}
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-3">
-              <h3 className="text-sm font-semibold text-blue-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" /> AI Actions
+            <div className="p-3 md:p-4 bg-blue-50 rounded-lg border border-blue-100 space-y-2 md:space-y-3">
+              <h3 className="text-xs md:text-sm font-semibold text-blue-900 flex items-center gap-2">
+                <Sparkles className="w-3 h-3 md:w-4 md:h-4" /> AI Actions
               </h3>
               <Button
                 onClick={handleSummarize}
                 disabled={isSummarizing || !noteText}
                 variant="secondary"
-                className="w-full bg-white text-blue-700 hover:bg-blue-100 border border-blue-200"
+                size="sm"
+                className="w-full h-9 text-xs md:text-sm bg-white text-blue-700 hover:bg-blue-100 border border-blue-200"
               >
                 {isSummarizing ? 'Summarizing...' : 'Generate Summary'}
               </Button>
               {summary && (
-                <div className="mt-2">
+                <div className="mt-2 space-y-1">
                   <Label className="text-xs text-blue-700">Summary</Label>
                   <Textarea
                     value={summary}
                     onChange={e => setSummary(e.target.value)}
-                    className="min-h-[100px] text-sm bg-white/50 border-blue-200 focus:border-blue-400"
+                    className="min-h-[70px] md:min-h-[100px] text-xs md:text-sm bg-white/50 border-blue-200 focus:border-blue-400"
                   />
                 </div>
               )}
@@ -425,7 +427,7 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
 
             {/* Sharing */}
             {note && (
-              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
+              <div className="p-3 md:p-4 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
                 <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Share2 className="w-4 h-4" /> Sharing
                 </h3>
@@ -434,30 +436,33 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
                     onClick={handleShare}
                     disabled={isSharing}
                     variant="outline"
+                    size="sm"
                     className="w-full"
                   >
                     {isSharing ? 'Generating Link...' : 'Create Public Link'}
                   </Button>
                 ) : (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Input value={shareUrl} readOnly className="bg-white text-xs" />
+                    <div className="flex items-center gap-1">
+                      <Input value={shareUrl} readOnly className="bg-white text-xs flex-1 min-w-0" />
                       <Button
                         size="icon"
                         variant="ghost"
+                        className="flex-shrink-0 h-8 w-8"
                         onClick={() => {
                           navigator.clipboard.writeText(shareUrl)
                           toast({ title: 'Copied', description: 'Link copied to clipboard' })
                         }}
                       >
-                        <Copy className="w-4 h-4" />
+                        <Copy className="w-3 h-3" />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
+                        className="flex-shrink-0 h-8 w-8"
                         onClick={() => window.open(shareUrl, '_blank')}
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        <ExternalLink className="w-3 h-3" />
                       </Button>
                     </div>
                     <Button
@@ -467,43 +472,74 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
                       size="sm"
                       className="w-full"
                     >
-                      <Trash2 className="w-4 h-4 mr-2" /> Stop Sharing
+                      <Trash2 className="w-3 h-3 mr-2" /> Stop Sharing
                     </Button>
                   </div>
                 )}
               </div>
             )}
 
-            <div className="grid grid-cols-1 gap-4 p-4 bg-muted rounded-lg">
+            <div className="grid grid-cols-1 gap-2 md:gap-3 p-3 md:p-4 bg-muted/50 rounded-lg">
               <div>
-                <Label htmlFor="callerName">Caller Name *</Label>
-                <Input id="callerName" value={formData.callerName} onChange={e => setFormData(prev => ({ ...prev, callerName: e.target.value }))} placeholder="John Doe" />
+                <Label htmlFor="callerName" className="text-xs md:text-sm">Caller Name *</Label>
+                <Input
+                  id="callerName"
+                  value={formData.callerName}
+                  onChange={e => setFormData(prev => ({ ...prev, callerName: e.target.value }))}
+                  placeholder="John Doe"
+                  className="h-9 text-sm"
+                />
               </div>
               <div>
-                <Label htmlFor="callerEmail">Caller Email *</Label>
-                <Input id="callerEmail" type="email" value={formData.callerEmail} onChange={e => setFormData(prev => ({ ...prev, callerEmail: e.target.value }))} placeholder="john@example.com" />
+                <Label htmlFor="callerEmail" className="text-xs md:text-sm">Caller Email *</Label>
+                <Input
+                  id="callerEmail"
+                  type="email"
+                  value={formData.callerEmail}
+                  onChange={e => setFormData(prev => ({ ...prev, callerEmail: e.target.value }))}
+                  placeholder="john@example.com"
+                  className="h-9 text-sm"
+                />
               </div>
               <div>
-                <Label htmlFor="callerLocation">Caller Location *</Label>
-                <Input id="callerLocation" value={formData.callerLocation} onChange={e => setFormData(prev => ({ ...prev, callerLocation: e.target.value }))} placeholder="New York, NY" />
+                <Label htmlFor="callerLocation" className="text-xs md:text-sm">Caller Location *</Label>
+                <Input
+                  id="callerLocation"
+                  value={formData.callerLocation}
+                  onChange={e => setFormData(prev => ({ ...prev, callerLocation: e.target.value }))}
+                  placeholder="New York, NY"
+                  className="h-9 text-sm"
+                />
               </div>
               <div>
-                <Label htmlFor="callerAddress">Caller Address *</Label>
-                <Input id="callerAddress" value={formData.callerAddress} onChange={e => setFormData(prev => ({ ...prev, callerAddress: e.target.value }))} placeholder="123 Main St, Apt 4B" />
+                <Label htmlFor="callerAddress" className="text-xs md:text-sm">Caller Address *</Label>
+                <Input
+                  id="callerAddress"
+                  value={formData.callerAddress}
+                  onChange={e => setFormData(prev => ({ ...prev, callerAddress: e.target.value }))}
+                  placeholder="123 Main St, Apt 4B"
+                  className="h-9 text-sm"
+                />
               </div>
               <div>
-                <Label htmlFor="callReason">Reason for Call *</Label>
-                <Textarea id="callReason" value={formData.callReason} onChange={e => setFormData(prev => ({ ...prev, callReason: e.target.value }))} placeholder="Project kick-off" />
+                <Label htmlFor="callReason" className="text-xs md:text-sm">Reason for Call *</Label>
+                <Textarea
+                  id="callReason"
+                  value={formData.callReason}
+                  onChange={e => setFormData(prev => ({ ...prev, callReason: e.target.value }))}
+                  placeholder="Project kick-off"
+                  className="min-h-[60px] text-sm"
+                />
               </div>
               <div>
-                <Label htmlFor="folder">Folder</Label>
+                <Label htmlFor="folder" className="text-xs md:text-sm">Folder</Label>
                 <Select value={formData.folder} onValueChange={val => setFormData(prev => ({ ...prev, folder: val }))}>
-                  <SelectTrigger className="w-full bg-white text-slate-900 border-slate-200">
+                  <SelectTrigger className="w-full h-9 bg-white text-slate-900 border-slate-200 text-sm">
                     <SelectValue placeholder="Select Folder" />
                   </SelectTrigger>
                   <SelectContent>
                     {Array.from(new Set([...folders, formData.folder].filter(Boolean))).map(f => (
-                      <SelectItem key={f} value={f}>
+                      <SelectItem key={f} value={f} className="text-sm">
                         {f}
                       </SelectItem>
                     ))}
@@ -513,12 +549,25 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
             </div>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={resetNote} disabled={isSaving}>
-            <RotateCcw className="w-4 h-4 mr-2" />Reset
+        <DialogFooter className="flex-shrink-0 flex-col sm:flex-row gap-2 pt-2 border-t">
+          <Button
+            variant="outline"
+            onClick={resetNote}
+            disabled={isSaving}
+            className="w-full sm:w-auto h-9 text-sm"
+            size="sm"
+          >
+            <RotateCcw className="w-3 h-3 md:w-4 md:h-4 mr-2" />
+            Reset
           </Button>
-          <Button onClick={handleSave} disabled={!noteText.trim() || isSaving}>
-            <Save className="w-4 h-4 mr-2" />{note ? 'Save Changes' : 'Save Note'}
+          <Button
+            onClick={handleSave}
+            disabled={!noteText.trim() || isSaving}
+            className="w-full sm:w-auto h-9 text-sm"
+            size="sm"
+          >
+            <Save className="w-3 h-3 md:w-4 md:h-4 mr-2" />
+            {note ? 'Save Changes' : 'Save Note'}
           </Button>
         </DialogFooter>
       </DialogContent>

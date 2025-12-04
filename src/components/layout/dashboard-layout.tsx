@@ -14,7 +14,6 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { data: session, status } = useCustomSession()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   if (status === 'loading') {
     return (
@@ -54,18 +53,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <Sidebar
           open={sidebarOpen}
           setOpen={setSidebarOpen}
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
         />
 
         {/* Main content */}
-        <main
-          className={cn(
-            'flex-1 px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8 transition-all duration-300',
-            sidebarCollapsed ? 'md:ml-20' : 'md:ml-72'
-          )}
-        >
-          <div className="max-w-7xl mx-auto">{children}</div>
+        <main className="flex-1 py-4 md:py-6 lg:py-8 overflow-x-hidden md:ml-72">
+          <div className="w-full min-w-0">{children}</div>
         </main>
       </div>
     </div>

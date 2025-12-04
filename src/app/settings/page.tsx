@@ -68,24 +68,24 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6 px-3 md:px-6 lg:px-8 py-4 md:py-6">
         {/* Page Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
-          <p className="text-slate-600 mt-1">Configure your transcription and post-processing preferences</p>
+        <div className="mb-4 md:mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Settings</h1>
+          <p className="text-sm md:text-base text-slate-600 mt-1">Configure your transcription and post-processing preferences</p>
         </div>
 
         {/* Transcription Settings */}
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
               <div>
-                <CardTitle>Transcription Settings</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg md:text-xl">Transcription Settings</CardTitle>
+                <CardDescription className="text-sm">
                   Configure live vs batch transcription and WhisperLive parameters.
                 </CardDescription>
               </div>
-              <Button variant="outline" onClick={() => setModalOpen(true)}>
+              <Button variant="outline" onClick={() => setModalOpen(true)} size="sm" className="w-full sm:w-auto">
                 Edit
               </Button>
             </div>
@@ -102,23 +102,23 @@ export default function SettingsPage() {
         {/* Post-Processing */}
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-start">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
               <div>
-                <CardTitle>Post Processing</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg md:text-xl">Post Processing</CardTitle>
+                <CardDescription className="text-sm">
                   Configure post-processing of recording transcriptions with AI models.
                 </CardDescription>
               </div>
-              <Button variant="outline" onClick={resetSettings}>
+              <Button variant="outline" onClick={resetSettings} size="sm" className="w-full sm:w-auto">
                 Reset Defaults
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="space-y-4 md:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="space-y-0.5">
-                <Label>Enable Post-Processing</Label>
-                <p className="text-sm text-muted-foreground">
+                <Label className="text-sm md:text-base">Enable Post-Processing</Label>
+                <p className="text-xs md:text-sm text-muted-foreground">
                   Automatically correct transcripts with AI prompt.
                 </p>
               </div>
@@ -129,8 +129,8 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="prompt">Correction Prompt</Label>
-              <p className="text-sm text-muted-foreground">
+              <Label htmlFor="prompt" className="text-sm md:text-base">Correction Prompt</Label>
+              <p className="text-xs md:text-sm text-muted-foreground">
                 Prompt for refining transcripts.
               </p>
               <Textarea
@@ -138,13 +138,13 @@ export default function SettingsPage() {
                 value={settings.postProcessing.prompt}
                 onChange={e => updatePostProcessing('prompt', e.target.value)}
                 disabled={!settings.postProcessing.enabled}
-                rows={6}
-                className="font-mono text-sm"
+                rows={5}
+                className="font-mono text-xs md:text-sm"
               />
             </div>
 
-            <div className="flex justify-end">
-              <Button onClick={saveSettings} disabled={!hasChanges}>
+            <div className="flex justify-end pt-2">
+              <Button onClick={saveSettings} disabled={!hasChanges} className="w-full sm:w-auto">
                 Save All Changes
               </Button>
             </div>

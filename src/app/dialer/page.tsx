@@ -49,27 +49,29 @@ export default function DialerPage() {
 
 
       <TwilioProvider>
-        <div className="space-y-8 max-w-7xl mx-auto px-6 py-8">
+        <div className="w-full overflow-x-hidden">
           {/* Page Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Phone className="w-6 h-6 text-green-600" />
+          <div className="mb-4 md:mb-6 px-4 md:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+              <div className="p-2 bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg w-fit">
+                <Phone className="w-5 h-5 md:w-6 md:h-6 text-green-600" />
               </div>
-              <h1 className="text-3xl font-bold text-slate-900">Voice Dialer</h1>
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-slate-900">Voice Dialer</h1>
             </div>
-            <p className="text-slate-600">Make and receive calls with advanced analytics</p>
+            <p className="text-sm md:text-base text-slate-600">Make and receive calls with advanced analytics</p>
           </div>
 
           {/* Overlay modal for ringing calls */}
 
           {/* Main interface */}
-          <CallInterface />
-          {/* 👉 Vapi Widget */}
-
+          <div className="px-4 md:px-6 lg:px-8">
+            <CallInterface />
+          </div>
 
           {/* Analytics dashboard */}
-          <CallAnalytics />
+          <div className="mt-6 md:mt-8 px-4 md:px-6 lg:px-8">
+            <CallAnalytics />
+          </div>
 
           {/* Call history list 
           <CallHistory />

@@ -163,24 +163,26 @@ export default function HomePage() {
                   {/* Back Side */}
                   <div className="absolute inset-0 backface-hidden rotate-y-180">
                     <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-8 shadow-2xl h-full flex flex-col">
-                      <div className="flex-1 mb-4">
-                        <img
-                          src="/images/voice-recording.jpg"
-                          alt="Voice Recording"
-                          className="w-full h-48 object-cover rounded-lg mb-4"
-                        />
+                      <div className="flex-1 flex flex-col">
+                        <div className="w-full h-48 mb-4 rounded-lg overflow-hidden bg-white/10">
+                          <img
+                            src="/images/voice-recording.jpg"
+                            alt="Voice Recording"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
                         <h4 className="text-xl font-bold text-white mb-3">Key Features</h4>
-                        <ul className="space-y-2 text-white/90 text-sm">
+                        <ul className="space-y-2 text-white/90 text-sm flex-1">
                           <li className="flex items-start gap-2">
-                            <span className="text-white">✓</span>
+                            <span className="text-white flex-shrink-0">✓</span>
                             <span>Crystal-clear audio quality</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <span className="text-white">✓</span>
+                            <span className="text-white flex-shrink-0">✓</span>
                             <span>Multiple recordings per note</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <span className="text-white">✓</span>
+                            <span className="text-white flex-shrink-0">✓</span>
                             <span>Works offline & on-the-go</span>
                           </li>
                         </ul>
@@ -217,24 +219,26 @@ export default function HomePage() {
                   {/* Back Side */}
                   <div className="absolute inset-0 backface-hidden rotate-y-180">
                     <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-8 shadow-2xl h-full flex flex-col">
-                      <div className="flex-1 mb-4">
-                        <img
-                          src="/images/ai-transcription.png"
-                          alt="AI Transcription"
-                          className="w-full h-48 object-cover rounded-lg mb-4"
-                        />
+                      <div className="flex-1 flex flex-col">
+                        <div className="w-full h-48 mb-4 rounded-lg overflow-hidden bg-white/10">
+                          <img
+                            src="/images/ai-transcription.png"
+                            alt="AI Transcription"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
                         <h4 className="text-xl font-bold text-white mb-3">AI-Powered</h4>
-                        <ul className="space-y-2 text-white/90 text-sm">
+                        <ul className="space-y-2 text-white/90 text-sm flex-1">
                           <li className="flex items-start gap-2">
-                            <span className="text-white">✓</span>
+                            <span className="text-white flex-shrink-0">✓</span>
                             <span>Real-time transcription</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <span className="text-white">✓</span>
+                            <span className="text-white flex-shrink-0">✓</span>
                             <span>Technical term recognition</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <span className="text-white">✓</span>
+                            <span className="text-white flex-shrink-0">✓</span>
                             <span>Easy editing & refinement</span>
                           </li>
                         </ul>
@@ -271,24 +275,26 @@ export default function HomePage() {
                   {/* Back Side */}
                   <div className="absolute inset-0 backface-hidden rotate-y-180">
                     <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-8 shadow-2xl h-full flex flex-col">
-                      <div className="flex-1 mb-4">
-                        <img
-                          src="/images/ai-enhancement.jpg"
-                          alt="Smart Organization"
-                          className="w-full h-48 object-cover rounded-lg mb-4"
-                        />
+                      <div className="flex-1 flex flex-col">
+                        <div className="w-full h-48 mb-4 rounded-lg overflow-hidden bg-white/10">
+                          <img
+                            src="/images/ai-enhancement.jpg"
+                            alt="Smart Organization"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
                         <h4 className="text-xl font-bold text-white mb-3">Smart Search</h4>
-                        <ul className="space-y-2 text-white/90 text-sm">
+                        <ul className="space-y-2 text-white/90 text-sm flex-1">
                           <li className="flex items-start gap-2">
-                            <span className="text-white">✓</span>
+                            <span className="text-white flex-shrink-0">✓</span>
                             <span>Auto-categorization & tagging</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <span className="text-white">✓</span>
+                            <span className="text-white flex-shrink-0">✓</span>
                             <span>Semantic search across notes</span>
                           </li>
                           <li className="flex items-start gap-2">
-                            <span className="text-white">✓</span>
+                            <span className="text-white flex-shrink-0">✓</span>
                             <span>Find anything instantly</span>
                           </li>
                         </ul>

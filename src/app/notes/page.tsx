@@ -11,6 +11,8 @@ import { NoteDeleteModal } from '@/components/notes/note-delete-modal'
 import { FolderManager } from '@/components/notes/folder-manager'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
+import { logError } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +36,7 @@ export interface Note {
 
 export default function NotesPage() {
     useAuthRedirect('/api/notes')
+    const { toast } = useToast()
 
     const [notes, setNotes] = useState<Note[]>([])
     const [folders, setFolders] = useState<string[]>([])
@@ -55,9 +58,16 @@ export default function NotesPage() {
             if (res.ok) {
                 const data = await res.json()
                 setNotes(data)
+            } else {
+                throw new Error('Failed to load notes')
             }
         } catch (error) {
-            console.error('Failed to fetch notes:', error)
+            logError('Failed to fetch notes', error)
+            toast({
+                title: 'Error',
+                description: 'Failed to load notes. Please try again.',
+                variant: 'destructive'
+            })
         }
     }
 
@@ -69,7 +79,8 @@ export default function NotesPage() {
                 setFolders(data)
             }
         } catch (error) {
-            console.error('Failed to fetch folders:', error)
+            logError('Failed to fetch folders', error)
+            // Silent fail for folders - not critical
         }
     }
 
@@ -82,9 +93,20 @@ export default function NotesPage() {
             })
             if (res.ok) {
                 fetchFolders()
+                toast({
+                    title: 'Success',
+                    description: `Folder "${name}" created successfully`
+                })
+            } else {
+                throw new Error('Failed to create folder')
             }
         } catch (error) {
-            console.error('Failed to create folder:', error)
+            logError('Failed to create folder', error)
+            toast({
+                title: 'Error',
+                description: 'Failed to create folder. Please try again.',
+                variant: 'destructive'
+            })
         }
     }
 
@@ -117,14 +139,14 @@ export default function NotesPage() {
 
     return (
         <DashboardLayout>
-            <div className="space-y-6">
+            <div className="space-y-6 px-4 md:px-6 lg:px-8 py-6">
                 {/* Header */}
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-slate-900">Your Notes</h1>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Your Notes</h1>
                         <p className="text-slate-600 mt-1">Manage your voice notes and transcriptions</p>
                     </div>
-                    <Button onClick={handleCreateNote} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+                    <Button onClick={handleCreateNote} className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm w-full sm:w-auto">
                         <Plus className="w-4 h-4 mr-2" /> New Note
                     </Button>
                 </div>

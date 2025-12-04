@@ -45,7 +45,7 @@ export class QuestionDetector {
       // Have you ever...
       /\b(?:have you ever|have you worked)\b[^.!?]*[.?]/gi,
       // Technical questions
-      /\b(?:implement|design|optimize|debug|solve)\b[^.!?]*[.?]/gi,
+      /\b(?:implement|design|optimize|debug|solve|difference)\b[^.!?]*[.?]/gi,
       // Behavioral questions
       /\b(?:situation|challenge|conflict|difficult|problem)\b[^.!?]*[.?]/gi,
     ]

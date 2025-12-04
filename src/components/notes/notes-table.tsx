@@ -237,8 +237,8 @@ ${note.text.replace(/<[^>]*>?/gm, '')}
         </div>
       </div>
 
-      {/* Notes Table */}
-      <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white">
+      {/* Desktop: Notes Table */}
+      <div className="hidden md:block overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white">
         <table className="min-w-full text-sm text-slate-600">
           <thead className="bg-slate-50 text-slate-700 border-b border-slate-200">
             <tr>
@@ -320,6 +320,93 @@ ${note.text.replace(/<[^>]*>?/gm, '')}
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: Card Layout */}
+      <div className="md:hidden space-y-4">
+        {filteredNotes.length === 0 ? (
+          <Card className="p-8 text-center text-slate-500">
+            No notes found matching your filters.
+          </Card>
+        ) : (
+          filteredNotes.map((note) => {
+            const created = formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })
+            const isExpanded = expandedRows.has(note.id)
+
+            return (
+              <Card key={note.id} className="p-4 space-y-3 shadow-sm border border-slate-200">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-slate-900 truncate">{note.callReason}</h3>
+                    <p className="text-sm text-slate-500">{note.callerName}</p>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => onEdit(note)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExportText(note)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Export Text
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handlePrint(note)}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print / PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => onDelete(note.id)} className="text-red-600">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <span className="font-medium">Email:</span>
+                    <span className="truncate">{note.callerEmail}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <span className="font-medium">Location:</span>
+                    <span className="truncate">{note.callerLocation}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <span className="font-medium">Created:</span>
+                    <span>{created}</span>
+                  </div>
+                </div>
+
+                {/* Note Text */}
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    onClick={() => toggleRow(note.id)}
+                    className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2"
+                  >
+                    {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    {isExpanded ? 'Hide' : 'Show'} Note
+                  </button>
+                  <div className="text-sm text-slate-600">
+                    {isExpanded ? (
+                      <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: note.text }} />
+                    ) : (
+                      <p className="line-clamp-2">{truncateText(note.text, 120)}</p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            )
+          })
+        )}
       </div>
     </div>
   )
