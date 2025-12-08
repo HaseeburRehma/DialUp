@@ -233,51 +233,83 @@ export function CallInterface() {
         </CardContent>
       </Card>
 
-      {/* Live Transcription with Speaker Tags */}
-      <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">
-        <CardHeader className="p-3 md:p-4 lg:p-6">
-          <CardTitle className="text-base md:text-lg text-slate-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <span>Live Transcription</span>
-            {isTranscribing && (
-              <Badge className="bg-green-100 text-green-700 border-green-200 text-xs w-fit">
-                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse mr-2" />
-                Active
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 md:p-4 lg:p-6 pt-0">
-          <div className="bg-slate-50 p-3 md:p-4 rounded-lg max-h-48 md:max-h-64 overflow-y-auto border border-slate-100">
-            {liveSegments.length > 0 ? (
-              <div className="space-y-2">
-                {(liveSegments as Segment[]).map((seg, idx: number) => (
-                  <div
-                    key={seg.id || `${seg.speaker}-${idx}`}
-                    className="flex items-start space-x-2"
-                  >
-                    <Badge
-                      variant="outline"
-                      className={`mt-0.5 text-xs flex-shrink-0 ${seg.speaker === 'caller'
-                        ? 'bg-blue-100 text-blue-700 border-blue-200'
-                        : 'bg-green-100 text-green-700 border-green-200'
-                        }`}
+      {/* 2-Column Layout: Transcription + Activity Log on Desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-4">
+        {/* Live Transcription with Speaker Tags */}
+        <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">
+          <CardHeader className="p-3 md:p-4 lg:p-6">
+            <CardTitle className="text-base md:text-lg text-slate-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span>Live Transcription</span>
+              {isTranscribing && (
+                <Badge className="bg-green-100 text-green-700 border-green-200 text-xs w-fit">
+                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse mr-2" />
+                  Active
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 md:p-4 lg:p-6 pt-0">
+            <div className="bg-slate-50 p-3 md:p-4 rounded-lg max-h-48 md:max-h-64 lg:max-h-80 overflow-y-auto border border-slate-100">
+              {liveSegments.length > 0 ? (
+                <div className="space-y-2">
+                  {(liveSegments as Segment[]).map((seg, idx: number) => (
+                    <div
+                      key={seg.id || `${seg.speaker}-${idx}`}
+                      className="flex items-start space-x-2"
                     >
-                      {seg.speaker === 'caller' ? '📞 Caller' : '👤 Agent'}
-                    </Badge>
-                    <span className="text-xs md:text-sm text-slate-700 flex-1 break-words">{seg.content}</span>
+                      <Badge
+                        variant="outline"
+                        className={`mt-0.5 text-xs flex-shrink-0 ${seg.speaker === 'caller'
+                          ? 'bg-blue-100 text-blue-700 border-blue-200'
+                          : 'bg-green-100 text-green-700 border-green-200'
+                          }`}
+                      >
+                        {seg.speaker === 'caller' ? '📞 Caller' : '👤 Agent'}
+                      </Badge>
+                      <span className="text-xs md:text-sm text-slate-700 flex-1 break-words">{seg.content}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs md:text-sm text-slate-500 text-center py-6 md:py-8">
+                  {isCalling
+                    ? 'Waiting for transcription...'
+                    : 'Start a call to see live transcription'}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Activity Log */}
+        <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">
+          <CardHeader className="p-3 md:p-4 lg:p-6">
+            <CardTitle className="text-base md:text-lg text-slate-900">Activity Log</CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 md:p-4 lg:p-6 pt-0">
+            <div className="space-y-2 max-h-48 md:max-h-64 lg:max-h-80 overflow-y-auto">
+              {callLog.map((entry, i) => (
+                <div key={i} className="flex flex-col sm:flex-row sm:items-start space-y-1 sm:space-y-0 sm:space-x-2 text-xs md:text-sm p-2 rounded bg-slate-50">
+                  <span className="text-slate-500 font-mono text-[10px] md:text-xs flex-shrink-0">{entry.time}</span>
+                  <div className="flex items-start space-x-1 flex-1">
+                    {entry.type === 'error' && <AlertCircle className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />}
+                    {entry.type === 'warning' && <AlertCircle className="h-3 w-3 text-yellow-500 mt-0.5 flex-shrink-0" />}
+                    {entry.type === 'info' && <Info className="h-3 w-3 text-blue-500 mt-0.5 flex-shrink-0" />}
+                    <span className={
+                      entry.type === 'error' ? 'text-red-600 break-words' :
+                        entry.type === 'warning' ? 'text-yellow-600 break-words' :
+                          'text-slate-700 break-words'
+                    }>
+                      {entry.message}
+                    </span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs md:text-sm text-slate-500 text-center py-6 md:py-8">
-                {isCalling
-                  ? 'Waiting for transcription...'
-                  : 'Start a call to see live transcription'}
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Live Audio Playback */}
       {isCalling && isRecording && (
         <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">
@@ -297,36 +329,6 @@ export function CallInterface() {
           </CardContent>
         </Card>
       )}
-
-
-
-      {/* Activity Log */}
-      <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">
-        <CardHeader className="p-3 md:p-4 lg:p-6">
-          <CardTitle className="text-base md:text-lg text-slate-900">Activity Log</CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 md:p-4 lg:p-6 pt-0">
-          <div className="space-y-2 max-h-40 md:max-h-48 overflow-y-auto">
-            {callLog.map((entry, i) => (
-              <div key={i} className="flex flex-col sm:flex-row sm:items-start space-y-1 sm:space-y-0 sm:space-x-2 text-xs md:text-sm p-2 rounded bg-slate-50">
-                <span className="text-slate-500 font-mono text-[10px] md:text-xs flex-shrink-0">{entry.time}</span>
-                <div className="flex items-start space-x-1 flex-1">
-                  {entry.type === 'error' && <AlertCircle className="h-3 w-3 text-red-500 mt-0.5 flex-shrink-0" />}
-                  {entry.type === 'warning' && <AlertCircle className="h-3 w-3 text-yellow-500 mt-0.5 flex-shrink-0" />}
-                  {entry.type === 'info' && <Info className="h-3 w-3 text-blue-500 mt-0.5 flex-shrink-0" />}
-                  <span className={
-                    entry.type === 'error' ? 'text-red-600 break-words' :
-                      entry.type === 'warning' ? 'text-yellow-600 break-words' :
-                        'text-slate-700 break-words'
-                  }>
-                    {entry.message}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Call History */}
       <Card className="bg-white border-slate-200 rounded-2xl shadow-sm">

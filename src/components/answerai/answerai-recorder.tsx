@@ -170,7 +170,31 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
     const bcRef = useRef<BroadcastChannel | null>(null);
     useEffect(() => {
       if (initialQuestions?.length) setAllQuestions(initialQuestions);
-      if (initialTranscript) setTranscriptText(initialTranscript);
+      if (initialTranscript) {
+        setTranscriptText(initialTranscript);
+
+        // Parse saved transcript into segments for display
+        const parsedSegments: AnswerAISegment[] = [];
+        const lines = initialTranscript.split('\n').filter(line => line.trim());
+
+        lines.forEach((line, index) => {
+          const match = line.match(/^\[(INTERVIEWER|CANDIDATE)\]:\s*(.+)$/);
+          if (match) {
+            parsedSegments.push({
+              id: `saved-segment-${index}`,
+              content: match[2].trim(),
+              speaker: match[1].toLowerCase() as 'interviewer' | 'candidate',
+              volume: 0,
+              timestamp: Date.now() - (lines.length - index) * 1000,
+              confidence: 1.0,
+            });
+          }
+        });
+
+        if (parsedSegments.length > 0) {
+          setConvertedSegments(parsedSegments);
+        }
+      }
     }, [initialQuestions, initialTranscript]);
 
     useEffect(() => {
@@ -406,10 +430,14 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
     const [convertedSegments, setConvertedSegments] = useState<AnswerAISegment[]>([]);
 
     useEffect(() => {
-      const segments = convertToAnswerAISegments(whisperState.segments);
-      setConvertedSegments(segments);
-      onSegments(segments);
-    }, [whisperState.segments, convertToAnswerAISegments, onSegments]);
+      // Only update from live recording if we're actively transcribing OR if we have new segments
+      // This prevents overwriting saved transcript segments with empty array
+      if (whisperState.isTranscribing || whisperState.segments.length > 0) {
+        const segments = convertToAnswerAISegments(whisperState.segments);
+        setConvertedSegments(segments);
+        onSegments(segments);
+      }
+    }, [whisperState.segments, whisperState.isTranscribing, convertToAnswerAISegments, onSegments]);
 
     // Debounced detection
     useEffect(() => {
@@ -882,7 +910,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
                     <FileText className="w-4 h-4" />
                     Live Transcript
                     <Badge variant="outline" className="text-xs">
-                      {whisperState.segments.length} segments
+                      {convertedSegments.length} segments
                     </Badge>
                   </CardTitle>
                 </CardHeader>

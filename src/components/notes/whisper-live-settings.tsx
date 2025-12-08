@@ -20,7 +20,7 @@ export interface WhisperLiveConfig {
   maxClients: number
   maxConnectionTime: number
   audioSources?: { microphone: boolean; systemAudio: boolean }
-  
+
 }
 
 export function WhisperLiveSettings({ onSettingsChange }: WhisperLiveSettingsProps): JSX.Element {
@@ -45,12 +45,9 @@ export function WhisperLiveSettings({ onSettingsChange }: WhisperLiveSettingsPro
   // ✅ Add a return block here
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>WhisperLive Settings</CardTitle>
-      </CardHeader>
-      <CardContent>
-        
-      </CardContent>
-    </Card>
+
+
+
+    </Card >
   )
 }

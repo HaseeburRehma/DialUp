@@ -39,9 +39,9 @@ interface Props {
 export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
   function WhisperLiveRecorder({ onSegments }, ref) {
     const { settings, setSettings } = useSettings();
-    const { transcription } = settings;    
+    const { transcription } = settings;
     const whisperliveSettings = transcription.whisperlive;
- 
+
     const config = useMemo<WhisperLiveConfig>(() => ({
       serverUrl: whisperliveSettings.serverUrl,
       port: whisperliveSettings.port,
@@ -110,10 +110,13 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
     const { toast } = useToast();
 
     useEffect(() => {
-      if (onSegments && Array.isArray(whisperState.segments)) {
+      // Only update segments when actively transcribing OR if we have new segments
+      // This prevents overwriting saved transcript segments with empty array
+      if (onSegments && Array.isArray(whisperState.segments) &&
+        (whisperState.isTranscribing || whisperState.segments.length > 0)) {
         onSegments(whisperState.segments as Segment[])
       }
-    }, [whisperState.segments, onSegments])
+    }, [whisperState.segments, whisperState.isTranscribing, onSegments])
 
 
     useImperativeHandle(ref, () => ({
@@ -140,14 +143,14 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
     }
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         <WhisperLiveSettings onSettingsChange={onSettingsChange} />
         <Card>
-          <CardHeader>
-            <CardTitle>
-              <div className="flex justify-between items-center">
-                WhisperLive Transcription
-                <Badge variant={whisperState.isConnected ? 'default' : 'destructive'}>
+          <CardHeader className="p-3 md:p-4 lg:p-6">
+            <CardTitle className="text-sm md:text-base lg:text-lg">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                <span>WhisperLive Transcription</span>
+                <Badge variant={whisperState.isConnected ? 'default' : 'destructive'} className="text-xs w-fit">
                   {whisperState.isConnected ? (
                     <><Wifi className="w-3 h-3 mr-1" />Connected</>
                   ) : (
@@ -157,29 +160,38 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Button onClick={() => whisperState.isConnected ? disconnect() : connect()}
-                variant={whisperState.isConnected ? 'destructive' : 'default'}>
+          <CardContent className="space-y-3 md:space-y-4 p-3 md:p-4 lg:p-6 pt-0">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => whisperState.isConnected ? disconnect() : connect()}
+                variant={whisperState.isConnected ? 'destructive' : 'default'}
+                size="sm"
+                className="h-8 md:h-9 text-xs md:text-sm flex-1 sm:flex-initial min-w-[100px]"
+              >
                 {whisperState.isConnected ? 'Disconnect' : 'Connect'}
               </Button>
-              <Button onClick={() => {
-                if (!whisperState.isConnected) connect();
-                else if (whisperState.isTranscribing) stopTranscription();
-                else startTranscription();
-              }}
-                disabled={whisperState.isTranscribing && !whisperState.isConnected}>
+              <Button
+                onClick={() => {
+                  if (!whisperState.isConnected) connect();
+                  else if (whisperState.isTranscribing) stopTranscription();
+                  else startTranscription();
+                }}
+                disabled={whisperState.isTranscribing && !whisperState.isConnected}
+                size="sm"
+                className="h-8 md:h-9 text-xs md:text-sm flex-1 sm:flex-initial min-w-[100px]"
+              >
                 {whisperState.isTranscribing ? 'Stop' : 'Start'}
               </Button>
               <Button
                 onClick={() => {
                   clearTranscript();
                   resetRecordings();
-                  // also clear segments in hook
-                  resetSegments(); // you’ll need to expose this from your hook, alias to `resetSegments`
+                  resetSegments();
                 }}
                 variant="outline"
                 disabled={whisperState.segments.length === 0}
+                size="sm"
+                className="h-8 md:h-9 text-xs md:text-sm flex-1 sm:flex-initial min-w-[100px]"
               >
                 Clear
               </Button>
@@ -187,13 +199,12 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
             {audioData && <AudioVisualizer audioData={audioData} dataUpdateTrigger={dataUpdateTrigger} />}
             {recordings.length > 0 && <RecordingsList recordings={recordings} onDelete={deleteRecording} />}
             {whisperState.error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded">
-                <p className="text-sm text-red-600">
+              <div className="p-2 md:p-3 bg-red-50 border border-red-200 rounded">
+                <p className="text-xs md:text-sm text-red-600">
                   {whisperState.error}. Please check your server settings and ensure the WhisperLive server is in running state.
                 </p>
               </div>
             )}
-
           </CardContent>
         </Card>
       </div>

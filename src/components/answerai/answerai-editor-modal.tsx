@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { AnswerAIRecorder, AnswerAIRecorderHandle } from './answerai-recorder'
 import { QuestionAnswerDisplay } from './question-answer-display'
@@ -79,12 +81,10 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
       setQuestions(session.questions || [])
       setAnswers(session.answers || [])
       setTotalDuration(session.totalDuration || 0)
-      setSegments([])
     } else if (open && !session) {
       // Reset for new session
       setQuestions([])
       setAnswers([])
-      setSegments([])
       setTotalDuration(0)
       startTimeRef.current = Date.now()
     }
@@ -173,7 +173,6 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
     })
     setQuestions(session?.questions || [])
     setAnswers(session?.answers || [])
-    setSegments([])
     setTotalDuration(session?.totalDuration || 0)
     recorderRef.current?.resetRecordings()
   }
@@ -230,6 +229,38 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
       })
 
       if (!response.ok) throw new Error('Failed to save session')
+
+      // Send email with transcript  
+      if (formData.candidateEmail && transcript.trim()) {
+        try {
+          await fetch('/api/send-automatic-transcript', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              transcript,
+              sessionName: formData.sessionName,
+              candidateName: formData.candidateName,
+              candidateEmail: formData.candidateEmail,
+              interviewerName: formData.interviewerName,
+              position: formData.position,
+              company: formData.company,
+              callDuration: `${Math.floor(totalDuration / 60)}m ${totalDuration % 60}s`,
+              callDate: new Date().toLocaleString(),
+              questionsCount: questions.length,
+              answersCount: answers.length,
+              isAnswerAI: true,
+            }),
+          })
+
+          toast({
+            title: 'Email Sent',
+            description: `Interview summary sent to ${formData.candidateEmail}`,
+          })
+        } catch (emailError) {
+          console.error('Failed to send email:', emailError)
+          // Don't fail the save if email fails
+        }
+      }
 
       toast({
         title: session ? 'Session Updated' : 'Session Created',

@@ -135,9 +135,27 @@ function AnswerAICardComponent({ session, onEdit, onDelete }: AnswerAICardProps)
                 <strong>Email:</strong> {session.candidateEmail}
               </p>
             )}
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-slate-700 mb-1">
               <strong>Audio Files:</strong> {session.audioUrls.length}
             </p>
+
+            {/* Transcript Preview */}
+            {session.transcript && (
+              <div className="mt-3 pt-3 border-t border-slate-200">
+                <p className="text-sm font-semibold text-slate-900 mb-2">Transcript Preview:</p>
+                <div className="bg-white p-3 rounded border border-slate-200 max-h-40 overflow-y-auto">
+                  <pre className="text-xs text-slate-700 whitespace-pre-wrap font-mono">
+                    {session.transcript.substring(0, 2000)}
+                    {session.transcript.length > 2000 && '...'}
+                  </pre>
+                </div>
+                {session.transcript.length > 2000 && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Showing first 2000 characters of {session.transcript.length} total
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Audio Clips */}
             <div className="flex gap-2 mt-3 overflow-x-auto pb-2">

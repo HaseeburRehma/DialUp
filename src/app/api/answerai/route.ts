@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
       questions: doc.questions,
       answers: doc.answers,
       audioUrls: doc.audioUrls,
+      transcript: doc.transcript,
       status: doc.status,
       totalDuration: doc.totalDuration,
       createdAt: doc.createdAt,
