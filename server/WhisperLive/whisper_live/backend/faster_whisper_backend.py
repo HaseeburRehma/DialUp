@@ -77,11 +77,13 @@ class ServeClientFasterWhisper(ServeClientBase):
         self.task = task
         self.initial_prompt = initial_prompt
         self.vad_parameters = vad_parameters or {
-        "onset": 0.35,                      # 🔥 less aggressive, keeps more voice
-        "offset": 0.25,
-        "min_speech_duration_ms": 150,
-        "min_silence_duration_ms": 400,
-        "speech_pad_ms": 120
+            # Optimized for real-time accuracy
+            "onset": 0.3,                        # Lower = catches speech faster (was 0.35)
+            "offset": 0.2,                       # Lower = keeps speech longer (was 0.25)
+            "min_speech_duration_ms": 100,       # Reduced for faster response (was 150)
+            "min_silence_duration_ms": 300,      # Reduced to avoid cutting mid-sentence (was 400)
+            "speech_pad_ms": 200,                # Increased padding for cleaner cuts (was 120)
+            "max_speech_duration_s": float('inf') # No limit on speech duration
         }
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -244,34 +246,68 @@ class ServeClientFasterWhisper(ServeClientBase):
         if not segments:
            return
         
+        # ✨ IMPROVED segment merging for better quality
         merged_segments = []
         buffer = ""
-        for seg in segments:
+        
+        for i, seg in enumerate(segments):
             text = seg["text"].strip()
-
-           # Small fragment → buffer it
-            if len(text) < 4:
-                buffer += " " + text
+            
+            # Skip empty segments
+            if not text:
                 continue
-
-           # Apply buffer if exists
+            
+            # ✅ NEW: Filter out single-character noise
+            if len(text) == 1 and text.lower() not in ['a', 'i']:
+                continue
+            
+            # ✅ IMPROVED: Merge fragments more intelligently
+            # Small fragments (< 6 chars) OR incomplete words → buffer
+            is_fragment = len(text) < 6 or not any(c.isalnum() for c in text[-1:])
+            
+            if is_fragment and i < len(segments) - 1:  # Not last segment
+                buffer += " " + text if buffer else text
+                continue
+            
+            # Apply buffered content
             if buffer:
-                seg["text"] = (buffer + " " + text).strip()
+                text = (buffer + " " + text).strip()
                 buffer = ""
-
+            
+            # ✅ NEW: Clean up text
+            text = ' '.join(text.split())  # Remove extra whitespace
+            seg["text"] = text
+            
+            # ✅ NEW: Add confidence scoring (if available)
+            if "confidence" not in seg:
+                seg["confidence"] = 0.85  # Default confidence
+                
             merged_segments.append(seg)
        
-          # If buffer remains at end, attach to last segment
-        if buffer and merged_segments:
-            merged_segments[-1]["text"] += " " + buffer.strip()
+        # If buffer remains at end, create new segment or attach to last
+        if buffer:
+            buffer = buffer.strip()
+            if merged_segments and len(buffer) < 10:
+                # Short buffer → attach to last segment
+                merged_segments[-1]["text"] += " " + buffer
+            elif buffer:
+                # Long buffer → create new segment
+                merged_segments.append({
+                    "text": buffer,
+                    "start": segments[-1].get("start", 0),
+                    "end": segments[-1].get("end", 0),
+                    "confidence": 0.75,  # Lower confidence for orphaned text
+                    "final": False
+                })
 
-          # 3) Attach metadata and send to client
+        # Attach metadata and send to client
         speaker = getattr(self, "current_speaker", "unknown")
         track = getattr(self, "current_track", "unknown_track")
 
         for seg in merged_segments:
             seg["speaker"] = speaker
             seg["track"] = track
-            seg["final"] = seg.get("final", False)
+            seg["final"] = seg.get("final", True)  # Mark as final by default
 
-        self.send_transcription_to_client(merged_segments)
+        if merged_segments:
+            self.send_transcription_to_client(merged_segments)

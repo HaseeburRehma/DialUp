@@ -232,7 +232,7 @@ export default function PricingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
               >
-                <Badge variant="secondary" className="mb-4 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm text-primary">
+                <Badge variant="secondary" className="mb-4 bg-white/90 dark:bg-white-900/90 backdrop-blur-sm text-primary">
                   <Sparkles className="w-3 h-3 mr-1" />
                   Choose Your Plan
                 </Badge>
@@ -247,7 +247,7 @@ export default function PricingPage() {
 
               {/* Billing Toggle */}
               <motion.div
-                className="inline-flex items-center bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm p-1 rounded-full mt-8"
+                className="inline-flex items-center bg-white/90 dark:bg-white-900/90 backdrop-blur-sm p-1 rounded-full mt-8"
                 whileHover={{ scale: 1.05 }}
               >
                 <Button
@@ -286,7 +286,7 @@ export default function PricingPage() {
               >
                 <Card
                   className={cn(
-                    'relative overflow-hidden border-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm transition-all duration-300 hover:shadow-xl',
+                    'relative overflow-hidden border-0 bg-white/90 dark:bg-white-900/90 backdrop-blur-sm transition-all duration-300 hover:shadow-xl',
                     plan.popular && 'ring-2 ring-green-500 shadow-2xl scale-105'
                   )}
                 >
@@ -413,7 +413,7 @@ export default function PricingPage() {
               {additionalFeatures.map((feature, index) => (
                 <motion.div
                   key={index}
-                  className="flex items-start space-x-4 p-6 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300"
+                  className="flex items-start space-x-4 p-6 bg-white/90 dark:bg-white-900/90 backdrop-blur-sm rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.6, delay: index * 0.2 }}

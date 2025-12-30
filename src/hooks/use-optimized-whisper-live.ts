@@ -181,8 +181,44 @@ export function useOptimizedWhisperLive(
         transcriptHistoryRef.current.clear()
         entries.slice(-25).forEach(entry => transcriptHistoryRef.current.add(entry))
       }
+
+      // ✅ NEW: Also clean up old segment history (keep last 100 entries within 5 minutes)
+      const now = Date.now();
+      const fiveMinutesAgo = now - 5 * 60 * 1000;
+
+      for (const [key, timestamp] of Array.from(segmentHistoryRef.current.entries())) {
+        if (timestamp < fiveMinutesAgo) {
+          segmentHistoryRef.current.delete(key);
+        }
+      }
+
+      // Limit size
+      if (segmentHistoryRef.current.size > 100) {
+        const entries = Array.from(segmentHistoryRef.current.entries())
+          .sort((a, b) => b[1] - a[1]) // Sort by timestamp descending
+          .slice(0, 50); // Keep most recent 50
+        segmentHistoryRef.current.clear();
+        entries.forEach(([key, val]) => segmentHistoryRef.current.set(key, val));
+      }
     }
   }, [normalizeText])
+
+  // Helper function to calculate text similarity
+  const calculateSimilarity = useCallback((str1: string, str2: string): number => {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+
+    if (longer.length === 0) return 1.0;
+
+    // Count matching characters
+    let matches = 0;
+    for (let i = 0; i < shorter.length; i++) {
+      if (longer.includes(shorter[i])) matches++;
+    }
+
+    return matches / longer.length;
+  }, [])
+
   // --- Add this above the connect() definition ---
   function openRoleSocket(role: 'agent' | 'caller'): WebSocket {
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
@@ -198,16 +234,25 @@ export function useOptimizedWhisperLive(
         uid: `${uidRef.current}-${role}`,
         language: config.language,
         model: config.model,
-        use_vad: false,                     //  IMPORTANT
+        use_vad: false,                     // ✅ DISABLED: VAD removes speech, not needed with small chunks
         stream: true,
         save_recording: config.saveRecording,
         output_filename: `${config.outputFilename}-${role}.wav`,
         sample_rate: sampleRateRef.current,
-        same_output_threshold: 0.92,        //  reduce repetition
-        no_speech_thresh: 0.25,             //  don’t ignore quiet speech
-        chunk_size: 16384                   //  smoother context flow
-      }));
 
+        // ✅ CRITICAL SERVER SETTINGS for instant transcription
+        chunk_size: 1024,                   // ✅ Very small = process immediately
+        beam_size: 1,                       // ✅ Fastest decoding (greedy)
+        best_of: 1,                         // ✅ No sampling, instant results
+
+        // ✅ Deduplication settings
+        same_output_threshold: 0.0,         // ✅ DISABLED: Let client handle dedup
+        no_speech_thresh: 0.6,              // ✅ Higher = less false positives
+
+        // Additional speed optimizations
+        condition_on_previous_text: false,  // ✅ Don't wait for context
+        prompt_reset_on_temperature: 0.5
+      }));
     };
 
     setInterval(() => {
@@ -222,23 +267,66 @@ export function useOptimizedWhisperLive(
         if (Array.isArray(msg.segments)) {
           const now = Date.now();
           const newSegments: Segment[] = [];
+
           for (const wsSeg of msg.segments) {
-            const text = (wsSeg.text || '').trim();
-            if (!text) continue;
+            let text = (wsSeg.text || '').trim();
+            if (!text || text.length < 3) continue;
+
             const norm = normalizeText(text);
-            if (segmentHistoryRef.current.has(norm)) continue;
-            segmentHistoryRef.current.set(norm, now);
+
+            // ✅ Track the LONGEST text we've ever seen from this role
+            const roleKey = `longest_${role}`;
+            const longestSeen = sessionStorage.getItem(roleKey) || '';
+            const longestNorm = normalizeText(longestSeen);
+
+            // ✅ If current text is contained in what we've seen, skip entirely
+            if (longestNorm.includes(norm)) {
+              continue;
+            }
+
+            // ✅ If current text CONTAINS what we've seen, extract ONLY the new part
+            if (norm.includes(longestNorm) && longestNorm.length > 0) {
+              // Find where the old text ends in the new text
+              const oldTextEnd = text.toLowerCase().lastIndexOf(longestSeen.toLowerCase().substring(Math.max(0, longestSeen.length - 50)));
+
+              if (oldTextEnd > 0) {
+                // Extract only the new portion
+                text = text.substring(oldTextEnd + Math.min(50, longestSeen.length)).trim();
+
+                if (text.length < 3) continue;
+              }
+            }
+
+            // ✅ Check against recent segments (quick dedup)
+            const recentDup = Array.from(segmentHistoryRef.current.entries())
+              .some(([prevNorm, prevTime]) => {
+                if (now - prevTime > 5000) return false; // Only check last 5 seconds
+                return normalizeText(text).includes(prevNorm) || prevNorm.includes(normalizeText(text));
+              });
+
+            if (recentDup) continue;
+
+            // ✅ Update longest seen for this role
+            if (norm.length > longestNorm.length) {
+              sessionStorage.setItem(roleKey, text);
+            }
+
+            // ✅ Add to history
+            segmentHistoryRef.current.set(normalizeText(text), now);
+
+            // ✅ Create segment with ONLY new content
             newSegments.push({
               id: `${role}-${now}-${Math.random().toString(36).slice(2, 6)}`,
               speaker: role,
-              text,
+              text: text,
               content: text,
               isFinal: true,
               timestamp: now,
               confidence: wsSeg.confidence ?? 0.8
             });
-            segmentHistoryRef.current.set(norm, now);
           }
+
+          // Only update if we have truly new segments
           if (newSegments.length) {
             setState(s => ({
               ...s,
@@ -255,8 +343,8 @@ export function useOptimizedWhisperLive(
             setState(s => ({
               ...s,
               transcript: s.transcript
-                ? `${s.transcript}\n[${role.toUpperCase()}] ${t}`
-                : `[${role.toUpperCase()}] ${t}`,
+                ? `${s.transcript}\n👤 ${role === 'agent' ? 'Agent' : 'Caller'}\n${t}`
+                : `👤 ${role === 'agent' ? 'Agent' : 'Caller'}\n${t}`,
             }));
           }
         }
@@ -284,6 +372,10 @@ export function useOptimizedWhisperLive(
     transcriptHistoryRef.current.clear()
     segmentHistoryRef.current.clear()
     lastProcessedMessageRef.current = ''
+
+    // ✅ Clear longest-seen tracking
+    sessionStorage.removeItem('longest_agent')
+    sessionStorage.removeItem('longest_caller')
 
     // Request permissions first
     try {
@@ -355,7 +447,8 @@ export function useOptimizedWhisperLive(
       }
 
       const mixSource = ctx.createMediaStreamSource(destination.stream);
-      const processor = ctx.createScriptProcessor(config.optimization?.chunkSize || 16384, 1, 1);
+      // ✅ Balanced: 4096 = good quality + fast streaming (~250ms per chunk)
+      const processor = ctx.createScriptProcessor(config.optimization?.chunkSize || 4096, 1, 1);
       mixSource.connect(processor);
       processor.connect(ctx.destination);
 
@@ -540,6 +633,8 @@ export function useOptimizedWhisperLive(
   const clearTranscript = useCallback(() => {
     transcriptHistoryRef.current.clear()
     segmentHistoryRef.current.clear()
+    sessionStorage.removeItem('longest_agent')
+    sessionStorage.removeItem('longest_caller')
     setState(s => ({ ...s, transcript: '', segments: [] }))
   }, [])
 

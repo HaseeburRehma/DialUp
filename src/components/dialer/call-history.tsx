@@ -7,11 +7,11 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { 
-  Phone, 
-  PhoneIncoming, 
-  PhoneOutgoing, 
-  Clock, 
+import {
+  Phone,
+  PhoneIncoming,
+  PhoneOutgoing,
+  Clock,
   Search,
   Play,
   Download,
@@ -31,7 +31,7 @@ export function CallHistory() {
     const matchesSearch = call.number.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = filterStatus === 'all' || call.status === filterStatus
     const matchesDirection = filterDirection === 'all' || call.direction === filterDirection
-    
+
     return matchesSearch && matchesStatus && matchesDirection
   })
 
@@ -40,7 +40,7 @@ export function CallHistory() {
       case 'completed': return 'bg-green-500/20 text-green-300 border-green-500/30'
       case 'busy': return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
       case 'no-answer': return 'bg-orange-500/20 text-orange-300 border-orange-500/30'
-      case 'failed': return 'bg-red-500/20 text-red-300 border-red-500/30'
+      case 'failed': return 'bg-red-500/20 text-red-900 border-red-500/30'
       default: return 'bg-gray-500/20 text-gray-300 border-gray-500/30'
     }
   }
@@ -66,7 +66,7 @@ export function CallHistory() {
                 className="pl-10 bg-black/10 border-black/20 text-black placeholder-black/40"
               />
             </div>
-            
+
             <div className="flex gap-2">
               <select
                 value={filterStatus}
@@ -79,7 +79,7 @@ export function CallHistory() {
                 <option value="no-answer">No Answer</option>
                 <option value="failed">Failed</option>
               </select>
-              
+
               <select
                 value={filterDirection}
                 onChange={(e) => setFilterDirection(e.target.value)}
@@ -102,8 +102,8 @@ export function CallHistory() {
               <Phone className="h-12 w-12 text-black/40 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-black mb-2">No Call History</h3>
               <p className="text-black/60">
-                {searchTerm || filterStatus !== 'all' || filterDirection !== 'all' 
-                  ? 'No calls match your current filters.' 
+                {searchTerm || filterStatus !== 'all' || filterDirection !== 'all'
+                  ? 'No calls match your current filters.'
                   : 'Start making calls to see your history here.'}
               </p>
             </CardContent>
@@ -121,7 +121,7 @@ export function CallHistory() {
                         <PhoneIncoming className="h-5 w-5 text-green-400" />
                       )}
                     </div>
-                    
+
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-1">
                         <h3 className="text-lg font-semibold text-black">{call.number}</h3>
@@ -129,25 +129,25 @@ export function CallHistory() {
                           {call.status.replace('-', ' ')}
                         </Badge>
                       </div>
-                      
+
                       <div className="flex items-center space-x-4 text-sm text-black/60">
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3" />
                           <span>{formatDistanceToNow(call.timestamp, { addSuffix: true })}</span>
                         </div>
-                        
+
                         {call.duration > 0 && (
                           <div className="flex items-center space-x-1">
                             <Clock className="h-3 w-3" />
                             <span>{formatDuration(call.duration)}</span>
                           </div>
                         )}
-                        
+
                         <span className="capitalize text-black/50">
                           {call.direction}
                         </span>
                       </div>
-                      
+
                       {call.notes && (
                         <div className="mt-2 p-2 bg-black/5 rounded text-sm text-black/80">
                           <MessageSquare className="h-3 w-3 inline mr-1" />
@@ -156,7 +156,7 @@ export function CallHistory() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
                     {call.recording && (
                       <>
@@ -176,7 +176,7 @@ export function CallHistory() {
                         </Button>
                       </>
                     )}
-                    
+
                     <Button
                       variant="ghost"
                       size="sm"

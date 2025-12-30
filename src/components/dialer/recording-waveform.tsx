@@ -106,7 +106,7 @@ export function RecordingWaveform({ isRecording, isTranscribing, callSeconds }: 
                     <div className="flex items-center space-x-4">
                         <Badge
                             className={`${isRecording
-                                ? 'bg-red-500/20 text-red-300 border-red-500/30'
+                                ? 'bg-red-500/20 text-red-900 border-red-500/30'
                                 : 'bg-blue-500/20 text-blue-300 border-blue-500/30'
                                 } px-3 py-1`}
                         >
@@ -168,8 +168,8 @@ export function RecordingWaveform({ isRecording, isTranscribing, callSeconds }: 
                         <div
                             key={i}
                             className={`w-2 h-8 mx-1 rounded-full transition-all duration-150 ${audioLevel * 5 > i
-                                    ? (isRecording ? 'bg-red-400' : 'bg-blue-400')
-                                    : 'bg-slate-700'
+                                ? (isRecording ? 'bg-red-400' : 'bg-blue-400')
+                                : 'bg-slate-700'
                                 }`}
                             style={{
                                 transform: audioLevel * 5 > i ? 'scaleY(1.2)' : 'scaleY(1)',

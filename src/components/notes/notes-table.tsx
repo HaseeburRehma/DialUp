@@ -97,9 +97,15 @@ export function NotesTable({ notes, selectedFolder = 'All Notes', onEdit, onDele
     setExpandedRows(newExpanded)
   }
 
-  const truncateText = (text: string, limit: number = 80) => {
+  const truncateText = (text: string, maxWords: number = 40) => {
     const plainText = text.replace(/<[^>]*>?/gm, '')
-    return plainText.length > limit ? plainText.substring(0, limit) + '…' : plainText
+    const words = plainText.split(/\s+/).filter(w => w.length > 0)
+
+    if (words.length <= maxWords) {
+      return plainText
+    }
+
+    return words.slice(0, maxWords).join(' ') + '…'
   }
 
   const handleExportText = (note: Note) => {
@@ -276,11 +282,11 @@ ${note.text.replace(/<[^>]*>?/gm, '')}
                     <td className="px-4 py-3">{note.callerName}</td>
                     <td className="px-4 py-3 text-slate-500">{note.callerEmail}</td>
                     <td className="px-4 py-3 text-slate-500">{note.callerLocation}</td>
-                    <td className="px-4 py-3 max-w-xs truncate text-slate-500">
+                    <td className="px-4 py-3 max-w-sm text-slate-500">
                       {isExpanded ? (
-                        <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: note.text }} />
+                        <div className="max-h-96 overflow-y-auto whitespace-pre-wrap border border-slate-200 rounded p-2 bg-slate-50" dangerouslySetInnerHTML={{ __html: note.text }} />
                       ) : (
-                        truncateText(note.text)
+                        <div className="line-clamp-3">{truncateText(note.text, 50)}</div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{created}</td>
@@ -397,9 +403,9 @@ ${note.text.replace(/<[^>]*>?/gm, '')}
                   </button>
                   <div className="text-sm text-slate-600">
                     {isExpanded ? (
-                      <div className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: note.text }} />
+                      <div className="max-h-96 overflow-y-auto whitespace-pre-wrap border border-slate-200 rounded p-2 bg-slate-50" dangerouslySetInnerHTML={{ __html: note.text }} />
                     ) : (
-                      <p className="line-clamp-2">{truncateText(note.text, 120)}</p>
+                      <p className="line-clamp-2">{truncateText(note.text, 30)}</p>
                     )}
                   </div>
                 </div>

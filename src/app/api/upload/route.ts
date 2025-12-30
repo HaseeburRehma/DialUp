@@ -1,7 +1,6 @@
 // src/app/api/upload/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { getBucket } from "@/lib/mongo"
-import { Readable } from "stream"
+import { uploadFile } from "@/lib/storage"
 import { connect } from '../../../../server/utils/db.js'
 import Call from '../../../../server/models/Call'
 
@@ -23,68 +22,58 @@ export async function POST(req: NextRequest) {
     // Convert file to Buffer
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    // Upload to GridFS
-    const bucket = await getBucket()
+    // Upload with automatic MongoDB/filesystem fallback
     const filename = file.name || `audio-${Date.now()}.wav`
     const contentType = file.type || "audio/wav"
 
-    const uploadStream = bucket.openUploadStream(filename, {
-      contentType,
-      metadata: {
-        uploadedAt: new Date(),
-        originalSize: file.size,
-        uploadIP: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
-      }
+    const result = await uploadFile(buffer, filename, contentType, {
+      originalSize: file.size,
+      uploadIP: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
     })
 
-    const readable = Readable.from(buffer)
-    readable.pipe(uploadStream)
+    // Build public URL
+    const publicUrl = process.env.PUBLIC_URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL
 
-    return await new Promise((resolve, reject) => {
-      uploadStream.on("finish", async () => {
-        const fileId = uploadStream.id
-        const idStr = fileId.toHexString?.() || fileId.toString()
+    let baseUrl: string
+    if (publicUrl) {
+      baseUrl = publicUrl
+      console.log(`[Upload API] Using public URL: ${baseUrl}`)
+    } else {
+      const protocol = req.headers.get('x-forwarded-proto') || (req.url.includes('https') ? 'https' : 'http')
+      const host = req.headers.get('host') || req.headers.get('x-forwarded-host') || 'localhost:3000'
+      baseUrl = `${protocol}://${host}`
+      console.log(`[Upload API] Using dynamic URL: ${baseUrl}`)
+    }
 
-        const protocol = req.headers.get('x-forwarded-proto') || (req.url.includes('https') ? 'https' : 'http')
-        const host = req.headers.get('host') || req.headers.get('x-forwarded-host') || 'localhost:3000'
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
-        const fileUrl = `${baseUrl}/api/uploads/${idStr}`
+    const fileUrl = `${baseUrl}${result.url}`
 
-        console.log(`[Upload API] ✅ Upload successful - ID: ${idStr}, URL: ${fileUrl}`)
+    console.log(`[Upload API] ✅ Upload successful - ID: ${result.id}, URL: ${fileUrl}, Storage: ${result.storage}`)
 
-       
-        const callSid = form.get('CallSid') as string
-        const callId = form.get('callId') as string
-        if (callSid || callId) {
-          try {
-            await connect()
-            const filter = callId ? { _id: callId } : { 'metadata.callSid': callSid }
-            await Call.findOneAndUpdate(
-              filter,
-              { $push: { recordings: fileUrl } },
-              { new: true }
-            )
-            console.log(`🎧 Attached recording to Call ${callSid || callId}`)
-          } catch (e) {
-            console.error('⚠️ Failed to attach recording to Call:', e)
-          }
-        }
-
-        resolve(
-          NextResponse.json({
-            id: idStr,
-            url: fileUrl,
-            filename,
-            size: file.size,
-            contentType,
-          })
+    // Attach to Call if metadata provided
+    const callSid = form.get('CallSid') as string
+    const callId = form.get('callId') as string
+    if (callSid || callId) {
+      try {
+        await connect()
+        const filter = callId ? { _id: callId } : { 'metadata.callSid': callSid }
+        await Call.findOneAndUpdate(
+          filter,
+          { $push: { recordings: fileUrl } },
+          { new: true }
         )
-      })
+        console.log(`🎧 Attached recording to Call ${callSid || callId}`)
+      } catch (e) {
+        console.error('⚠️ Failed to attach recording to Call:', e)
+      }
+    }
 
-      uploadStream.on("error", (err) => {
-        console.error("[Upload API] ❌ Upload stream error:", err)
-        reject(NextResponse.json({ error: `Upload failed: ${err.message}` }, { status: 500 }))
-      })
+    return NextResponse.json({
+      id: result.id,
+      url: fileUrl,
+      filename,
+      size: file.size,
+      contentType,
+      storage: result.storage
     })
 
   } catch (err: any) {

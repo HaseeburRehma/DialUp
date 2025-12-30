@@ -1,67 +1,66 @@
 // src/app/api/uploads/[id]/route.ts
-import { getBucket } from '@/lib/mongo'
+import { downloadFileRange } from '@/lib/storage'
 import { NextRequest, NextResponse } from 'next/server'
-import { ObjectId } from 'mongodb'
 
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
+  const { id } = await context.params
 
   try {
-    const bucket = await getBucket()
-    const fileId = new ObjectId(id)
-    const file = await bucket.find({ _id: fileId }).next()
-
-    if (!file || typeof file.length !== 'number') {
-      return NextResponse.json({ error: 'File not ready or not found' }, { status: 404 })
-    }
-
-    const fileSize = file.length
     const range = req.headers.get('range')
+    let start: number | undefined
+    let end: number | undefined
 
-    // Parse range header
-    let start = 0
-    let end = fileSize - 1
-
+    // Parse range header if provided
     if (range) {
       const parts = range.replace(/bytes=/, '').split('-')
       start = parseInt(parts[0], 10)
-      end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1
-
-      // Validate range
-      if (start >= fileSize || end >= fileSize || start > end) {
-        return new NextResponse(null, {
-          status: 416,
-          headers: {
-            'Content-Range': `bytes */${fileSize}`,
-          },
-        })
-      }
+      end = parts[1] ? parseInt(parts[1], 10) : undefined
     }
 
-    const chunkSize = end - start + 1
-    if (!file) {
+    // Download with automatic MongoDB/filesystem fallback
+    const result = await downloadFileRange(id, start, end)
+
+    if (!result) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 })
     }
 
-    const nodeStream = bucket.openDownloadStream(fileId, { start, end: end + 1 })
-    const webStream = new ReadableStream({
-      start(controller) {
-        nodeStream.on('data', chunk => controller.enqueue(chunk))
-        nodeStream.on('end', () => controller.close())
-        nodeStream.on('error', err => controller.error(err))
-      },
-    })
+    // Validate range
+    if (start !== undefined && (start >= result.total || result.end >= result.total || start > result.end)) {
+      return new NextResponse(null, {
+        status: 416,
+        headers: {
+          'Content-Range': `bytes */${result.total}`,
+        },
+      })
+    }
+
+    // Convert Node stream to Web stream if needed
+    let webStream: ReadableStream
+    if ('getReader' in result.stream) {
+      webStream = result.stream as ReadableStream
+    } else {
+      const nodeStream = result.stream as NodeJS.ReadableStream
+      webStream = new ReadableStream({
+        start(controller) {
+          nodeStream.on('data', chunk => controller.enqueue(chunk))
+          nodeStream.on('end', () => controller.close())
+          nodeStream.on('error', err => controller.error(err))
+        },
+      })
+    }
+
+    console.log(`[Download API] ✅ Serving ${id} from ${result.storage}: ${result.start}-${result.end}/${result.total}`)
 
     return new NextResponse(webStream, {
       status: range ? 206 : 200,
       headers: {
-        'Content-Type': file.contentType || 'audio/wav',
+        'Content-Type': result.contentType,
         'Accept-Ranges': 'bytes',
-        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-        'Content-Length': chunkSize.toString(),
+        'Content-Range': `bytes ${result.start}-${result.end}/${result.total}`,
+        'Content-Length': result.size.toString(),
+        'X-Storage-Type': result.storage,
       },
     })
-
 
   } catch (err: any) {
     console.error('[Download Error]', err)

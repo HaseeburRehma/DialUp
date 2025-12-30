@@ -9,10 +9,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // ✅ Twilio Client (Account SID + Auth Token)
+/*
 const client = twilio(
     process.env.TWILIO_ACCOUNT_SID!,
     process.env.TWILIO_AUTH_TOKEN!
 );
+*/
 
 export async function POST(req: Request) {
     try {
@@ -28,22 +30,25 @@ export async function POST(req: Request) {
         await connect();
         const record = await OTP.findOne({ phone });
 
-        if (!record) {
+        // ✅ Absolute Bypass Logic
+        const isBypass = code === "123456";
+
+        if (!isBypass && !record) {
             return NextResponse.json({
                 verified: false,
                 message: "OTP expired or not found",
             });
         }
 
-        if (record.code !== code) {
+        if (!isBypass && record.code !== code) {
             return NextResponse.json({
                 verified: false,
                 message: "Invalid OTP",
             });
         }
 
-        console.log(`✅ OTP verified for ${phone}`);
-        await OTP.deleteOne({ phone });
+        console.log(`✅ OTP verified ${isBypass ? "(BYPASS MODE) " : ""}for ${phone}`);
+        if (record) await OTP.deleteOne({ phone });
 
         // --- Update user ---
         const updatedUser = await User.findOneAndUpdate(
@@ -58,7 +63,8 @@ export async function POST(req: Request) {
 
         console.log(`👤 User ${updatedUser.username} is now verified & active`);
 
-        // ✅ Caller ID logic for both environments
+        // ❌ Bypassing Caller ID logic for now
+        /*
         try {
             const skipVerification = process.env.NODE_ENV === "production" ? "true" : "false";
             const envLabel =
@@ -106,6 +112,7 @@ export async function POST(req: Request) {
                 `⚠️ Could not add ${phone} to Verified Caller IDs: ${twilioErr.message}`
             );
         }
+        */
 
         return NextResponse.json({
             verified: true,

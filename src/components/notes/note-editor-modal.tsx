@@ -363,7 +363,7 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
 
   return (
     <Dialog open={open} onOpenChange={val => { if (!val) onClose() }}>
-      <DialogContent className="max-w-6xl h-[100vh] md:h-[90vh] w-full md:w-[95vw] lg:w-full flex flex-col overflow-hidden p-0 gap-0">
+      <DialogContent className="max-w-6xl h-[100vh] md:h-[90vh] w-full md:w-[95vw] lg:w-full flex flex-col overflow-hidden p-0 gap-0 bg-white">
         <DialogHeader className="flex-shrink-0 p-4 md:p-6 border-b">
           <DialogTitle className="text-base md:text-lg lg:text-xl">{note ? 'Edit Note' : 'Create Note'}</DialogTitle>
         </DialogHeader>
@@ -603,7 +603,7 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
                   )}
 
                   {/* Form Fields */}
-                  <div className="grid grid-cols-1 gap-2 p-3 bg-muted/50 rounded-lg">
+                  <div className="grid grid-cols-1 gap-2 p-3 bg-white rounded-lg border border-slate-200">
                     <div>
                       <Label htmlFor="callerName" className="text-xs">Caller Name *</Label>
                       <Input

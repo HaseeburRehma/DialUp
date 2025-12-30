@@ -7,17 +7,18 @@ import crypto from 'crypto'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-export async function POST(req: NextRequest, { params }: any) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
         if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+        const { id } = await params
         await connect()
 
         const shareToken = crypto.randomBytes(16).toString('hex')
 
         const note = await Note.findOneAndUpdate(
-            { _id: params.id, userId: token.id },
+            { _id: id, userId: token.id },
             { shareToken, isShared: true },
             { new: true }
         )
@@ -35,15 +36,16 @@ export async function POST(req: NextRequest, { params }: any) {
     }
 }
 
-export async function DELETE(req: NextRequest, { params }: any) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
         if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+        const { id } = await params
         await connect()
 
         const note = await Note.findOneAndUpdate(
-            { _id: params.id, userId: token.id },
+            { _id: id, userId: token.id },
             { shareToken: null, isShared: false },
             { new: true }
         )

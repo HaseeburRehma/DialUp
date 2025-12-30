@@ -50,29 +50,35 @@ export const StickyScroll = ({
             }}
         >
             {/* Text Content */}
-            <div className="relative flex items-start w-full lg:w-1/2">
+            <div className="relative flex items-start w-full lg:w-1/2 px-6 lg:px-10">
                 <div className="max-w-2xl w-full">
                     {content.map((item, index) => (
-                        <div key={item.title + index} className="min-h-screen flex flex-col justify-start pt-20">
+                        <div key={item.title + index} className="min-h-screen flex flex-col justify-center">
                             <motion.h2
                                 initial={{
                                     opacity: 0,
+                                    y: 20
                                 }}
                                 animate={{
                                     opacity: activeCard === index ? 1 : 0.3,
+                                    y: activeCard === index ? 0 : 20
                                 }}
-                                className="text-4xl lg:text-5xl font-bold text-slate-900"
+                                transition={{ duration: 0.5 }}
+                                className="text-4xl lg:text-6xl font-bold text-slate-900 tracking-tight"
                             >
                                 {item.title}
                             </motion.h2>
                             <motion.p
                                 initial={{
                                     opacity: 0,
+                                    y: 20
                                 }}
                                 animate={{
                                     opacity: activeCard === index ? 1 : 0.3,
+                                    y: activeCard === index ? 0 : 20
                                 }}
-                                className="text-lg text-slate-600 max-w-lg mt-8 leading-relaxed"
+                                transition={{ duration: 0.5, delay: 0.1 }}
+                                className="text-xl text-slate-600 max-w-lg mt-8 leading-relaxed"
                             >
                                 {item.description}
                             </motion.p>
@@ -82,15 +88,15 @@ export const StickyScroll = ({
             </div>
 
             {/* Sticky Image */}
-            <div className="hidden lg:flex lg:w-1/2 items-start justify-start sticky top-0 h-screen pb-10 pt-20">
+            <div className="hidden lg:flex lg:w-1/2 sticky top-0 h-screen overflow-hidden">
                 <motion.div
                     className={cn(
-                        'relative w-full h-[500px] rounded-2xl overflow-hidden shadow-2xl bg-slate-100',
+                        'relative w-full h-full bg-slate-900 shadow-[-20px_0_50px_rgba(0,0,0,0.1)]',
                         contentClassName
                     )}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.5 }}
                 >
                     {content.map((item, index) => (
                         <motion.div
@@ -99,8 +105,9 @@ export const StickyScroll = ({
                             initial={{ opacity: 0 }}
                             animate={{
                                 opacity: activeCard === index ? 1 : 0,
+                                scale: activeCard === index ? 1 : 1.05,
                             }}
-                            transition={{ duration: 0.5 }}
+                            transition={{ duration: 0.6, ease: "easeOut" }}
                         >
                             <Image
                                 src={item.image}
@@ -109,6 +116,8 @@ export const StickyScroll = ({
                                 className="object-cover"
                                 priority={index === 0}
                             />
+                            {/* Subtle dark overlay for consistency */}
+                            <div className="absolute inset-0 bg-black/5" />
                         </motion.div>
                     ))}
                 </motion.div>

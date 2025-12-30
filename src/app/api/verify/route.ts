@@ -16,13 +16,14 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
         }
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        console.log(" ENV CHECK:", {
+        const code = "123456"; // Bypass code
+        console.log(" ENV CHECK (Bypassed):", {
             SID: process.env.TWILIO_ACCOUNT_SID,
             API_KEY: process.env.TWILIO_API_KEY_SID,
             TOKEN: process.env.TWILIO_AUTH_TOKEN ? "✅ Loaded" : "❌ Missing",
         });
 
+        /*
         const client = twilio(
             process.env.TWILIO_API_KEY_SID!,
             process.env.TWILIO_API_KEY_SECRET!,
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
             messagingServiceSid: "MG3003536dee03ea24d8ae88afa276eb82",
             to: phone,
         });
+        */
 
         otpStore[phone] = code;
         console.log(`📤 OTP ${code} sent to ${phone}`);

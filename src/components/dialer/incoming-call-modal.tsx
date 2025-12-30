@@ -93,8 +93,8 @@ export function IncomingCallModal() {
 
                     {/* Action Labels */}
                     <div className="flex justify-center space-x-12 mt-3">
-                        <span className="text-red-300 text-sm">Decline</span>
-                        <span className="text-green-300 text-sm">Accept</span>
+                        <span className="text-red-900 text-sm">Decline</span>
+                        <span className="text-green-600 text-sm">Accept</span>
                     </div>
                 </CardContent>
             </Card>

@@ -74,7 +74,7 @@ export function TranscriptionSettingsModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col bg-white">
                 <DialogHeader className="flex-shrink-0">
                     <DialogTitle className="text-lg md:text-xl">Transcription Settings</DialogTitle>
                 </DialogHeader>
@@ -87,7 +87,7 @@ export function TranscriptionSettingsModal({
                     </TabsList>
 
                     {/* ─── GENERAL ─────────────────────────────────────────── */}
-                    <TabsContent value="general" className="pt-3 md:pt-4 space-y-4 md:space-y-6 overflow-y-auto flex-1">
+                    <TabsContent value="general" className="pt-3 md:pt-4 space-y-4 md:space-y-6 overflow-y-auto flex-1 max-h-[60vh]">
                         <Card>
                             <CardHeader className="p-4 md:p-6">
                                 <CardTitle className="text-base md:text-lg">Basic</CardTitle>
@@ -180,7 +180,7 @@ export function TranscriptionSettingsModal({
                     </TabsContent>
 
                     {/* ─── WHISPERLIVE ─────────────────────────────────────── */}
-                    <TabsContent value="whisperlive" className="pt-3 md:pt-4 space-y-4 md:space-y-6 overflow-y-auto flex-1">
+                    <TabsContent value="whisperlive" className="pt-3 md:pt-4 space-y-4 md:space-y-6 overflow-y-auto flex-1 max-h-[60vh]">
                         <Card>
                             <CardHeader>
                                 <CardTitle>WhisperLive</CardTitle>
@@ -271,7 +271,7 @@ export function TranscriptionSettingsModal({
                     </TabsContent>
 
                     {/* ─── ADVANCED ────────────────────────────────────────── */}
-                    <TabsContent value="advanced" className="pt-3 md:pt-4 space-y-4 md:space-y-6 overflow-y-auto flex-1">
+                    <TabsContent value="advanced" className="pt-3 md:pt-4 space-y-4 md:space-y-6 overflow-y-auto flex-1 max-h-[60vh]">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Advanced</CardTitle>

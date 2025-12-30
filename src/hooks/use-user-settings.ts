@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 
 export interface WhisperLiveConfig {
     language: string
-   
+
     vad: boolean
     enabled: boolean
     serverUrl: string
@@ -48,7 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
         autoPunctuation: true,
         whisperlive: {
             enabled: false,
-            language:'en',
+            language: 'en',
             serverUrl: 'localhost',
             port: 9090,
             backend: 'faster_whisper',
@@ -57,7 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
             saveRecording: false,
             outputFilename: './out.wav',
             maxClients: 4,
-            maxConnectionTime: 1200,  
+            maxConnectionTime: 1200,
             model: 'small',
             lang: 'en',
             vad: false

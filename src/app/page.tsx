@@ -142,9 +142,9 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5 }}
-                className="h-[400px] perspective-1000"
+                className="h-[400px] perspective-1000 group"
               >
-                <div className="relative w-full h-full group preserve-3d transition-transform duration-700 hover:rotate-y-180">
+                <div className="relative w-full h-full preserve-3d transition-flip group-hover:rotate-y-180 cursor-pointer">
                   {/* Front Side */}
                   <div className="absolute inset-0 backface-hidden">
                     <div className="bg-white rounded-2xl p-8 shadow-lg border border-slate-100 h-full flex flex-col justify-center">
@@ -198,9 +198,9 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: 0.1 }}
-                className="h-[400px] perspective-1000"
+                className="h-[400px] perspective-1000 group"
               >
-                <div className="relative w-full h-full group preserve-3d transition-transform duration-700 hover:rotate-y-180">
+                <div className="relative w-full h-full preserve-3d transition-flip group-hover:rotate-y-180 cursor-pointer">
                   {/* Front Side */}
                   <div className="absolute inset-0 backface-hidden">
                     <div className="bg-white rounded-2xl p-8 shadow-lg border border-slate-100 h-full flex flex-col justify-center">
@@ -254,9 +254,9 @@ export default function HomePage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: 0.2 }}
-                className="h-[400px] perspective-1000"
+                className="h-[400px] perspective-1000 group"
               >
-                <div className="relative w-full h-full group preserve-3d transition-transform duration-700 hover:rotate-y-180">
+                <div className="relative w-full h-full preserve-3d transition-flip group-hover:rotate-y-180 cursor-pointer">
                   {/* Front Side */}
                   <div className="absolute inset-0 backface-hidden">
                     <div className="bg-white rounded-2xl p-8 shadow-lg border border-slate-100 h-full flex flex-col justify-center">

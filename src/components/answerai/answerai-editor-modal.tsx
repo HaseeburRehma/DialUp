@@ -283,7 +283,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
   return (
     <Dialog open={open} onOpenChange={(val) => { if (!val) onClose() }}>
-      <DialogContent className="max-w-7xl h-[100vh] md:h-[95vh] w-full md:w-[95vw] lg:w-full flex flex-col overflow-hidden p-3 md:p-6 gap-3 md:gap-4">
+      <DialogContent className="max-w-7xl h-[100vh] md:h-[95vh] w-full md:w-[95vw] lg:w-full flex flex-col overflow-hidden p-3 md:p-6 gap-3 md:gap-4 bg-white">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base md:text-lg">
             <Bot className="w-4 h-4 md:w-5 md:h-5" />
@@ -325,7 +325,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
           {/* Right: Form */}
           <div className="w-full lg:w-1/3 space-y-3 md:space-y-4 overflow-auto flex-shrink-0">
-            <div className="grid grid-cols-1 gap-2 md:gap-3 p-3 md:p-4 bg-muted/50 rounded-lg">
+            <div className="grid grid-cols-1 gap-2 md:gap-3 p-3 md:p-4 bg-white rounded-lg border border-slate-200">
               <div>
                 <Label htmlFor="sessionName" className="text-xs md:text-sm">Session Name *</Label>
                 <Input
