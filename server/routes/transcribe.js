@@ -16,7 +16,8 @@ router.post('/', (req, res, next) => {
     PATH: [ffmpegDir, ffprobeDir, process.env.PATH].join(process.platform === 'win32' ? ';' : ':')
   };
   const script = path.resolve(__dirname, '../../server/utils/audiototext.py');
-  const filePath = path.resolve(__dirname, '../../public/audio', filename);
+  const safeFilename = path.basename(filename);
+  const filePath = path.resolve(__dirname, '../../public/audio', safeFilename);
   const py = spawn('python3', [script, filePath], { env });
 
   let out = '';

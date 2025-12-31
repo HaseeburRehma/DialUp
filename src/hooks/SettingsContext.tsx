@@ -66,9 +66,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  if (status === 'authenticated' && !loaded) {
-    return null
-  }
+  // No longer blocking render during load to prevent flash/flicker
+  // default settings will be used until current ones are fetched
 
   return (
     <SettingsContext.Provider value={{ settings, setSettings }}>

@@ -12,12 +12,15 @@ import { Badge } from '@/components/ui/badge'
 import { Slider } from '@/components/ui/slider'
 import {
   Phone, PhoneOff, Mic, MicOff, Pause, Play,
-  Volume2, VolumeX, Signal, Wifi, AlertCircle, Info, PlayCircle
+  Volume2, VolumeX, Signal, Wifi, AlertCircle, Info, PlayCircle, FlaskConical
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import PhoneInput from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
 import type { Segment } from '@/types/transcription'
+import { AudioVisualizer } from './AudioVisualizer'
 
 const COUNTRY_CODES: Record<string, string> = {
   US: '+1', PK: '+92', UK: '+44', IN: '+91',
@@ -52,8 +55,10 @@ export function CallInterface() {
     lastRecording,
     speakerVolume, setSpeakerVolume, micVolume, setMicVolume,
     isSpeakerOn, toggleSpeaker,
+    isSimulationMode, setIsSimulationMode,
     getCallStats,
     liveSegments,
+    audioData,
   } = useDialer()
 
   const { toast } = useToast()
@@ -110,11 +115,26 @@ export function CallInterface() {
                   {connectionQuality}
                 </Badge>
               )}
+              <div className="flex items-center space-x-2 ml-2">
+                <Switch
+                  id="sim-mode"
+                  checked={isSimulationMode}
+                  onCheckedChange={setIsSimulationMode}
+                  className="data-[state=checked]:bg-amber-500"
+                />
+                <Label htmlFor="sim-mode" className="text-[10px] font-bold text-amber-600 uppercase flex items-center">
+                  <FlaskConical className="h-3 w-3 mr-1" />
+                  Simulation
+                </Label>
+              </div>
             </div>
             {isCalling && (
               <div className="flex items-center space-x-2 bg-red-50 px-2 md:px-3 py-1 rounded-full border border-red-200">
                 <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-                <span className="text-red-700 font-mono text-xs md:text-sm">{formatTime(callSeconds)}</span>
+                <span className="text-red-700 font-mono text-xs md:text-sm mr-2">{formatTime(callSeconds)}</span>
+                <div className="w-24 h-4 overflow-hidden">
+                  <AudioVisualizer audioData={audioData} isActive={isCalling} color="#ef4444" barCount={20} />
+                </div>
               </div>
             )}
           </div>
@@ -344,6 +364,7 @@ export function CallInterface() {
                   <th className="text-left py-2 px-2 md:px-0 font-medium text-slate-900 whitespace-nowrap">Direction</th>
                   <th className="text-left py-2 px-2 md:px-0 font-medium text-slate-900 whitespace-nowrap">Duration</th>
                   <th className="text-left py-2 px-2 md:px-0 font-medium text-slate-900 whitespace-nowrap">Status</th>
+                  <th className="text-left py-2 px-2 md:px-0 font-medium text-slate-900 whitespace-nowrap">AI Insights</th>
                   <th className="text-left py-2 px-2 md:px-0 font-medium text-slate-900 whitespace-nowrap">Recording</th>
                   <th className="text-left py-2 px-2 md:px-0 font-medium text-slate-900 whitespace-nowrap">Date</th>
                 </tr>
@@ -372,6 +393,24 @@ export function CallInterface() {
                       >
                         {call.status}
                       </Badge>
+                    </td>
+                    <td className="py-2 px-2 md:px-0">
+                      <div className="flex flex-col gap-1">
+                        {/* @ts-ignore */}
+                        {call.sentiment && (
+                          <Badge variant="outline" className="w-fit text-[10px] capitalize bg-slate-50">
+                            {/* @ts-ignore */}
+                            {call.sentiment}
+                          </Badge>
+                        )}
+                        {/* @ts-ignore */}
+                        {call.extractedTasks?.length > 0 && (
+                          <Badge variant="outline" className="w-fit text-[10px] bg-blue-50 text-blue-600 border-blue-100">
+                            {/* @ts-ignore */}
+                            {call.extractedTasks.length} Tasks
+                          </Badge>
+                        )}
+                      </div>
                     </td>
                     <td className="py-2 px-2 md:px-0">
                       {call.recording || (call.recordings?.length ?? 0) > 0 ? (

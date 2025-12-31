@@ -91,7 +91,7 @@ export default function AnswerAIPage() {
         </div>
 
         {sessions.length === 0 ? (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-16">
             <div className="max-w-2xl mx-auto text-center">
               <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Bot className="w-10 h-10 text-purple-600" />
@@ -104,15 +104,15 @@ export default function AnswerAIPage() {
 
               {/* Feature Highlights */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                <div className="bg-blue-50 rounded-lg p-5 border border-blue-100">
                   <div className="w-3 h-3 bg-blue-500 rounded-full mx-auto mb-2"></div>
                   <p className="text-sm text-slate-700 font-medium">Auto-detects interviewer questions</p>
                 </div>
-                <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+                <div className="bg-green-50 rounded-lg p-5 border border-green-100">
                   <div className="w-3 h-3 bg-green-500 rounded-full mx-auto mb-2"></div>
                   <p className="text-sm text-slate-700 font-medium">Generates AI-powered answers instantly</p>
                 </div>
-                <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
+                <div className="bg-purple-50 rounded-lg p-5 border border-purple-100">
                   <div className="w-3 h-3 bg-purple-500 rounded-full mx-auto mb-2"></div>
                   <p className="text-sm text-slate-700 font-medium">Records candidate responses</p>
                 </div>

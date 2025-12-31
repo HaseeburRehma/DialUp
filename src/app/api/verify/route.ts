@@ -16,7 +16,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid phone number" }, { status: 400 });
         }
 
-        const code = "123456"; // Bypass code
+        const isDev = process.env.NODE_ENV === "development";
+        const code = isDev ? "123456" : Math.floor(100000 + Math.random() * 900000).toString();
         console.log(" ENV CHECK (Bypassed):", {
             SID: process.env.TWILIO_ACCOUNT_SID,
             API_KEY: process.env.TWILIO_API_KEY_SID,

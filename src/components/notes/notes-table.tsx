@@ -284,7 +284,12 @@ ${note.text.replace(/<[^>]*>?/gm, '')}
                     <td className="px-4 py-3 text-slate-500">{note.callerLocation}</td>
                     <td className="px-4 py-3 max-w-sm text-slate-500">
                       {isExpanded ? (
-                        <div className="max-h-96 overflow-y-auto whitespace-pre-wrap border border-slate-200 rounded p-2 bg-slate-50" dangerouslySetInnerHTML={{ __html: note.text }} />
+                        <div
+                          className="max-h-96 overflow-y-auto whitespace-pre-wrap border border-slate-200 rounded p-2 bg-slate-50"
+                          dangerouslySetInnerHTML={{
+                            __html: note.text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                          }}
+                        />
                       ) : (
                         <div className="line-clamp-3">{truncateText(note.text, 50)}</div>
                       )}
@@ -403,7 +408,12 @@ ${note.text.replace(/<[^>]*>?/gm, '')}
                   </button>
                   <div className="text-sm text-slate-600">
                     {isExpanded ? (
-                      <div className="max-h-96 overflow-y-auto whitespace-pre-wrap border border-slate-200 rounded p-2 bg-slate-50" dangerouslySetInnerHTML={{ __html: note.text }} />
+                      <div
+                        className="max-h-96 overflow-y-auto whitespace-pre-wrap border border-slate-200 rounded p-2 bg-slate-50"
+                        dangerouslySetInnerHTML={{
+                          __html: note.text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                        }}
+                      />
                     ) : (
                       <p className="line-clamp-2">{truncateText(note.text, 30)}</p>
                     )}

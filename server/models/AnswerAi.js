@@ -43,6 +43,7 @@ const answerAISchema = new mongoose.Schema({
   status: { type: String, enum: ['active', 'paused', 'completed'], default: 'active' },
   totalDuration: { type: Number, default: 0 },
   transcript: { type: String, default: '' },
+  scorecard: { type: Object },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

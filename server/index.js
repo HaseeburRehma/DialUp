@@ -77,6 +77,14 @@ async function start() {
 
     console.log("🔐 CORS allowed origins:", allowedOrigins);
 
+    // Security Headers & Permissions Policy for Microphone
+    app.use((req, res, next) => {
+      res.setHeader("Permissions-Policy", "microphone=(self)");
+      res.setHeader("Feature-Policy", "microphone 'self'");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      next();
+    });
+
     app.use(
       ["/api/transcribe", "/api/upload", "/api/twilio-token"],
       cors({ origin: allowedOrigins, credentials: true })
@@ -240,9 +248,37 @@ async function start() {
         console.log("🔴 Twilio stream closed");
         if (whisperConn.readyState === WebSocket.OPEN)
           whisperConn.close(1000, "Twilio client disconnected");
+
+        // Clean up debug file
+        try {
+          if (fs.existsSync(debugFile)) {
+            fs.unlinkSync(debugFile);
+            console.log("🧹 Cleaned up temporary audio file:", debugFile);
+          }
+        } catch (e) {
+          console.error("⚠️ Failed to cleanup debug file:", e.message);
+        }
       });
     });
 
+    // Stream live transcripts via SSE
+    const { addClient, removeClient } = require("./utils/streamBus");
+    app.get("/api/voice/stream", (req, res) => {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+
+      const client = {
+        write: (msg) => res.write(msg),
+        close: () => res.end(),
+      };
+      addClient(client);
+
+      req.on("close", () => {
+        removeClient(client);
+      });
+    });
 
     // Health check
     app.get("/health", (_req, res) => {

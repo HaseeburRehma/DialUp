@@ -41,7 +41,7 @@ function AnswerAICardComponent({ session, onEdit, onDelete }: AnswerAICardProps)
 
   return (
     <Card className="rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-all">
-      <CardContent className="p-5">
+      <CardContent className="p-6">
 
         {/* Header */}
         <div className="flex items-start justify-between mb-4">

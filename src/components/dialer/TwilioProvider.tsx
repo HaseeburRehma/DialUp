@@ -98,6 +98,8 @@ interface EnhancedDialerContextProps {
   // Actions
   startCall: (number: string, opts?: { callerEmail?: string; receiverEmail?: string }) => void
   hangUp: () => void
+  isSimulationMode: boolean
+  setIsSimulationMode: (val: boolean) => void
   acceptCall: () => void
   rejectCall: () => void
   toggleMute: () => void
@@ -116,6 +118,7 @@ interface EnhancedDialerContextProps {
     successRate: number
     todaysCalls: number
   }
+  audioData: Uint8Array | null
 }
 
 const EnhancedDialerContext = createContext<EnhancedDialerContextProps | undefined>(undefined)
@@ -138,6 +141,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
 
   // Call state
   const [isCalling, setIsCalling] = useState(false)
+  const [isSimulationMode, setIsSimulationMode] = useState(false)
   const [isOnHold, setIsOnHold] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
@@ -744,7 +748,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         })
 
 
-       
+
         dev.on('disconnect', async (call: any) => {
           log('📴 Device-level disconnect detected — finalizing...', 'info');
           await finalizeCall(call);
@@ -857,17 +861,57 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
 
     try {
-      // Determine emails
       const callerEmail = opts?.callerEmail || userProfile.email;
       const receiverEmail = opts?.receiverEmail || userProfile.email;
 
-      log(`📞 Starting call: ${cleanNumber}`, 'info');
+      log(`📞 Starting call: ${cleanNumber} (Mode: ${isSimulationMode ? 'SIMULATION' : 'REAL'})`, 'info');
       log(`📧 Emails - Caller: ${callerEmail}, Receiver: ${receiverEmail}`, 'info');
+
+      if (isSimulationMode) {
+        // --- SIMULATION MODE ---
+        const mockCall: any = {
+          parameters: {
+            To: cleanNumber,
+            From: userProfile.phone || "+10000000000",
+            CallSid: `SIM_${Date.now()}`,
+            CallerEmail: callerEmail,
+            ReceiverEmail: receiverEmail,
+          },
+          disconnect: () => log("📴 Simulated call disconnected", "info"),
+          mute: (m: boolean) => log(`Simulated mute: ${m}`, "info"),
+        };
+
+        const newCallRecord = {
+          number: cleanNumber,
+          direction: 'outbound',
+          status: 'completed',
+          duration: 0,
+          timestamp: new Date(),
+        };
+
+        try {
+          const res = await axios.post('/api/calls', newCallRecord, { withCredentials: true });
+          mockCall._dbId = res.data.call._id;
+          log(`🔹 Simulated call started and saved to DB: ${res.data.call._id}`, 'info');
+        } catch (err: any) {
+          log(`⚠️ Failed to save simulated call: ${err.message}`, 'error');
+        }
+
+        setCurrentConnection(mockCall);
+        setIsCalling(true);
+        setCallSeconds(0);
+        currentCallStartTime.current = new Date();
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => setCallSeconds((c) => c + 1), 1000);
+
+        startCallFeatures();
+        return;
+      }
 
       const call = await device.connect({
         params: {
           To: cleanNumber,
-           From: userProfile.phone,  
+          From: userProfile.phone,
           CallerEmail: callerEmail,
           ReceiverEmail: receiverEmail,
           CallerNumber: userProfile.phone,
@@ -893,8 +937,6 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         setCurrentConnection(null);
       });
 
-
-      // Store emails in connection object for later use
       (call as any)._emailMetadata = {
         callerEmail,
         receiverEmail,
@@ -908,15 +950,15 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     }
   };
 
-
-
   const hangUp = async () => {
     if (currentConnection) {
       log('📴 Call ended by user', 'info');
       const callCopy = currentConnection;
-      currentConnection.disconnect(); // triggers Twilio disconnect
-      await finalizeCall(callCopy);   // <--- force finalize immediately
-    } else if (device) {
+      if (!isSimulationMode) {
+        currentConnection.disconnect();
+      }
+      await finalizeCall(callCopy);
+    } else if (device && !isSimulationMode) {
       device.disconnectAll();
     }
 
@@ -1176,6 +1218,8 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         isRecording,
         isTranscribing,
         liveTranscription,
+        isSimulationMode,
+        setIsSimulationMode,
         startCall,
         hangUp,
         acceptCall,
@@ -1189,6 +1233,7 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
         startConference,
         updateCallNotes,
         getCallStats,
+        audioData: state.audioData,
       }}
     >
       {children}

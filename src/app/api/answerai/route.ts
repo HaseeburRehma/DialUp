@@ -34,9 +34,10 @@ export async function GET(req: NextRequest) {
       questions: doc.questions,
       answers: doc.answers,
       audioUrls: doc.audioUrls,
-      transcript: doc.transcript,
+      transcript: doc.transcript ? doc.transcript.substring(0, 200) + '...' : '',
       status: doc.status,
       totalDuration: doc.totalDuration,
+      scorecard: doc.scorecard,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     }))
@@ -71,7 +72,8 @@ export async function POST(req: NextRequest) {
       transcript = '',
       audioUrls = [],
       status = 'active',
-      totalDuration = 0
+      totalDuration = 0,
+      scorecard = null
     } = data
 
     if (!sessionName || !candidateName || !position || !company) {
@@ -105,6 +107,7 @@ export async function POST(req: NextRequest) {
       answers: processedAnswers,
       audioUrls,
       transcript,
+      scorecard,
       status,
       totalDuration,
       createdAt: now,
@@ -164,7 +167,7 @@ export async function PUT(req: NextRequest) {
 
     const userId = token.id || token.sub
     const data = await req.json()
-    const { sessionId, questions = [], answers = [], status, totalDuration } = data
+    const { sessionId, questions = [], answers = [], status, totalDuration, scorecard } = data
 
     if (!sessionId) {
       return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
@@ -184,6 +187,7 @@ export async function PUT(req: NextRequest) {
     if (processedAnswers.length) updateData.answers = processedAnswers
     if (status) updateData.status = status
     if (totalDuration !== undefined) updateData.totalDuration = totalDuration
+    if (scorecard !== undefined) updateData.scorecard = scorecard
 
     const updatedSession = await AnswerAI.findOneAndUpdate(
       { _id: sessionId, userId },

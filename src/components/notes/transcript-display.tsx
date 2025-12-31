@@ -132,7 +132,7 @@ export function TranscriptDisplay({
   }
 
   return (
-    <div className="space-y-2 p-4 bg-muted rounded-lg h-64 overflow-auto">
+    <div className="space-y-4 p-4 bg-muted rounded-lg min-h-[400px] max-h-[600px] overflow-auto border border-border shadow-inner">
       {processedSegments.length > 0 ? (
         <div className="space-y-2">
           {processedSegments.map((segment) => {

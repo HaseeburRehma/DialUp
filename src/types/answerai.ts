@@ -27,6 +27,19 @@ export interface Answer {
   }
 }
 
+export interface Scorecard {
+  overallScore: number
+  summary: string
+  strengths: string[]
+  weaknesses: string[]
+  categoryScores: {
+    technical: number
+    communication: number
+    culture: number
+  }
+  recommendation: 'Hire' | 'Strong Hire' | 'Reject' | 'Follow-up'
+}
+
 export interface AnswerAISession {
   id: string
   sessionName: string
@@ -43,6 +56,7 @@ export interface AnswerAISession {
   createdAt: string
   updatedAt: string
   totalDuration: number
+  scorecard?: Scorecard
 }
 
 export interface AnswerAISegment {

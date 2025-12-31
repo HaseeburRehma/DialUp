@@ -178,7 +178,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
         const lines = initialTranscript.split('\n').filter(line => line.trim());
 
         lines.forEach((line, index) => {
-          const match = line.match(/^\[(INTERVIEWER|CANDIDATE)\]:\s*(.+)$/);
+          const match = line.match(/^\[(INTERVIEWER|CANDIDATE)\]:\s*(.+)$/i);
           if (match) {
             parsedSegments.push({
               id: `saved-segment-${index}`,
@@ -188,11 +188,15 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
               timestamp: Date.now() - (lines.length - index) * 1000,
               confidence: 1.0,
             });
+          } else if (parsedSegments.length > 0) {
+            // Append continuation lines to the previous speaker's segment
+            parsedSegments[parsedSegments.length - 1].content += '\n' + line.trim();
           }
         });
 
         if (parsedSegments.length > 0) {
           setConvertedSegments(parsedSegments);
+          onSegments(parsedSegments);
         }
       }
     }, [initialQuestions, initialTranscript]);

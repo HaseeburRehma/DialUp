@@ -64,7 +64,9 @@ export default async function SharedNotePage({ params }: { params: { token: stri
                     <div className="px-6 py-8 sm:px-10">
                         <div
                             className="prose prose-slate max-w-none"
-                            dangerouslySetInnerHTML={{ __html: note.text }}
+                            dangerouslySetInnerHTML={{
+                                __html: note.text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+                            }}
                         />
 
                         {note.summary && (

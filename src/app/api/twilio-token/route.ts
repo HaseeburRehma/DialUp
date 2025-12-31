@@ -1,9 +1,15 @@
-
 // src/app/api/twilio-token/route.ts
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import twilio from "twilio";
+import { getToken } from "next-auth/jwt";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const tokenData = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  if (!tokenData) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const identity = (tokenData.email || tokenData.name || "user") as string;
   const {
     TWILIO_ACCOUNT_SID,
     TWILIO_API_KEY_SID,
@@ -18,7 +24,7 @@ export async function GET() {
     TWILIO_ACCOUNT_SID!,
     TWILIO_API_KEY_SID!,     // ✅ match env name
     TWILIO_API_KEY_SECRET!,  // ✅ match env name
-    { identity: "web_dialer_user" }
+    { identity }
   );
 
   token.addGrant(
@@ -30,7 +36,7 @@ export async function GET() {
 
   return NextResponse.json({
     token: token.toJwt(),
-    identity: "web_dialer_user",
+    identity,
   });
 }
 

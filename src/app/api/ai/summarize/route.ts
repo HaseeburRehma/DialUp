@@ -6,10 +6,10 @@ export const runtime = 'nodejs'
 
 const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: process.env.OPENROUTER_API_KEY || 'sk-or-v158b52a65c4a359a89665321240e6ffc8239956b3b1dbbcc9c9d8aeaee865c393',
+    apiKey: process.env.OPENROUTER_API_KEY,
     defaultHeaders: {
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceai.wordpressstagingsite.com/',
-        'X-Title': 'Vhisper Notes',
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceai.app',
+        'X-Title': 'VoiceAI Notes',
     },
 })
 
@@ -24,10 +24,10 @@ export async function POST(req: NextRequest) {
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY || 'sk-or-v158b52a65c4a359a89665321240e6ffc8239956b3b1dbbcc9c9d8aeaee865c393'}`,
+                'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
                 'Content-Type': 'application/json',
-                'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceai.wordpressstagingsite.com/',
-                'X-Title': 'Vhisper Notes',
+                'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceai.app',
+                'X-Title': 'VoiceAI Notes',
             },
             body: JSON.stringify({
                 model: 'google/gemini-2.0-flash-exp:free',

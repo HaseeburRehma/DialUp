@@ -54,9 +54,9 @@ async function generateAnswer({ question, context, position, company }: PromptIn
   const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY || 'sk-or-v158b52a65c4a359a89665321240e6ffc8239956b3b1dbbcc9c9d8aeaee865c393'}`,
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://yourdomain.com',
+      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://voiceai.app',
       'X-Title': 'AnswerAI Interview Assistant'
     },
     body: JSON.stringify({

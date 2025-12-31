@@ -30,8 +30,8 @@ export async function POST(req: Request) {
         await connect();
         const record = await OTP.findOne({ phone });
 
-        // ✅ Absolute Bypass Logic
-        const isBypass = code === "123456";
+        // ✅ Strict Bypass Logic (Dev only)
+        const isBypass = process.env.NODE_ENV === "development" && code === "123456";
 
         if (!isBypass && !record) {
             return NextResponse.json({

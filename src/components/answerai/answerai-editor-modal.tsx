@@ -14,8 +14,9 @@ import { useToast } from '@/hooks/use-toast'
 import { AnswerAIRecorder, AnswerAIRecorderHandle } from './answerai-recorder'
 import { QuestionAnswerDisplay } from './question-answer-display'
 import { RecordingsList, Recording } from '@/components/notes/recordings-list'
-import { Save, RotateCcw, Bot } from 'lucide-react'
-import type { AnswerAISession, AnswerAISegment, Question, Answer } from '@/types/answerai'
+import { CandidateProfile } from './candidate-profile'
+import { Save, RotateCcw, Bot, Loader2, Award } from 'lucide-react'
+import type { AnswerAISession, AnswerAISegment, Question, Answer, Scorecard } from '@/types/answerai'
 
 interface Note {
   id: string
@@ -53,9 +54,13 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
   const [questions, setQuestions] = useState<Question[]>(session?.questions || [])
   const [answers, setAnswers] = useState<Answer[]>(session?.answers || [])
   const [segments, setSegments] = useState<AnswerAISegment[]>([])
+  const [transcript, setTranscript] = useState(session?.transcript || '')
   const [totalDuration, setTotalDuration] = useState(session?.totalDuration || 0)
   const [isSaving, setIsSaving] = useState(false)
   const [isGeneratingAnswer, setIsGeneratingAnswer] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isGeneratingScorecard, setIsGeneratingScorecard] = useState(false)
+  const [scorecard, setScorecard] = useState<Scorecard | null>(session?.scorecard || null)
 
   const recorderRef = useRef<AnswerAIRecorderHandle>(null)
   const { toast } = useToast()
@@ -68,7 +73,30 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
 
   useEffect(() => {
-    if (open && session) {
+    if (open && session?.id) {
+      setIsLoading(true)
+      fetch(`/api/answerai/${session.id}`, { credentials: 'include' })
+        .then(res => res.json())
+        .then(fullSession => {
+          setFormData({
+            sessionName: fullSession.sessionName || '',
+            interviewerName: fullSession.interviewerName || '',
+            candidateName: fullSession.candidateName || '',
+            candidateEmail: fullSession.candidateEmail || '',
+            position: fullSession.position || '',
+            company: fullSession.company || '',
+            status: fullSession.status || 'active',
+          })
+          setQuestions(fullSession.questions || [])
+          setAnswers(fullSession.answers || [])
+          setTranscript(fullSession.transcript || '')
+          setTotalDuration(fullSession.totalDuration || 0)
+          // Note: AnswerAIRecorder will handle the transcript once it mounts/updates
+        })
+        .catch(err => console.error('Failed to fetch full session:', err))
+        .finally(() => setIsLoading(false))
+    } else if (open && session) {
+      // Fallback if no ID or just initialization
       setFormData({
         sessionName: session.sessionName || '',
         interviewerName: session.interviewerName || '',
@@ -118,10 +146,12 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
   const handleSegments = useCallback((newSegments: AnswerAISegment[]) => {
     setSegments(newSegments)
-    // Update duration based on segments
-    if (newSegments.length > 0) {
-      const duration = Math.floor((Date.now() - startTimeRef.current) / 1000)
-      setTotalDuration(duration)
+    // Update duration based on segments only if we are recording (detected by time passing)
+    const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
+    if (newSegments.length > 0 && elapsed > 0) {
+      // For existing sessions, we want to add to the existing duration if recording
+      // But for now, let's just make sure we don't overwrite with 0 during init
+      setTotalDuration(prev => Math.max(prev, elapsed))
     }
   }, [])
 
@@ -159,7 +189,30 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
       setIsGeneratingAnswer(false);
     }
   }, []);
+  const handleGenerateScorecard = async () => {
+    if (questions.length === 0) {
+      toast({ title: 'Insufficient Data', description: 'At least one question is needed to generate a scorecard.', variant: 'destructive' })
+      return
+    }
 
+    setIsGeneratingScorecard(true)
+    try {
+      const res = await fetch('/api/answerai/generate-scorecard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questions, answers })
+      })
+      if (!res.ok) throw new Error('Failed to generate scorecard')
+      const data = await res.json()
+      setScorecard(data)
+      toast({ title: '🎯 Scorecard Generated!', description: 'AI assessment is ready.' })
+    } catch (err: any) {
+      console.error('Scorecard error:', err)
+      toast({ title: 'Error', description: 'Failed to generate scorecard. Please try again.', variant: 'destructive' })
+    } finally {
+      setIsGeneratingScorecard(false)
+    }
+  }
 
   const resetSession = () => {
     setFormData({
@@ -190,10 +243,10 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
     setIsSaving(true)
     try {
-      // Upload recordings
-      const recordings = await recorderRef.current!.uploadRecordings()
-      const audioUrls = await Promise.all(
-        recordings.map(async (rec) => {
+      // Upload new recordings and merge with existing ones
+      const newRecordings = await recorderRef.current!.uploadRecordings()
+      const newAudioUrls = await Promise.all(
+        newRecordings.map(async (rec) => {
           if (rec.blob) {
             const fd = new FormData()
             fd.append('file', rec.blob)
@@ -205,7 +258,15 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
           return rec.url
         })
       )
-      const transcript = segments.map(seg => `[${seg.speaker.toUpperCase()}]: ${seg.content}`).join('\n')
+
+      // Merge with existing URLs
+      const existingUrls = session?.audioUrls || []
+      const mergedAudioUrls = Array.from(new Set([...existingUrls, ...newAudioUrls]))
+
+      // Construct transcript from segments if they exist, otherwise use existing transcript state
+      let finalTranscript = segments.length > 0
+        ? segments.map(seg => `[${seg.speaker.toUpperCase()}]: ${seg.content}`).join('\n')
+        : transcript || ''
 
       // Prepare payload
       const payload = {
@@ -213,9 +274,10 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
         ...formData,
         questions,
         answers,
-        audioUrls,
-        transcript,
+        audioUrls: mergedAudioUrls,
+        transcript: finalTranscript,
         totalDuration,
+        scorecard,
       }
 
       // Save session
@@ -231,13 +293,13 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
       if (!response.ok) throw new Error('Failed to save session')
 
       // Send email with transcript  
-      if (formData.candidateEmail && transcript.trim()) {
+      if (formData.candidateEmail && finalTranscript.trim()) {
         try {
           await fetch('/api/send-automatic-transcript', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              transcript,
+              transcript: finalTranscript,
               sessionName: formData.sessionName,
               candidateName: formData.candidateName,
               candidateEmail: formData.candidateEmail,
@@ -285,9 +347,24 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
     <Dialog open={open} onOpenChange={(val) => { if (!val) onClose() }}>
       <DialogContent className="max-w-7xl h-[100vh] md:h-[95vh] w-full md:w-[95vw] lg:w-full flex flex-col overflow-hidden p-3 md:p-6 gap-3 md:gap-4 bg-white">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-base md:text-lg">
-            <Bot className="w-4 h-4 md:w-5 md:h-5" />
-            {session ? 'Edit AnswerAI Session' : 'Create AnswerAI Session'}
+          <DialogTitle className="flex justify-between items-center w-full pr-8 text-base md:text-lg">
+            <div className="flex items-center gap-2">
+              <Bot className="w-4 h-4 md:w-5 md:h-5" />
+              <span>{session ? 'Edit AnswerAI Session' : 'Create AnswerAI Session'}</span>
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
+            </div>
+            {questions.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateScorecard}
+                disabled={isGeneratingScorecard}
+                className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+              >
+                {isGeneratingScorecard ? <Loader2 className="h-3 w-3 mr-2 animate-spin" /> : <Award className="h-3 w-3 mr-2 text-emerald-600" />}
+                Generate AI Scorecard
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -302,9 +379,9 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
               onAnswerGenerated={handleAnswerGenerated}
               position={formData.position}
               company={formData.company}
-              initialQuestions={session?.questions}
-              initialAnswers={session?.answers}
-              initialTranscript={session?.transcript}
+              initialQuestions={questions}
+              initialAnswers={answers}
+              initialTranscript={transcript}
             />
 
 
@@ -407,6 +484,16 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
                 </select>
               </div>
 
+              {scorecard && (
+                <div className="pt-4 border-t border-slate-200 mt-4 overflow-hidden">
+                  <CandidateProfile
+                    name={formData.candidateName || 'Candidate'}
+                    email={formData.candidateEmail || 'No email provided'}
+                    scorecard={scorecard}
+                  />
+                </div>
+              )}
+
               <div className="pt-2 border-t">
                 <div className="text-xs md:text-sm space-y-1">
                   <div className="flex justify-between">
@@ -449,6 +536,6 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   )
 }

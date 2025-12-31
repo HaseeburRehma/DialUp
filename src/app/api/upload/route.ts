@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { uploadFile } from "@/lib/storage"
 import { connect } from '../../../../server/utils/db.js'
 import Call from '../../../../server/models/Call'
+import { getToken } from "next-auth/jwt"
 
 export const config = { api: { bodyParser: false } }
 
 export async function POST(req: NextRequest) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   try {
     console.log("[Upload API] Processing file upload...")
 

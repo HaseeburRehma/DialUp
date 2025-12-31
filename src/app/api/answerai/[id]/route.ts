@@ -14,19 +14,23 @@ export const runtime = 'nodejs'
  * GET /api/answerai/[id]
  * Returns all sessions for the authenticated user (or a specific one if needed).
  */
-export async function GET(req: NextRequest) {
+export async function GET(req: NextRequest, context: { params: { id: string } }) {
   try {
+    const { params } = await Promise.resolve(context)
+    const { id } = params
+
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    if (!id) return NextResponse.json({ error: 'Missing ID param' }, { status: 400 })
 
     const userId = token.id || token.sub
     await connect()
 
-    const docs = await AnswerAI.find({ userId }).sort({ createdAt: -1 })
+    const doc = await AnswerAI.findOne({ _id: id, userId })
+    if (!doc) return NextResponse.json({ error: 'Session not found' }, { status: 404 })
 
-    const sessions = docs.map(doc => ({
+    const session = {
       id: doc._id.toString(),
       sessionName: doc.sessionName,
       interviewerName: doc.interviewerName,
@@ -40,11 +44,12 @@ export async function GET(req: NextRequest) {
       transcript: doc.transcript,
       status: doc.status,
       totalDuration: doc.totalDuration,
+      scorecard: doc.scorecard,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
-    }))
+    }
 
-    return NextResponse.json(sessions)
+    return NextResponse.json(session)
   } catch (err) {
     console.error('GET /api/answerai/[id] error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -76,7 +81,8 @@ export async function POST(req: NextRequest) {
       audioUrls = [],
       transcript = '',
       status = 'active',
-      totalDuration = 0
+      totalDuration = 0,
+      scorecard = null
     } = data
 
     if (!sessionName || !candidateName || !position || !company) {
@@ -99,6 +105,7 @@ export async function POST(req: NextRequest) {
       questions,
       answers,
       transcript,
+      scorecard,
       audioUrls,
       status,
       totalDuration,
@@ -162,7 +169,8 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
       audioUrls,
       transcript,
       position,
-      company
+      company,
+      scorecard
     } = data
 
     const updateData: any = { updatedAt: new Date() }
@@ -175,6 +183,7 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
     if (transcript) updateData.transcript = transcript
     if (position) updateData.position = position
     if (company) updateData.company = company
+    if (scorecard !== undefined) updateData.scorecard = scorecard
 
     const updated = await AnswerAI.findOneAndUpdate(
       { _id: id, userId }, // ✅ Fix: use `id` not `sessionId`
