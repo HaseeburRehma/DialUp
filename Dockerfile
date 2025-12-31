@@ -97,3 +97,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 
 # Start services
 CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
