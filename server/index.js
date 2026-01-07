@@ -24,11 +24,30 @@ const WebSocket = require('ws');
 const { pushTranscript } = require("./utils/streamBus");
 
 process.on("uncaughtException", err => {
-  if (err.code === 'WS_ERR_INVALID_UTF8' || err.code === 'WS_ERR_INVALID_CLOSE_CODE') {
-    console.warn("⚠️ Ignored WebSocket frame error:", err.message);
+  // IGNORE ALL WEBSOCKET/NETWORKING ERRORS TO PREVENT CRASHES
+  const isIgnorableError =
+    err.code === 'WS_ERR_INVALID_UTF8' ||
+    err.code === 'WS_ERR_INVALID_CLOSE_CODE' ||
+    err.code === 'ECONNRESET' ||
+    (err.message && (
+      err.message.includes('Invalid WebSocket frame') ||
+      err.message.includes('read ECONNRESET') ||
+      err.message.includes('EPIPE')
+    ));
+
+  if (isIgnorableError) {
+    // Only log once per minute to avoid spamming the console
+    const now = Date.now();
+    if (!global.lastWsErrorLog || now - global.lastWsErrorLog > 60000) {
+      console.warn("⚠️  Suppressing recurring WebSocket/Network errors...");
+      global.lastWsErrorLog = now;
+    }
   } else {
-    console.error("❌ Uncaught:", err);
-    process.exit(1);
+    console.error("❌ Uncaught Exception:", err);
+    // CRITICAL: Only exit on legitimate server logic failures
+    // Do NOT exit on networking hiccups
+    const isFatal = !err.message || !err.message.toLowerCase().includes('websocket');
+    if (isFatal) process.exit(1);
   }
 });
 
@@ -330,8 +349,10 @@ async function start() {
     });
 
     server.on("upgrade", (req, socket, head) => {
-      console.log("⬆️ Forwarding WebSocket upgrade");
-      wsProxy.upgrade(req, socket, head);
+      if (req.url.startsWith('/ws')) {
+        console.log("⬆️ Forwarding WebSocket upgrade");
+        wsProxy.upgrade(req, socket, head);
+      }
     });
 
   } catch (error) {
