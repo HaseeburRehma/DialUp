@@ -52,6 +52,7 @@ interface AnswerAIRecorderProps {
   onSegments: (segments: AnswerAISegment[]) => void;
   onQuestionDetected: (question: Question | null) => void;
   onAnswerGenerated: (answer: Answer) => void;
+  onUploadComplete?: (recordings: Recording[]) => void;
   position?: string;
   company?: string;
   initialQuestions?: Question[];
@@ -115,7 +116,7 @@ const ConnectionStatus = React.memo(function ConnectionStatus({
 
 export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecorderProps>(
   function AnswerAIRecorder(
-    { sessionId, onSegments, onQuestionDetected, onAnswerGenerated, position, company, initialQuestions, initialTranscript },
+    { sessionId, onSegments, onQuestionDetected, onAnswerGenerated, onUploadComplete, position, company, initialQuestions, initialTranscript },
     ref
   ) {
     const { toast } = useToast();
@@ -451,6 +452,13 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
 
 
     const [convertedSegments, setConvertedSegments] = useState<AnswerAISegment[]>([]);
+
+    useEffect(() => {
+      // Trigger upload complete callback when recordings update
+      if (recordings.length > 0 && onUploadComplete) {
+        onUploadComplete(recordings);
+      }
+    }, [recordings, onUploadComplete]);
 
     useEffect(() => {
       // Only update from live recording if we're actively transcribing OR if we have new segments

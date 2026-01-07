@@ -243,10 +243,27 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
     setIsSaving(true)
     try {
+      // Check if recorder is busy to ensure we don't save incomplete data
+      if (recorderRef.current?.isBusy) {
+        toast({
+          title: 'Please Wait',
+          description: 'Recording/Upload in progress. Please stop recording and wait for completion.',
+          variant: 'default'
+        });
+        setIsSaving(false);
+        return;
+      }
+
       // Upload new recordings and merge with existing ones
+      // Note: usage of MediaRecorder in the hook now handles uploads automatically on stop.
+      // We double check here to ensure we have URLs.
       const newRecordings = await recorderRef.current!.uploadRecordings()
       const newAudioUrls = await Promise.all(
         newRecordings.map(async (rec) => {
+          // If we already have a URL (from auto-upload), use it
+          if (rec.url) return rec.url;
+
+          // Fallback: manually upload if only blob is present
           if (rec.blob) {
             const fd = new FormData()
             fd.append('file', rec.blob)
@@ -255,13 +272,14 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
             const { url } = await resp.json();
             return url;
           }
-          return rec.url
+          return null
         })
       )
 
-      // Merge with existing URLs
+      // Filter nulls and merge
+      const validNewUrls = newAudioUrls.filter(u => u !== null) as string[]
       const existingUrls = session?.audioUrls || []
-      const mergedAudioUrls = Array.from(new Set([...existingUrls, ...newAudioUrls]))
+      const mergedAudioUrls = Array.from(new Set([...existingUrls, ...validNewUrls]))
 
       // Construct transcript from segments if they exist, otherwise use existing transcript state
       let finalTranscript = segments.length > 0

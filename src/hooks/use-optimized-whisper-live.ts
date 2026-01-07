@@ -435,6 +435,12 @@ export function useOptimizedWhisperLive(
 
   }, [config, toast, isDuplicate, addToHistory, normalizeText])
 
+  // Enhanced refs for performance tracking
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+
+  // ... (previous refs)
+
   // Optimized transcription start
   const startTranscription = useCallback(async () => {
     try {
@@ -442,6 +448,27 @@ export function useOptimizedWhisperLive(
         audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
       });
       micRef.current = micStream;
+
+      // Start MediaRecorder for compressed upload
+      if (config.saveRecording) {
+        recordedChunksRef.current = [];
+        const options = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? { mimeType: 'audio/webm;codecs=opus' }
+          : MediaRecorder.isTypeSupported('audio/mp4')
+            ? { mimeType: 'audio/mp4' }
+            : undefined;
+
+        const mediaRecorder = new MediaRecorder(micStream, options);
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            recordedChunksRef.current.push(event.data);
+          }
+        };
+        mediaRecorder.start(1000); // Collect chunks every second
+        mediaRecorderRef.current = mediaRecorder;
+      }
+
+      // ... (existing audio processing setup) ...
 
       let systemStream: MediaStream | null = null;
       if (config.audioSources?.systemAudio) {
@@ -481,7 +508,8 @@ export function useOptimizedWhisperLive(
           if (wsMicRef.current?.readyState === WebSocket.OPEN) {
             wsMicRef.current.send(clone.buffer);
           }
-          if (config.saveRecording) recordingBuffers.current.push(clone);
+          // Note: We no longer push to recordingBuffers.current here for upload purposes
+          // to save memory, as MediaRecorder handles it.
         };
         processorMicRef.current = micProcessor;
       }
@@ -496,8 +524,6 @@ export function useOptimizedWhisperLive(
         sysProcessor.onaudioprocess = (e) => {
           const input = e.inputBuffer.getChannelData(0);
           const clone = new Float32Array(input);
-          const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length);
-          if (rms < 0.0002) return;
 
           if (wsSysRef.current?.readyState === WebSocket.OPEN) {
             wsSysRef.current.send(clone.buffer);
@@ -515,9 +541,13 @@ export function useOptimizedWhisperLive(
 
 
   // Optimized transcription stop
-  // Optimized transcription stop
   const stopTranscription = useCallback(async () => {
     logger.log('[OptimizedWhisperLive] Stopping transcription...')
+
+    // Stop MediaRecorder first to ensure we capture the end
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
 
     //  Close all WebSockets
     if (wsMicRef.current?.readyState === WebSocket.OPEN) wsMicRef.current.close(1000, 'Normal Closure')
@@ -535,9 +565,6 @@ export function useOptimizedWhisperLive(
       processorSysRef.current = null;
     }
 
-
-
-
     //  Stop all input tracks
     if (micRef.current) {
       micRef.current.getTracks().forEach(t => t.stop())
@@ -549,76 +576,81 @@ export function useOptimizedWhisperLive(
     }
 
     //  Handle recording upload
-    if (config.saveRecording && recordingBuffers.current.length > 0) {
-      console.log(
-        '[OptimizedWhisperLive] Processing recording...',
-        recordingBuffers.current.length,
-        'buffers'
-      )
-
-      try {
-        const sampleRate = sampleRateRef.current
-        const totalLength = recordingBuffers.current.reduce((sum, buf) => sum + buf.length, 0)
-        const interleaved = new Float32Array(totalLength)
-        let offset = 0
-
-        for (const buf of recordingBuffers.current) {
-          interleaved.set(buf, offset)
-          offset += buf.length
+    if (config.saveRecording) {
+      // Robustly wait for MediaRecorder to stop and flush all data
+      await new Promise<void>(resolve => {
+        if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
+          resolve();
+          return;
         }
 
-        // SAFE normalization (no Math.max spread)
-        let maxAmp = 0
-        for (let i = 0; i < interleaved.length; i++) {
-          const val = Math.abs(interleaved[i])
-          if (val > maxAmp) maxAmp = val
+        // requestData() forces a 'dataavailable' event with the current blob of data
+        // ensuring we capture everything up to this moment before stopping.
+        mediaRecorderRef.current.requestData();
+
+        mediaRecorderRef.current.onstop = () => {
+          console.log('[OptimizedWhisperLive] MediaRecorder stopped successfully');
+          resolve();
+        };
+
+        setTimeout(() => {
+          // Fallback safety timeout in case onstop doesn't fire
+          resolve();
+        }, 2000);
+      });
+
+      if (recordedChunksRef.current.length > 0) {
+        console.log(
+          '[OptimizedWhisperLive] Processing compressed recording...',
+          recordedChunksRef.current.length,
+          'chunks',
+          'Total size:', recordedChunksRef.current.reduce((acc, chunk) => acc + chunk.size, 0)
+        )
+
+        try {
+          // Default to webm if mimeType not set (though it should be)
+          const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
+          const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+          const formData = new FormData();
+          const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+          formData.append('file', blob, config.outputFilename?.replace('.wav', `.${ext}`) || `recording-${Date.now()}.${ext}`);
+
+          const uploadUrl = process.env.NEXT_PUBLIC_APP_URL
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/api/upload`
+            : '/api/upload'
+
+          const response = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(`Upload failed: ${response.status} ${errorText}`)
+          }
+
+          const { url } = await response.json()
+          const recording: Recording = {
+            id: Date.now().toString(),
+            url,
+            blob,
+          }
+
+          setRecordings(rs => [...rs, recording])
+          logger.info('[OptimizedWhisperLive] Recording uploaded successfully:', url)
+        } catch (err: any) {
+          logError('[OptimizedWhisperLive] Upload error', err)
+          toast({
+            title: 'Upload Error',
+            description: `Failed to save recording: ${err.message}`,
+            variant: 'destructive',
+          })
         }
-        if (maxAmp === 0) maxAmp = 1
-        for (let i = 0; i < interleaved.length; i++) {
-          interleaved[i] /= maxAmp
-        }
 
-        // Encode as PCM WAV
-        const wavBytes = encodeWAVOptimized(interleaved, sampleRate)
-        const blob = new Blob([wavBytes], { type: 'audio/wav' })
-        const formData = new FormData()
-        formData.append('file', blob, config.outputFilename || `recording-${Date.now()}.wav`)
-
-        const uploadUrl = process.env.NEXT_PUBLIC_APP_URL
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/upload`
-          : '/api/upload'
-
-        const response = await fetch(uploadUrl, {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Upload failed: ${response.status} ${errorText}`)
-        }
-
-        const { url } = await response.json()
-        const recording: Recording = {
-          id: Date.now().toString(),
-          url,
-          blob,
-        }
-
-        setRecordings(rs => [...rs, recording])
-        logger.info('[OptimizedWhisperLive] Recording uploaded successfully:', url)
-      } catch (err: any) {
-        logError('[OptimizedWhisperLive] Upload error', err)
-        toast({
-          title: 'Upload Error',
-          description: `Failed to save recording: ${err.message}`,
-          variant: 'destructive',
-        })
+        // Clear chunks
+        recordedChunksRef.current = [];
+        mediaRecorderRef.current = null;
       }
-
-      // Wait a tick before clearing
-      await new Promise(r => setTimeout(r, 400))
-      recordingBuffers.current = []
     }
 
     // 🧠 Close AudioContext
