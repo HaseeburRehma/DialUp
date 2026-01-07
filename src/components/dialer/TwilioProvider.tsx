@@ -1176,8 +1176,13 @@ export const TwilioProvider: React.FC<React.PropsWithChildren> = ({ children }) 
     });
 
     if (unique.length) {
-      const joined = unique.map(s => s.text || s.content || '').filter(Boolean).join('\n');
-      if (joined) {
+      const labeledLines = unique.map(s => {
+        const role = s.speaker === 'agent' ? 'Agent' : 'Caller'
+        return `👤 ${role}: ${s.text || s.content || ''}`
+      }).filter(line => line.length > 10) // Filter out very short/empty lines
+
+      if (labeledLines.length) {
+        const joined = labeledLines.join('\n');
         setLiveTranscription(prev => (prev ? prev + '\n' + joined : joined));
         setLiveSegments(prev => [...prev, ...unique]);
         setFinalTranscript(prev => (prev ? prev + '\n' + joined : joined));

@@ -5,6 +5,20 @@ const express = require("express");
 const cors = require("cors");
 const next = require("next");
 const { createProxyMiddleware } = require("http-proxy-middleware");
+// Memory monitoring to help debug crashes
+// Memory monitoring and aggressive GC to prevent External memory spikes
+setInterval(() => {
+  const usage = process.memoryUsage();
+  console.log(`📊 Memory: RSS=${(usage.rss / 1024 / 1024).toFixed(1)}MB, Heap=${(usage.heapUsed / 1024 / 1024).toFixed(1)}/${(usage.heapTotal / 1024 / 1024).toFixed(1)}MB, External=${(usage.external / 1024 / 1024).toFixed(1)}MB`);
+
+  // Aggressively trigger GC if external memory is creeping up
+  // Lowered threshold to 150MB to keep peaks even lower during compilation
+  if (global.gc && usage.external > 150 * 1024 * 1024) {
+    console.log(`🧹 Internal GC Triggered (External: ${(usage.external / 1024 / 1024).toFixed(1)}MB)`);
+    global.gc();
+  }
+}, 30000);
+
 const { connect: connectDb } = require("./utils/db");
 const WebSocket = require('ws');
 const { pushTranscript } = require("./utils/streamBus");
@@ -90,8 +104,8 @@ async function start() {
       cors({ origin: allowedOrigins, credentials: true })
     );
 
-    const jsonParser = express.json({ limit: "500mb" });
-    const urlParser = express.urlencoded({ extended: true, limit: "500mb" });
+    const jsonParser = express.json({ limit: "50mb" });
+    const urlParser = express.urlencoded({ extended: true, limit: "50mb" });
     const expressWs = require('express-ws')(app);
     const sseClients = [];
 
@@ -138,12 +152,30 @@ async function start() {
       return sign * (sample > MULAW_MAX ? MULAW_MAX : sample);
     }
 
+    // ✅ ZERO-ALLOCATION AUDIO DECODING
+    // We pre-allocate a single Buffer and an Int16Array view on it.
+    // decodeMuLaw writes directly to the view, returning a sliced buffer.
+    const DECODE_POOL = Buffer.alloc(1024 * 1021); // ~1MB
+    const DECODE_VIEW = new Int16Array(DECODE_POOL.buffer, DECODE_POOL.byteOffset, DECODE_POOL.length / 2);
+
     function decodeMuLaw(buffer) {
-      const out = new Int16Array(buffer.length);
-      for (let i = 0; i < buffer.length; i++) {
-        out[i] = decodeMuLawSample(buffer[i]);
+      if (!buffer || buffer.length === 0) return Buffer.alloc(0);
+
+      // mu-law is 8-bit, 1 sample per byte. output is 16-bit (2 bytes).
+      const numSamples = Math.min(buffer.length, DECODE_VIEW.length);
+
+      for (let i = 0; i < numSamples; i++) {
+        DECODE_VIEW[i] = decodeMuLawSample(buffer[i]);
       }
-      return Buffer.from(out.buffer);
+
+      // ✅ COLLISION-SAFE RETURN
+      // We copy the samples into a small, fresh Buffer.
+      // Small buffers (<4KB) are pooled by Node.js, so this is very fast
+      // and won't trigger the "Array buffer allocation failed" RangeError.
+      // it also protects against data being overwritten before it's sent.
+      const output = Buffer.allocUnsafe(numSamples * 2);
+      DECODE_POOL.copy(output, 0, 0, numSamples * 2);
+      return output;
     }
 
     //  Twilio WebSocket with proper speaker tracking

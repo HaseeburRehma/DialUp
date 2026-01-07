@@ -14,7 +14,7 @@ import type { Question, Answer } from '@/types/answerai'
 interface QuestionAnswerDisplayProps {
   questions: Question[]
   answers: Answer[]
-    onGenerateAnswer: (question: Question) => void | Promise<void>
+  onGenerateAnswer: (question: Question) => void | Promise<void>
 
 
   isGenerating: boolean
@@ -36,9 +36,11 @@ export function QuestionAnswerDisplay({
     })
   }
 
-  const formatTime = (timestamp: number) => {
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return 'Just now'
     const date = new Date(timestamp)
-    return date.toLocaleTimeString()
+    if (isNaN(date.getTime())) return 'Just now'
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
   if (!questions.length) {
@@ -62,12 +64,14 @@ export function QuestionAnswerDisplay({
         <CardContent>
           <div className="space-y-6">
             {questions.map((question, idx) => {
-              console.log('Rendering question:', question)
-
-              const answer = answers.find(a => a.questionId === question.id)
+              const qId = question.id || (question as any)._id?.toString()
+              const answer = answers.find(a =>
+                a.questionId === qId ||
+                (qId && a.questionId === qId.toString())
+              )
 
               return (
-                <div key={question.id ?? question.content.slice(0, 20) + idx} className="border-l-4 border-l-blue-200 pl-4">
+                <div key={qId || `q-${idx}`} className="border-l-4 border-l-blue-200 pl-4">
 
                   {/* Question */}
                   <div className="mb-3">

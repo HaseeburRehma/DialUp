@@ -21,6 +21,7 @@ import PhoneInput from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
 import type { Segment } from '@/types/transcription'
 import { AudioVisualizer } from './AudioVisualizer'
+import { TranscriptDisplay } from '../notes/transcript-display'
 
 const COUNTRY_CODES: Record<string, string> = {
   US: '+1', PK: '+92', UK: '+44', IN: '+91',
@@ -269,34 +270,13 @@ export function CallInterface() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 md:p-4 lg:p-6 pt-0">
-            <div className="bg-slate-50 p-3 md:p-4 rounded-lg max-h-48 md:max-h-64 lg:max-h-80 overflow-y-auto border border-slate-100">
-              {liveSegments.length > 0 ? (
-                <div className="space-y-2">
-                  {(liveSegments as Segment[]).map((seg, idx: number) => (
-                    <div
-                      key={seg.id || `${seg.speaker}-${idx}`}
-                      className="flex items-start space-x-2"
-                    >
-                      <Badge
-                        variant="outline"
-                        className={`mt-0.5 text-xs flex-shrink-0 ${seg.speaker === 'caller'
-                          ? 'bg-blue-100 text-blue-700 border-blue-200'
-                          : 'bg-green-100 text-green-700 border-green-200'
-                          }`}
-                      >
-                        {seg.speaker === 'caller' ? '📞 Caller' : '👤 Agent'}
-                      </Badge>
-                      <span className="text-xs md:text-sm text-slate-700 flex-1 break-words">{seg.content}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs md:text-sm text-slate-500 text-center py-6 md:py-8">
-                  {isCalling
-                    ? 'Waiting for transcription...'
-                    : 'Start a call to see live transcription'}
-                </p>
-              )}
+            <div className="max-h-48 md:max-h-64 lg:max-h-80 overflow-y-auto">
+              <TranscriptDisplay
+                segments={liveSegments as any}
+                agentLabel="Agent"
+                interviewerLabel="Caller"
+                showSpeakerSeparation={true}
+              />
             </div>
           </CardContent>
         </Card>

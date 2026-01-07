@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { NoteRecorder, NoteRecorderHandle } from './note-recorder'
 import { TranscriptSegmentsDisplay } from './transcript-segments-display'
+import { TranscriptDisplay } from './transcript-display'
 import { WhisperLiveHandle, WhisperLiveRecorder } from './whisper-live-recorder'
 import { Save, RotateCcw, Sparkles, Share2, Copy, ExternalLink, Trash2, Mic, Speaker, Wifi, WifiOff, FileText, Mic as MicIcon } from 'lucide-react'
 import { useSettings } from '@/hooks/SettingsContext'
@@ -85,6 +86,7 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
   const [recordings, setRecordings] = useState<Recording[]>(savedRecs)
   const [activeTab, setActiveTab] = useState<string>('transcription')
   const [whisperState, setWhisperState] = useState<{ isConnected: boolean; isTranscribing: boolean }>({ isConnected: false, isTranscribing: false })
+  const seenSegmentsRef = useRef<Set<string>>(new Set())
 
   // Reset all state when modal opens/closes or note changes
   useEffect(() => {
@@ -152,7 +154,8 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
       setLiveSegments([])
       setRecordings([])
     } else if (!open) {
-      // Modal closed - clear live transcription state
+      // Modal closed - clear live transcription state and stop any active process
+      liveRef.current?.disconnect()
       setLiveSegments([])
     }
   }, [open, note])
@@ -183,11 +186,33 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
   }, [extractFields])
 
   const handleLiveTranscription = useCallback((segments: Segment[]) => {
-    const unique = segments.filter((seg, i, arr) => i === 0 || seg.content.trim().toLowerCase() !== arr[i - 1].content.trim().toLowerCase())
-    const full = unique.map(s => s.content).join('\n')
-    setNoteText(full)
-    setLiveSegments(unique)
-    extractFields(full)
+    // 1. Deduplicate using seenSegmentsRef
+    const newUniqueSegments = segments.filter((s) => {
+      const key = (s.id || s.text || s.content || '').trim().toLowerCase();
+      if (!key || seenSegmentsRef.current.has(key)) return false;
+      seenSegmentsRef.current.add(key);
+      return true;
+    });
+
+    if (newUniqueSegments.length === 0) return;
+
+    // 2. Map new segments to labeled lines
+    const newLabeledLines = newUniqueSegments.map(s => {
+      const label = s.speaker === 'agent' ? 'Agent' : 'Caller'
+      return `👤 ${label}: ${s.content || s.text || ''}`
+    })
+
+    const newText = newLabeledLines.join('\n')
+
+    // 3. Append to existing text instead of overwriting
+    // We append with double newline to separate from user edits if any
+    setNoteText(prev => prev ? `${prev}\n\n${newText}` : newText)
+
+    // 4. Update the visual live segments array for the scroller
+    setLiveSegments(prev => [...prev, ...newUniqueSegments])
+
+    // 5. Extract fields from the newly added text
+    extractFields(newText)
   }, [extractFields])
 
   const handleEditorChange = (content: string) => {
@@ -393,26 +418,12 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
                         <CardTitle className="text-sm">Live Transcript</CardTitle>
                       </CardHeader>
                       <CardContent className="p-3 pt-0">
-                        <div className="bg-muted rounded-lg p-3 h-[250px] overflow-auto">
-                          {liveSegments.length > 0 ? (
-                            <div className="space-y-2">
-                              {liveSegments.map((seg, i) => (
-                                <div key={i} className="flex items-start gap-2">
-                                  {seg.speaker === 'mic' ? (
-                                    <Mic className="text-green-500 w-3 h-3 flex-shrink-0 mt-0.5" />
-                                  ) : (
-                                    <Speaker className="text-blue-500 w-3 h-3 flex-shrink-0 mt-0.5" />
-                                  )}
-                                  <span className="flex-1 text-xs break-words">{seg.content}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
-                              Transcript will appear here…
-                            </div>
-                          )}
-                        </div>
+                        <TranscriptDisplay
+                          segments={liveSegments as any}
+                          agentLabel="Agent"
+                          interviewerLabel="Caller"
+                          className="h-[250px] min-h-0"
+                        />
                       </CardContent>
                     </Card>
 
@@ -681,7 +692,12 @@ export function NoteEditorModal({ open, note, folders = [], onClose, onSave }: N
             <div className="flex-1 flex flex-col space-y-3 md:space-y-4 overflow-hidden">
               {transcriptionMode === 'live' && whisperlive?.enabled ? (
                 <div className="flex-1 flex flex-col gap-2 md:gap-3 overflow-auto">
-                  <TranscriptSegmentsDisplay segments={liveSegments} />
+                  <TranscriptDisplay
+                    segments={liveSegments as any}
+                    agentLabel="Agent"
+                    interviewerLabel="Caller"
+                    className="flex-1"
+                  />
                   {savedRecs.length > 0 && (
                     <RecordingsList recordings={recordings} onDelete={rec => setRecordings(prev => prev.filter(r => r.id !== rec.id))} />
                   )}

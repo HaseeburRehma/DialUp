@@ -1,7 +1,7 @@
 // src/hooks/use-optimized-whisper-live.ts
 
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import type { Segment } from '@/types/transcription'
 import { logger, logError, logWarn } from '@/lib/logger'
@@ -36,6 +36,8 @@ export interface OptimizedWhisperLiveConfig {
     same_output_threshold?: number
     no_speech_thresh?: number
   }
+  agentLabel?: string
+  callerLabel?: string
 }
 
 interface OptimizedWhisperLiveState {
@@ -136,15 +138,13 @@ export function useOptimizedWhisperLive(
   const wsSysRef = useRef<WebSocket | null>(null);
 
   const ctxRef = useRef<AudioContext | null>(null)
-  const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const processorMicRef = useRef<ScriptProcessorNode | null>(null)
+  const processorSysRef = useRef<ScriptProcessorNode | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
   const connectionAttempts = useRef(0)
-
-  const uidRef = useRef(
-    typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : Math.random().toString(36).slice(2)
-  )
+  const intervalRefs = useRef<NodeJS.Timeout[]>([])
+  const uidRef = useRef(`user-${Math.random().toString(36).slice(2, 11)}`)
+  const isMounted = useRef(true)
 
   const { toast } = useToast()
 
@@ -255,9 +255,13 @@ export function useOptimizedWhisperLive(
       }));
     };
 
-    setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }));
-    }, 10000);
+    // ✅ CRITICAL: Manage interval and clear on close
+    const interval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 15000);
+    intervalRefs.current.push(interval);
 
     ws.onmessage = (e: MessageEvent) => {
       if (typeof e.data !== 'string') return;
@@ -269,64 +273,77 @@ export function useOptimizedWhisperLive(
           const newSegments: Segment[] = [];
 
           for (const wsSeg of msg.segments) {
-            let text = (wsSeg.text || '').trim();
-            if (!text || text.length < 3) continue;
+            const fullText = (wsSeg.text || '').trim();
+            if (!fullText || fullText.length < 2) continue;
 
-            const norm = normalizeText(text);
+            const lastFullTextKey = `last_full_text_${role}`;
+            const pendingTextKey = `pending_sentence_${role}`;
 
-            // ✅ Track the LONGEST text we've ever seen from this role
-            const roleKey = `longest_${role}`;
-            const longestSeen = sessionStorage.getItem(roleKey) || '';
-            const longestNorm = normalizeText(longestSeen);
+            const lastFullText = sessionStorage.getItem(lastFullTextKey) || '';
+            let pendingText = sessionStorage.getItem(pendingTextKey) || '';
 
-            // ✅ If current text is contained in what we've seen, skip entirely
-            if (longestNorm.includes(norm)) {
-              continue;
-            }
-
-            // ✅ If current text CONTAINS what we've seen, extract ONLY the new part
-            if (norm.includes(longestNorm) && longestNorm.length > 0) {
-              // Find where the old text ends in the new text
-              const oldTextEnd = text.toLowerCase().lastIndexOf(longestSeen.toLowerCase().substring(Math.max(0, longestSeen.length - 50)));
-
-              if (oldTextEnd > 0) {
-                // Extract only the new portion
-                text = text.substring(oldTextEnd + Math.min(50, longestSeen.length)).trim();
-
-                if (text.length < 3) continue;
+            // 1. Extract the new delta
+            let delta = fullText;
+            if (fullText.startsWith(lastFullText)) {
+              delta = fullText.substring(lastFullText.length).trim();
+            } else {
+              const minMatch = 10;
+              if (lastFullText.length > minMatch) {
+                const tail = lastFullText.slice(-minMatch);
+                const overlapIdx = fullText.indexOf(tail);
+                if (overlapIdx !== -1) {
+                  delta = fullText.substring(overlapIdx + minMatch).trim();
+                }
               }
             }
 
-            // ✅ Check against recent segments (quick dedup)
-            const recentDup = Array.from(segmentHistoryRef.current.entries())
-              .some(([prevNorm, prevTime]) => {
-                if (now - prevTime > 5000) return false; // Only check last 5 seconds
-                return normalizeText(text).includes(prevNorm) || prevNorm.includes(normalizeText(text));
-              });
+            if (!delta) continue;
 
-            if (recentDup) continue;
+            // 2. Append delta to pending buffer
+            pendingText = (pendingText + ' ' + delta).trim();
 
-            // ✅ Update longest seen for this role
-            if (norm.length > longestNorm.length) {
-              sessionStorage.setItem(roleKey, text);
+            // 3. Split by sentence boundaries (keep the punctuation)
+            const sentenceParts = pendingText.match(/[^.?!]+[.?!]+(?=\s|$)|[^.?!]+$/g);
+
+            if (sentenceParts) {
+              let latestPending = '';
+
+              for (let i = 0; i < sentenceParts.length; i++) {
+                const part = sentenceParts[i].trim();
+
+                if (/[.?!]$/.test(part)) {
+                  if (part.length < 3) continue;
+
+                  const normPart = normalizeText(part);
+                  const isRecentDup = Array.from(segmentHistoryRef.current.entries())
+                    .some(([prevNorm, prevTime]) => {
+                      if (now - prevTime > 15000) return false;
+                      return prevNorm.includes(normPart) || normPart.includes(prevNorm);
+                    });
+
+                  if (!isRecentDup) {
+                    newSegments.push({
+                      id: `${role}-${now}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+                      speaker: role,
+                      text: part,
+                      content: part,
+                      isFinal: true,
+                      timestamp: now,
+                      confidence: wsSeg.confidence ?? 0.82
+                    });
+                    segmentHistoryRef.current.set(normPart, now);
+                  }
+                } else {
+                  latestPending = part;
+                }
+              }
+
+              sessionStorage.setItem(pendingTextKey, latestPending);
             }
 
-            // ✅ Add to history
-            segmentHistoryRef.current.set(normalizeText(text), now);
-
-            // ✅ Create segment with ONLY new content
-            newSegments.push({
-              id: `${role}-${now}-${Math.random().toString(36).slice(2, 6)}`,
-              speaker: role,
-              text: text,
-              content: text,
-              isFinal: true,
-              timestamp: now,
-              confidence: wsSeg.confidence ?? 0.8
-            });
+            sessionStorage.setItem(lastFullTextKey, fullText);
           }
 
-          // Only update if we have truly new segments
           if (newSegments.length) {
             setState(s => ({
               ...s,
@@ -340,11 +357,13 @@ export function useOptimizedWhisperLive(
           const t = msg.text.trim();
           if (t && !isDuplicate(t)) {
             addToHistory(t);
+            const agentLbl = config.agentLabel || 'Candidate';
+            const callerLbl = config.callerLabel || 'Employer';
             setState(s => ({
               ...s,
               transcript: s.transcript
-                ? `${s.transcript}\n👤 ${role === 'agent' ? 'Agent' : 'Caller'}\n${t}`
-                : `👤 ${role === 'agent' ? 'Agent' : 'Caller'}\n${t}`,
+                ? `${s.transcript}\n👤 ${role === 'agent' ? agentLbl : callerLbl}\n${t}`
+                : `👤 ${role === 'agent' ? agentLbl : callerLbl}\n${t}`,
             }));
           }
         }
@@ -373,9 +392,13 @@ export function useOptimizedWhisperLive(
     segmentHistoryRef.current.clear()
     lastProcessedMessageRef.current = ''
 
-    // ✅ Clear longest-seen tracking
+    // ✅ Clear longest-seen tracking and buffering
     sessionStorage.removeItem('longest_agent')
     sessionStorage.removeItem('longest_caller')
+    sessionStorage.removeItem('last_full_text_agent')
+    sessionStorage.removeItem('last_full_text_caller')
+    sessionStorage.removeItem('pending_sentence_agent')
+    sessionStorage.removeItem('pending_sentence_caller')
 
     // Request permissions first
     try {
@@ -434,47 +457,54 @@ export function useOptimizedWhisperLive(
       ctxRef.current = ctx;
       sampleRateRef.current = ctx.sampleRate;
 
-      // ✅ Add the combined block here
-      const destination = ctx.createMediaStreamDestination();
-
+      // 🎤 MIC PROCESSOR
       if (micStream) {
         const micSource = ctx.createMediaStreamSource(micStream);
-        micSource.connect(destination);
+        const micProcessor = ctx.createScriptProcessor(config.optimization?.chunkSize || 4096, 1, 1);
+        micSource.connect(micProcessor);
+        micProcessor.connect(ctx.destination);
+
+        micProcessor.onaudioprocess = (e) => {
+          const input = e.inputBuffer.getChannelData(0);
+          const clone = new Float32Array(input);
+          const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length);
+          if (rms < 0.0002) return;
+
+          // visualize (only from mic to keep UI simple)
+          const ui8 = new Uint8Array(clone.length);
+          for (let i = 0; i < clone.length; i++)
+            ui8[i] = Math.min(255, Math.max(0, Math.floor((clone[i] + 1) * 127.5)));
+          audioDataRef.current = ui8;
+          setAudioData(ui8);
+          setDataUpdateTrigger((t) => t + 1);
+
+          if (wsMicRef.current?.readyState === WebSocket.OPEN) {
+            wsMicRef.current.send(clone.buffer);
+          }
+          if (config.saveRecording) recordingBuffers.current.push(clone);
+        };
+        processorMicRef.current = micProcessor;
       }
+
+      // 🔊 SYSTEM PROCESSOR
       if (systemStream) {
         const sysSource = ctx.createMediaStreamSource(systemStream);
-        sysSource.connect(destination);
+        const sysProcessor = ctx.createScriptProcessor(config.optimization?.chunkSize || 4096, 1, 1);
+        sysSource.connect(sysProcessor);
+        sysProcessor.connect(ctx.destination);
+
+        sysProcessor.onaudioprocess = (e) => {
+          const input = e.inputBuffer.getChannelData(0);
+          const clone = new Float32Array(input);
+          const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length);
+          if (rms < 0.0002) return;
+
+          if (wsSysRef.current?.readyState === WebSocket.OPEN) {
+            wsSysRef.current.send(clone.buffer);
+          }
+        };
+        processorSysRef.current = sysProcessor;
       }
-
-      const mixSource = ctx.createMediaStreamSource(destination.stream);
-      // ✅ Balanced: 4096 = good quality + fast streaming (~250ms per chunk)
-      const processor = ctx.createScriptProcessor(config.optimization?.chunkSize || 4096, 1, 1);
-      mixSource.connect(processor);
-      processor.connect(ctx.destination);
-
-      processor.onaudioprocess = (e) => {
-        const input = e.inputBuffer.getChannelData(0);
-        const clone = new Float32Array(input);
-        const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length);
-        if (rms < 0.0002) return;
-        if (performanceRef.current.messageCount++ % 20 === 0)
-          console.debug('RMS:', rms.toFixed(6));
-        if (config.saveRecording) recordingBuffers.current.push(clone);
-
-        // visualize
-        const ui8 = new Uint8Array(clone.length);
-        for (let i = 0; i < clone.length; i++)
-          ui8[i] = Math.min(255, Math.max(0, Math.floor((clone[i] + 1) * 127.5)));
-        audioDataRef.current = ui8;
-        setAudioData(ui8);
-        setDataUpdateTrigger((t) => t + 1);
-
-        if (wsMicRef.current?.readyState === WebSocket.OPEN) {
-          wsMicRef.current.send(clone.buffer);
-        }
-      };
-
-      processorRef.current = processor;
 
       setState((s) => ({ ...s, isTranscribing: true, error: null }));
     } catch (err: any) {
@@ -495,10 +525,14 @@ export function useOptimizedWhisperLive(
     if (wsSysRef.current?.readyState === WebSocket.OPEN) wsSysRef.current.close(1000, 'Normal Closure')
     wsSysRef.current = null
 
-    //  Disconnect processor
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
+    //  Disconnect processors
+    if (processorMicRef.current) {
+      processorMicRef.current.disconnect();
+      processorMicRef.current = null;
+    }
+    if (processorSysRef.current) {
+      processorSysRef.current.disconnect();
+      processorSysRef.current = null;
     }
 
 
@@ -608,6 +642,10 @@ export function useOptimizedWhisperLive(
       reconnectTimeoutRef.current = undefined
     }
 
+    // ✅ Clear all ping intervals
+    intervalRefs.current.forEach(clearInterval)
+    intervalRefs.current = []
+
     // Close WebSocket connections
     if (wsMicRef.current?.readyState === WebSocket.OPEN) wsMicRef.current.close(1000, 'Normal Closure');
     wsMicRef.current = null;
@@ -635,6 +673,10 @@ export function useOptimizedWhisperLive(
     segmentHistoryRef.current.clear()
     sessionStorage.removeItem('longest_agent')
     sessionStorage.removeItem('longest_caller')
+    sessionStorage.removeItem('last_full_text_agent')
+    sessionStorage.removeItem('last_full_text_caller')
+    sessionStorage.removeItem('pending_sentence_agent')
+    sessionStorage.removeItem('pending_sentence_caller')
     setState(s => ({ ...s, transcript: '', segments: [] }))
   }, [])
 
@@ -645,6 +687,16 @@ export function useOptimizedWhisperLive(
   const deleteRecording = useCallback((recording: Recording) => {
     setRecordings(rs => rs.filter(r => r.id !== recording.id))
   }, [])
+
+  // Auto-cleanup on unmount
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      logger.log('[useOptimizedWhisperLive] Unmounting, ensuring cleanup...')
+      disconnect()
+    }
+  }, [disconnect])
 
   return {
     state,

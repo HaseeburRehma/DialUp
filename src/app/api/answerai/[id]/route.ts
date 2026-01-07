@@ -175,8 +175,8 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
 
     const updateData: any = { updatedAt: new Date() }
 
-    if (questions.length) updateData.questions = questions
-    if (answers.length) updateData.answers = answers
+    if (questions) updateData.questions = questions
+    if (answers) updateData.answers = answers
     if (status) updateData.status = status
     if (totalDuration !== undefined) updateData.totalDuration = totalDuration
     if (audioUrls?.length) updateData.audioUrls = audioUrls

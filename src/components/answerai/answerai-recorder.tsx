@@ -169,7 +169,14 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
     }, []);
     const bcRef = useRef<BroadcastChannel | null>(null);
     useEffect(() => {
-      if (initialQuestions?.length) setAllQuestions(initialQuestions);
+      if (initialQuestions?.length) {
+        setAllQuestions(initialQuestions);
+        // ✅ CRITICAL: Populate cache so we don't re-detect these
+        initialQuestions.forEach(q => {
+          const normalize = (text: string) => text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+          questionCacheRef.current.set(normalize(q.content), q);
+        });
+      }
       if (initialTranscript) {
         setTranscriptText(initialTranscript);
 
@@ -180,10 +187,11 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
         lines.forEach((line, index) => {
           const match = line.match(/^\[(INTERVIEWER|CANDIDATE)\]:\s*(.+)$/i);
           if (match) {
+            const role = match[1].toLowerCase();
             parsedSegments.push({
               id: `saved-segment-${index}`,
               content: match[2].trim(),
-              speaker: match[1].toLowerCase() as 'interviewer' | 'candidate',
+              speaker: (role === 'interviewer' || role === 'employer') ? 'interviewer' : 'candidate',
               volume: 0,
               timestamp: Date.now() - (lines.length - index) * 1000,
               confidence: 1.0,
@@ -240,6 +248,8 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
           enableSmartBuffering: true,
           enableNoiseReduction: true,
         },
+        agentLabel: 'Candidate',
+        callerLabel: 'Employer',
       }),
       [transcription]
     );
@@ -258,19 +268,28 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       resetRecordings,
     } = useOptimizedWhisperLive(whisperConfig);
 
+    // Auto-cleanup on unmount
+    useEffect(() => {
+      return () => {
+        // Assuming 'logger' is defined elsewhere or removed if not needed
+        // logger.log('[AnswerAIRecorder] Unmounting, cleaning up resources...');
+        disconnect();
+      };
+    }, [disconnect]);
+
     // Optimized segment conversion
     const convertToAnswerAISegments = useCallback((segments: Array<any>): AnswerAISegment[] => {
       return segments
         .map((seg, index): AnswerAISegment => {
           let speaker: 'interviewer' | 'candidate' = 'candidate';
-          if (seg.speaker === 'speaker') speaker = 'interviewer';
-          else if (seg.speaker === 'mic') speaker = 'candidate';
+          if (seg.speaker === 'caller') speaker = 'interviewer';
+          else if (seg.speaker === 'agent') speaker = 'candidate';
 
           return {
             id: `segment-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 11)}`,
             content: (seg.content ?? '').toString().trim(),
             speaker,
-            volume: Number(seg.volume ?? 0),
+            volume: Number(seg.volume ?? 0.5),
             timestamp: Date.now() + index * 50,
             confidence: Number(seg.confidence ?? 0.85),
           };

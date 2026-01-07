@@ -279,6 +279,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
         totalDuration,
         scorecard,
       }
+      console.log(`[AnswerAI] Saving session with ${questions.length} questions and ${answers.length} answers...`, payload)
 
       // Save session
       const url = session ? `/api/answerai/${session.id}` : '/api/answerai'

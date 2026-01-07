@@ -34,21 +34,10 @@ export async function POST(req: NextRequest) {
       uploadIP: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
     })
 
-    // Build public URL
-    const publicUrl = process.env.PUBLIC_URL || process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL
-
-    let baseUrl: string
-    if (publicUrl) {
-      baseUrl = publicUrl
-      console.log(`[Upload API] Using public URL: ${baseUrl}`)
-    } else {
-      const protocol = req.headers.get('x-forwarded-proto') || (req.url.includes('https') ? 'https' : 'http')
-      const host = req.headers.get('host') || req.headers.get('x-forwarded-host') || 'localhost:3000'
-      baseUrl = `${protocol}://${host}`
-      console.log(`[Upload API] Using dynamic URL: ${baseUrl}`)
-    }
-
-    const fileUrl = `${baseUrl}${result.url}`
+    // Build the recording URL
+    // We use relative URLs to ensure compatibility between local and production environments
+    // The relative URL is served by the Next.js /api/uploads/[id] route
+    const fileUrl = result.url
 
     console.log(`[Upload API] ✅ Upload successful - ID: ${result.id}, URL: ${fileUrl}, Storage: ${result.storage}`)
 

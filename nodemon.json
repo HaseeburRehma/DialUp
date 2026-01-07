@@ -1,0 +1,19 @@
+{
+    "verbose": true,
+    "ignore": [
+        ".git",
+        "node_modules/**/node_modules",
+        "server/venv",
+        "server/.venv",
+        "server/WhisperLive/venv",
+        "server/WhisperLive/.venv",
+        "public/uploads",
+        ".next"
+    ],
+    "watch": [
+        "server",
+        "src",
+        "next.config.ts"
+    ],
+    "ext": "js,ts,tsx,json"
+}

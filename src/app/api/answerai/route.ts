@@ -20,8 +20,11 @@ export async function GET(req: NextRequest) {
 
     const userId = token.id || token.sub
     await connect()
-
-    const docs = await AnswerAI.find({ userId }).sort({ createdAt: -1 })
+    // Exclude transcript and limit to 50 recent sessions to prevent memory spikes
+    const docs = await AnswerAI.find({ userId })
+      .select({ transcript: 0 })
+      .sort({ createdAt: -1 })
+      .limit(50)
 
     const sessions = docs.map(doc => ({
       id: doc._id.toString(),
@@ -183,8 +186,8 @@ export async function PUT(req: NextRequest) {
     }))
 
     const updateData: any = { updatedAt: new Date() }
-    if (questions.length) updateData.questions = questions
-    if (processedAnswers.length) updateData.answers = processedAnswers
+    if (questions) updateData.questions = questions
+    if (processedAnswers) updateData.answers = processedAnswers
     if (status) updateData.status = status
     if (totalDuration !== undefined) updateData.totalDuration = totalDuration
     if (scorecard !== undefined) updateData.scorecard = scorecard

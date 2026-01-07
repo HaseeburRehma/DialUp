@@ -11,12 +11,18 @@ interface TranscriptDisplayProps {
   transcript?: string
   segments?: AnswerAISegment[]
   showSpeakerSeparation?: boolean
+  agentLabel?: string
+  interviewerLabel?: string
+  className?: string
 }
 
 export function TranscriptDisplay({
   transcript = '',
   segments = [],
-  showSpeakerSeparation = true
+  showSpeakerSeparation = true,
+  agentLabel = 'Candidate',
+  interviewerLabel = 'Employer / Interviewer',
+  className = ''
 }: TranscriptDisplayProps) {
 
   // Process segments OR fallback to parsing transcript
@@ -58,76 +64,79 @@ export function TranscriptDisplay({
     return []
   }, [segments, transcript])
 
-  const formatTime = (timestamp: string) => {
+  const formatTime = (timestamp: any) => {
+    if (!timestamp) return 'Just now'
     try {
-      return new Date(timestamp).toLocaleTimeString('en-US', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })
+      const date = new Date(timestamp)
+      if (isNaN(date.getTime())) return 'Just now'
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     } catch {
-      return timestamp
+      return 'Just now'
     }
   }
 
   const getSpeakerIcon = (speaker: string) => {
-    switch (speaker) {
+    const s = speaker.toLowerCase()
+    switch (s) {
       case 'interviewer':
-        return <User className="text-blue-600 w-4 h-4 shrink-0" />
+      case 'caller':
+      case 'system':
+        return <Speaker className="text-sky-600 w-4 h-4 shrink-0" />
       case 'candidate':
-        return <Mic className="text-green-600 w-4 h-4 shrink-0" />
-      case 'speaker':
-        return <Speaker className="text-purple-600 w-4 h-4 shrink-0" />
+      case 'agent':
       case 'mic':
-        return <Mic className="text-green-600 w-4 h-4 shrink-0" />
+      case 'user':
+        return <Mic className="text-emerald-600 w-4 h-4 shrink-0" />
       default:
-        return <User className="text-gray-600 w-4 h-4 shrink-0" />
+        return <User className="text-slate-600 w-4 h-4 shrink-0" />
     }
   }
 
   const getSpeakerStyle = (speaker: string) => {
-    switch (speaker) {
+    const s = speaker.toLowerCase()
+    switch (s) {
       case 'interviewer':
+      case 'caller':
+      case 'system':
         return {
-          container: 'bg-blue-50 border-l-4 border-blue-400',
-          badge: 'bg-blue-100 text-blue-800 border-blue-200',
-          text: 'text-blue-900'
+          container: 'bg-sky-50/50 border-l-4 border-sky-400 backdrop-blur-sm',
+          badge: 'bg-sky-100 text-sky-800 border-sky-200',
+          text: 'text-sky-950 font-medium'
         }
       case 'candidate':
-        return {
-          container: 'bg-green-50 border-l-4 border-green-400',
-          badge: 'bg-green-100 text-green-800 border-green-200',
-          text: 'text-green-900'
-        }
-      case 'speaker':
-        return {
-          container: 'bg-purple-50 border-l-4 border-purple-400',
-          badge: 'bg-purple-100 text-purple-800 border-purple-200',
-          text: 'text-purple-900'
-        }
+      case 'agent':
       case 'mic':
+      case 'user':
         return {
-          container: 'bg-green-50 border-l-4 border-green-400',
-          badge: 'bg-green-100 text-green-800 border-green-200',
-          text: 'text-green-900'
+          container: 'bg-emerald-50/50 border-l-4 border-emerald-400 backdrop-blur-sm',
+          badge: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          text: 'text-emerald-950 font-medium'
         }
       default:
         return {
-          container: 'bg-gray-50 border-l-4 border-gray-400',
-          badge: 'bg-gray-100 text-gray-800 border-gray-200',
-          text: 'text-gray-900'
+          container: 'bg-slate-50 border-l-4 border-slate-300',
+          badge: 'bg-slate-100 text-slate-800 border-slate-200',
+          text: 'text-slate-900'
         }
     }
   }
 
   const getSpeakerLabel = (speaker: string) => {
-    switch (speaker) {
-      case 'interviewer': return 'Interviewer'
-      case 'candidate': return 'Candidate'
-      case 'speaker': return 'System Audio'
-      case 'mic': return 'Microphone'
-      default: return 'Unknown'
+    const s = speaker.toLowerCase()
+    switch (s) {
+      case 'interviewer':
+      case 'caller':
+        return interviewerLabel
+      case 'system':
+        return 'System'
+      case 'candidate':
+      case 'agent':
+      case 'mic':
+        return agentLabel
+      case 'user':
+        return 'You'
+      default:
+        return speaker.charAt(0).toUpperCase() + speaker.slice(1)
     }
   }
 

@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       allowedOrigins: ['localhost:3000', 'localhost:3001'],
     },
+    workerThreads: false,
+    cpus: 1,
   },
 
   serverExternalPackages: ['fluent-ffmpeg'],

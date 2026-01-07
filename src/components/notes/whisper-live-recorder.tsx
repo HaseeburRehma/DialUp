@@ -54,12 +54,12 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
       maxClients: whisperliveSettings.maxClients,
       maxConnectionTime: whisperliveSettings.maxConnectionTime,
       audioSources: transcription.audioSources,
-
-      // ✅ Add these missing fields:
       enabled: whisperliveSettings.enabled ?? false,
       backend: whisperliveSettings.backend ?? 'faster_whisper',
       useVAD: whisperliveSettings.useVAD ?? false,
       lang: whisperliveSettings.lang ?? transcription.language ?? 'en',
+      agentLabel: 'Agent',
+      callerLabel: 'Caller',
     }), [
       transcription.language,
       transcription.audioSources,
@@ -139,7 +139,9 @@ export const WhisperLiveRecorder = forwardRef<WhisperLiveHandle, Props>(
     ]);
 
     function resetSegments() {
-      throw new Error('Function not implemented.');
+      // hook provides clearTranscript, we should probably add clearSegments there too
+      // but for now we can just use the provided methods
+      clearTranscript();
     }
 
     return (
