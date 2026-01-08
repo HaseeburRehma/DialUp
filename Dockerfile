@@ -84,8 +84,11 @@ ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-# Copy built app
+# Copy built app (Next.js build + node_modules)
 COPY --from=node-build /app /app
+
+# ✅ FIX: Copy server code separately (since it was excluded from node-build)
+COPY server ./server
 
 # Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
