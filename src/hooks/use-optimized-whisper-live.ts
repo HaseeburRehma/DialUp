@@ -439,7 +439,7 @@ export function useOptimizedWhisperLive(
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
-  // ... (previous refs)
+
 
   // Optimized transcription start
   const startTranscription = useCallback(async () => {
@@ -484,7 +484,7 @@ export function useOptimizedWhisperLive(
       ctxRef.current = ctx;
       sampleRateRef.current = ctx.sampleRate;
 
-      // 🎤 MIC PROCESSOR
+      // MIC PROCESSOR
       if (micStream) {
         const micSource = ctx.createMediaStreamSource(micStream);
         const micProcessor = ctx.createScriptProcessor(config.optimization?.chunkSize || 4096, 1, 1);
@@ -514,7 +514,7 @@ export function useOptimizedWhisperLive(
         processorMicRef.current = micProcessor;
       }
 
-      // 🔊 SYSTEM PROCESSOR
+      //  SYSTEM PROCESSOR
       if (systemStream) {
         const sysSource = ctx.createMediaStreamSource(systemStream);
         const sysProcessor = ctx.createScriptProcessor(config.optimization?.chunkSize || 4096, 1, 1);
@@ -577,15 +577,14 @@ export function useOptimizedWhisperLive(
 
     //  Handle recording upload
     if (config.saveRecording) {
-      // Robustly wait for MediaRecorder to stop and flush all data
+
       await new Promise<void>(resolve => {
         if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
           resolve();
           return;
         }
 
-        // requestData() forces a 'dataavailable' event with the current blob of data
-        // ensuring we capture everything up to this moment before stopping.
+
         mediaRecorderRef.current.requestData();
 
         mediaRecorderRef.current.onstop = () => {
@@ -653,13 +652,13 @@ export function useOptimizedWhisperLive(
       }
     }
 
-    // 🧠 Close AudioContext
+    //  Close AudioContext
     if (ctxRef.current && ctxRef.current.state !== 'closed') {
       await ctxRef.current.close()
       ctxRef.current = null
     }
 
-    // ✅ Update state
+    //  Update state
     setState(s => ({ ...s, isTranscribing: false }))
   }, [config, toast])
 

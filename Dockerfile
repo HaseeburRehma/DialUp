@@ -35,7 +35,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-dev \
  && rm -rf /var/lib/apt/lists/*
 
-COPY server ./server
+# ✅ OPTIMIZATION: Copy ONLY requirements first to cache pip installs
+COPY server/requirement.txt ./server/
+COPY server/WhisperLive/requirements ./server/WhisperLive/requirements/
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
