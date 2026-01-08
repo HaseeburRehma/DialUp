@@ -62,7 +62,10 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev
 
-COPY . .
+# ✅ OPTIMIZATION: Copy ONLY frontend source code to prevent backend changes from triggering rebuilds
+COPY next.config.ts postcss.config.js tailwind.config.ts tsconfig.json next-env.d.ts ./
+COPY src ./src
+COPY public ./public
 
 ENV NODE_OPTIONS="--max-old-space-size=1024"
 
