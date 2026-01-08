@@ -61,6 +61,9 @@ server/WhisperLive/.venv/
 
 # (you may also want to ignore other .exe/.dll under site-packages)
 .next/
+# Runtime audio artifacts (DO NOT COMMIT)
+public/audio/*
+!public/audio/.gitkeep
 
 setup_venv.sh
 server/bin/ffmpeg.exe
