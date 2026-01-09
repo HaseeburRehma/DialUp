@@ -57,6 +57,7 @@ RUN npm install autoprefixer postcss && npm ci
 # Copy shared backend deps FIRST (rarely change)
 COPY server/models ./server/models
 COPY server/utils ./server/utils
+COPY server/config ./server/config
 
 # Then frontend (changes more often)
 COPY next.config.ts ./
