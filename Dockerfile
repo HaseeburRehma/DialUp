@@ -40,16 +40,25 @@ RUN pip install --upgrade pip && \
 
 
 # ============================
-# 3. Node Build (AWS ECR)
+# 3. Node Build (Frontend ONLY)
 # ============================
 FROM public.ecr.aws/docker/library/node:20-slim AS node-build
 
+ENV NODE_OPTIONS="--max-old-space-size=4096" \
+    NEXT_TELEMETRY_DISABLED=1
+
 WORKDIR /app
 
+# Install deps
 COPY package.json package-lock.json* ./
 RUN npm install autoprefixer postcss && npm ci
 
-COPY . .
+# Copy ONLY what Next.js needs
+COPY next.config.ts ./
+COPY public ./public
+COPY src ./src
+COPY tsconfig.json* ./
+
 RUN npm run build
 
 
@@ -66,7 +75,7 @@ ENV PATH="/usr/local/bin:/usr/local/lib/node_modules/npm/bin:$PATH"
 COPY --from=python-deps /usr/local/lib/python3.11 /usr/local/lib/python3.11
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-# App
+# App files
 COPY --from=node-build /app /app
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
