@@ -45,7 +45,7 @@ RUN pip install --upgrade pip && \
 FROM public.ecr.aws/docker/library/node:20-slim AS node-build
 
 ENV NODE_OPTIONS="--max-old-space-size=4096" \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production
 
 WORKDIR /app
