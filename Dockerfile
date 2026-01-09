@@ -46,6 +46,7 @@ FROM public.ecr.aws/docker/library/node:20-slim AS node-build
 
 ENV NODE_OPTIONS="--max-old-space-size=4096" \
     NEXT_TELEMETRY_DISABLED=1
+    NODE_ENV=production
 
 WORKDIR /app
 
@@ -53,11 +54,16 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm install autoprefixer postcss && npm ci
 
-# Copy ONLY what Next.js needs
+# Copy shared backend deps FIRST (rarely change)
+COPY server/models ./server/models
+COPY server/utils ./server/utils
+
+# Then frontend (changes more often)
 COPY next.config.ts ./
 COPY public ./public
 COPY src ./src
 COPY tsconfig.json* ./
+
 
 RUN npm run build
 
@@ -77,6 +83,10 @@ COPY --from=python-deps /usr/local/bin /usr/local/bin
 
 # App files
 COPY --from=node-build /app /app
+
+# ✅ FIX: Copy full server code for runtime (Express server needs index.js etc)
+COPY server ./server
+
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 WORKDIR /app
