@@ -46,17 +46,15 @@ export const authOptions = {
       return token
     },
     async session({ session, token }) {
-      // ❗ Only return a session if a valid token exists
-      if (!token?.id) return null
-
-      session.user = {
-        id: token.id,
-        role: token.role,
-        plan: token.plan,
-        name: token.name || session.user?.name || '',
-        email: token.email || session.user?.email || '',
+      if (token?.id) {
+        session.user = {
+          id: token.id,
+          role: token.role,
+          plan: token.plan,
+          name: token.name,
+          email: token.email,
+        }
       }
-
       return session
     },
   },
@@ -68,16 +66,18 @@ export const authOptions = {
   },
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === "production"
-        ? "__Secure-next-auth.session-token"
-        : "next-auth.session-token",
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-next-auth.session-token"
+          : "next-auth.session-token",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: "none",
+        secure: true,
         path: "/",
-        secure: process.env.NODE_ENV === "production",
       },
     },
   },
+
 
 }

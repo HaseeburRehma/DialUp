@@ -1,4 +1,6 @@
 
+// src/app/api/folders/route.ts
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from "next-auth/jwt"
 import { connect } from '../../../../server/utils/db.js'

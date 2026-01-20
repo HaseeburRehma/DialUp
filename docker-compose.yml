@@ -6,33 +6,29 @@ services:
     build:
       context: .
       target: runtime
-    command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
+    container_name: voiceai-app
+    restart: unless-stopped
     ports:
       - "3000:3000"
-      - "4000:4000"
+      - "4001:4001"
     env_file:
       - .env
     environment:
       NODE_ENV: production
       CUDA_VISIBLE_DEVICES: ""
-    networks:
-      - voipnet
-
-  whisper:
-    image: voiceai:latest
-    command: python3 -u server/WhisperLive/run_server.py --port 4000 --backend faster_whisper
-    restart: unless-stopped
-    expose:
-      - "4000"
-      - "4001"
+      PORT: 3000
+      WHISPER_PORT: 4000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4001/healthz"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
       start_period: 60s
     networks:
       - voipnet
+    volumes:
+      # Optional: persist logs
+      - ./logs:/var/log/supervisor
 
 networks:
   voipnet:
