@@ -2,35 +2,34 @@ version: "3.9"
 
 services:
   app:
-    image: voiceai:latest
-    build:
-      context: .
-      target: runtime
-    container_name: voiceai-app
-    restart: unless-stopped
+    build: .
+    command: supervisord -c /etc/supervisor/conf.d/supervisord.conf
     ports:
-      - "3000:3000"
+      - "3000:3000"   # Next.js
+      - "4000:4000"   # Whisper backend proxied through app
     env_file:
       - .env
     environment:
       NODE_ENV: production
-      PORT: 3000
-      WHISPER_HOST: whisper
-      WHISPER_PORT: 4001
     depends_on:
       whisper:
         condition: service_healthy
     networks:
       - voipnet
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./next.config.js:/app/next.config.js
 
   whisper:
-    image: voiceai:latest
-    container_name: voiceai-whisper
-    command: python3 -u server/WhisperLive/run_server.py --port 4001 --backend faster_whisper
+    build:
+      context: .
+    command: python3 -u server/WhisperLive/run_server.py --port 4000 --backend faster_whisper
+    container_name: whisper
     restart: unless-stopped
     expose:
-      - "4001"
       - "4000"
+      - "4001"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4001/healthz"]
       interval: 20s
