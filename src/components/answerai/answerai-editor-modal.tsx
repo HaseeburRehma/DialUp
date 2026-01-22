@@ -53,7 +53,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
 
   const [questions, setQuestions] = useState<Question[]>(session?.questions || [])
   const [answers, setAnswers] = useState<Answer[]>(session?.answers || [])
-  const [segments, setSegments] = useState<AnswerAISegment[]>([])
+  
   const [transcript, setTranscript] = useState(session?.transcript || '')
   const [totalDuration, setTotalDuration] = useState(session?.totalDuration || 0)
   const [isSaving, setIsSaving] = useState(false)
@@ -144,16 +144,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
     }
   }, [formData])
 
-  const handleSegments = useCallback((newSegments: AnswerAISegment[]) => {
-    setSegments(newSegments)
-    // Update duration based on segments only if we are recording (detected by time passing)
-    const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000)
-    if (newSegments.length > 0 && elapsed > 0) {
-      // For existing sessions, we want to add to the existing duration if recording
-      // But for now, let's just make sure we don't overwrite with 0 during init
-      setTotalDuration(prev => Math.max(prev, elapsed))
-    }
-  }, [])
+ 
 
   const handleQuestionDetected = useCallback((question: Question | null) => {
     if (!question) return; // early return if null
@@ -282,9 +273,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
       const mergedAudioUrls = Array.from(new Set([...existingUrls, ...validNewUrls]))
 
       // Construct transcript from segments if they exist, otherwise use existing transcript state
-      let finalTranscript = segments.length > 0
-        ? segments.map(seg => `[${seg.speaker.toUpperCase()}]: ${seg.content}`).join('\n')
-        : transcript || ''
+      let finalTranscript = transcript
 
       // Prepare payload
       const payload = {
@@ -393,7 +382,7 @@ export function AnswerAIEditorModal({ open, session, onClose, onSave }: AnswerAI
             <AnswerAIRecorder
               ref={recorderRef}
               sessionId={session?.id}
-              onSegments={handleSegments}
+            
               onQuestionDetected={handleQuestionDetected}
               onAnswerGenerated={handleAnswerGenerated}
               position={formData.position}

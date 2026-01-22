@@ -49,7 +49,7 @@ export interface AnswerAIRecorderHandle {
 }
 interface AnswerAIRecorderProps {
   sessionId?: string;
-  onSegments: (segments: AnswerAISegment[]) => void;
+  onSegments?: (segments: AnswerAISegment[]) => void;
   onQuestionDetected: (question: Question | null) => void;
   onAnswerGenerated: (answer: Answer) => void;
   onUploadComplete?: (recordings: Recording[]) => void;
@@ -205,7 +205,7 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
 
         if (parsedSegments.length > 0) {
           setConvertedSegments(parsedSegments);
-          onSegments(parsedSegments);
+          onSegments?.(parsedSegments);
         }
       }
     }, [initialQuestions, initialTranscript]);
@@ -466,7 +466,8 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       if (whisperState.isTranscribing || whisperState.segments.length > 0) {
         const segments = convertToAnswerAISegments(whisperState.segments);
         setConvertedSegments(segments);
-        onSegments(segments);
+        onSegments?.(segments);
+
       }
     }, [whisperState.segments, whisperState.isTranscribing, convertToAnswerAISegments, onSegments]);
 
@@ -475,12 +476,9 @@ export const AnswerAIRecorder = forwardRef<AnswerAIRecorderHandle, AnswerAIRecor
       if (whisperState.segments.length === 0) return;
 
       const answerAISegments = convertToAnswerAISegments(whisperState.segments);
-      onSegments(answerAISegments);
+      onSegments?.(answerAISegments);
 
-      const fullTranscript = answerAISegments
-        .map((seg) => `[${seg.speaker.toUpperCase()}]: ${seg.content}`)
-        .join('\n');
-      setTranscriptText(fullTranscript);
+     
 
       if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
 

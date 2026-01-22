@@ -39,7 +39,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # ============================
 FROM node:20.17.0-slim AS node-build
 WORKDIR /app
-
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_TELEMETRY_DISABLED=1
 COPY package.json package-lock.json* ./
 RUN npm ci
 

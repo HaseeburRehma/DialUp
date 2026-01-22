@@ -49,6 +49,40 @@ interface OptimizedWhisperLiveState {
   connectionQuality: 'excellent' | 'good' | 'poor'
   latency: number
 }
+function appendTranscript(
+  existing: string,
+  text: string,
+  speaker: string
+) {
+  if (!existing) {
+    return `${speaker}:\n${text}`;
+  }
+
+  const needsNewParagraph = !existing.endsWith('\n\n');
+  return `${existing}${needsNewParagraph ? '\n\n' : ''}${speaker}:\n${text}`;
+}
+
+function humanize(text: string) {
+  return text
+    .replace(/\b(um+|uh+|erm+|ah+)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\bi mean\b/gi, '')
+    .replace(/\bkind of\b/gi, '')
+    .replace(/\bsort of\b/gi, '')
+    .replace(/\s+([.,!?])/g, '$1')
+    .trim()
+}
+function floatTo16BitPCM(float32: Float32Array) {
+  const buffer = new ArrayBuffer(float32.length * 2);
+  const view = new DataView(buffer);
+  let offset = 0;
+
+  for (let i = 0; i < float32.length; i++, offset += 2) {
+    let s = Math.max(-1, Math.min(1, float32[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return buffer;
+}
 
 // Optimized WAV encoding with better performance
 function encodeWAVOptimized(
@@ -145,6 +179,8 @@ export function useOptimizedWhisperLive(
   const intervalRefs = useRef<NodeJS.Timeout[]>([])
   const uidRef = useRef(`user-${Math.random().toString(36).slice(2, 11)}`)
   const isMounted = useRef(true)
+  const lastCommitTimeRef = useRef<number>(0)
+  const lastSpeakerRef = useRef<'agent' | 'caller' | null>(null)
 
   const { toast } = useToast()
 
@@ -184,6 +220,12 @@ export function useOptimizedWhisperLive(
 
       // ✅ NEW: Also clean up old segment history (keep last 100 entries within 5 minutes)
       const now = Date.now();
+      if (
+        normalized === lastProcessedMessageRef.current &&
+        now - lastCommitTimeRef.current < 800
+      ) {
+        return;
+      }
       const fiveMinutesAgo = now - 5 * 60 * 1000;
 
       for (const [key, timestamp] of Array.from(segmentHistoryRef.current.entries())) {
@@ -239,19 +281,21 @@ export function useOptimizedWhisperLive(
         save_recording: config.saveRecording,
         output_filename: `${config.outputFilename}-${role}.wav`,
         sample_rate: sampleRateRef.current,
+       
 
         // ✅ CRITICAL SERVER SETTINGS for instant transcription
-        chunk_size: 1024,                   // ✅ Very small = process immediately
+        chunk_size: 4096,                   // ✅ Very small = process immediately
         beam_size: 1,                       // ✅ Fastest decoding (greedy)
         best_of: 1,                         // ✅ No sampling, instant results
 
         // ✅ Deduplication settings
         same_output_threshold: 0.0,         // ✅ DISABLED: Let client handle dedup
-        no_speech_thresh: 0.6,              // ✅ Higher = less false positives
+        no_speech_thresh: 0.0,              // ✅ Higher = less false positives
+        // ✅ DISABLED: Let client handle dedup
 
         // Additional speed optimizations
-        condition_on_previous_text: false,  // ✅ Don't wait for context
-        prompt_reset_on_temperature: 0.5
+        condition_on_previous_text: true,  // ✅ Don't wait for context
+        prompt_reset_on_temperature: 0.0
       }));
     };
 
@@ -268,105 +312,39 @@ export function useOptimizedWhisperLive(
       try {
         const msg = JSON.parse(e.data);
 
-        if (Array.isArray(msg.segments)) {
-          const now = Date.now();
-          const newSegments: Segment[] = [];
 
-          for (const wsSeg of msg.segments) {
-            const fullText = (wsSeg.text || '').trim();
-            if (!fullText || fullText.length < 2) continue;
 
-            const lastFullTextKey = `last_full_text_${role}`;
-            const pendingTextKey = `pending_sentence_${role}`;
+        if (msg.type === 'final' && msg.text) {
+          const raw = msg.text.trim()
+          if (!raw) return
 
-            const lastFullText = sessionStorage.getItem(lastFullTextKey) || '';
-            let pendingText = sessionStorage.getItem(pendingTextKey) || '';
 
-            // 1. Extract the new delta
-            let delta = fullText;
-            if (fullText.startsWith(lastFullText)) {
-              delta = fullText.substring(lastFullText.length).trim();
-            } else {
-              const minMatch = 10;
-              if (lastFullText.length > minMatch) {
-                const tail = lastFullText.slice(-minMatch);
-                const overlapIdx = fullText.indexOf(tail);
-                if (overlapIdx !== -1) {
-                  delta = fullText.substring(overlapIdx + minMatch).trim();
-                }
-              }
-            }
 
-            if (!delta) continue;
+          const normalized = normalizeText(raw)
+          if (normalized === lastProcessedMessageRef.current) return
+          lastProcessedMessageRef.current = normalized
 
-            // 2. Append delta to pending buffer
-            pendingText = (pendingText + ' ' + delta).trim();
+          const now = Date.now()
+          const isNewParagraph = now - lastCommitTimeRef.current > 2500
+          lastCommitTimeRef.current = now
 
-            // 3. Split by sentence boundaries (keep the punctuation)
-            const sentenceParts = pendingText.match(/[^.?!]+[.?!]+(?=\s|$)|[^.?!]+$/g);
+          const speaker =
+            role === 'agent'
+              ? (config.agentLabel || 'Candidate')
+              : (config.callerLabel || 'Interviewer')
 
-            if (sentenceParts) {
-              let latestPending = '';
+          const speakerChanged = lastSpeakerRef.current !== role
+          lastSpeakerRef.current = role
 
-              for (let i = 0; i < sentenceParts.length; i++) {
-                const part = sentenceParts[i].trim();
-
-                if (/[.?!]$/.test(part)) {
-                  if (part.length < 3) continue;
-
-                  const normPart = normalizeText(part);
-                  const isRecentDup = Array.from(segmentHistoryRef.current.entries())
-                    .some(([prevNorm, prevTime]) => {
-                      if (now - prevTime > 15000) return false;
-                      return prevNorm.includes(normPart) || normPart.includes(prevNorm);
-                    });
-
-                  if (!isRecentDup) {
-                    newSegments.push({
-                      id: `${role}-${now}-${i}-${Math.random().toString(36).slice(2, 6)}`,
-                      speaker: role,
-                      text: part,
-                      content: part,
-                      isFinal: true,
-                      timestamp: now,
-                      confidence: wsSeg.confidence ?? 0.82
-                    });
-                    segmentHistoryRef.current.set(normPart, now);
-                  }
-                } else {
-                  latestPending = part;
-                }
-              }
-
-              sessionStorage.setItem(pendingTextKey, latestPending);
-            }
-
-            sessionStorage.setItem(lastFullTextKey, fullText);
-          }
-
-          if (newSegments.length) {
-            setState(s => ({
-              ...s,
-              segments: [...s.segments, ...newSegments],
-              isTranscribing: true
-            }));
-          }
+          setState(s => ({
+            ...s,
+            transcript: s.transcript
+              ? `${s.transcript}${speakerChanged ? `\n\n${speaker}:\n` : ' '}${raw}`
+              : `${speaker}:\n${raw}`
+          }))
         }
 
-        if ((msg.type === 'final' || msg.type === 'transcript') && msg.text) {
-          const t = msg.text.trim();
-          if (t && !isDuplicate(t)) {
-            addToHistory(t);
-            const agentLbl = config.agentLabel || 'Candidate';
-            const callerLbl = config.callerLabel || 'Employer';
-            setState(s => ({
-              ...s,
-              transcript: s.transcript
-                ? `${s.transcript}\n👤 ${role === 'agent' ? agentLbl : callerLbl}\n${t}`
-                : `👤 ${role === 'agent' ? agentLbl : callerLbl}\n${t}`,
-            }));
-          }
-        }
+
       } catch (error) {
         logError('[OptimizedWhisperLive] Message parsing error', error)
       }
@@ -494,8 +472,7 @@ export function useOptimizedWhisperLive(
         micProcessor.onaudioprocess = (e) => {
           const input = e.inputBuffer.getChannelData(0);
           const clone = new Float32Array(input);
-          const rms = Math.sqrt(clone.reduce((s, v) => s + v * v, 0) / clone.length);
-          if (rms < 0.0002) return;
+          
 
           // visualize (only from mic to keep UI simple)
           const ui8 = new Uint8Array(clone.length);
@@ -506,7 +483,8 @@ export function useOptimizedWhisperLive(
           setDataUpdateTrigger((t) => t + 1);
 
           if (wsMicRef.current?.readyState === WebSocket.OPEN) {
-            wsMicRef.current.send(clone.buffer);
+            wsMicRef.current.send(floatTo16BitPCM(clone));
+
           }
           // Note: We no longer push to recordingBuffers.current here for upload purposes
           // to save memory, as MediaRecorder handles it.
